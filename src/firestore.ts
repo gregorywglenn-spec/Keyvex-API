@@ -129,6 +129,55 @@ export async function getDbIfLive(): Promise<FirestoreInstance | null> {
   return getLiveDb();
 }
 
+// ─── Cross-project health-check telemetry ──────────────────────────────────
+
+/**
+ * Telemetry write for cross-project health-check monitoring. Called at
+ * the end of each scheduled scraper to record that the cron fired and
+ * finished successfully. Derek's project (`capital-edge-d5038`) uses the
+ * same `/meta/{jobName}` convention; both projects' `scheduledHealthCheck`
+ * functions read these docs to alert on stale crons via a shared Slack
+ * webhook.
+ *
+ * Field name `lastSyncedAt` is REQUIRED and load-bearing — Derek's
+ * health-check looks for that exact name first, with fallbacks for
+ * `lastRunAt`, `lastFinishedAt`, `completedAt`, `lastChecked`. We canonical
+ * on `lastSyncedAt`.
+ *
+ * Wrapped in try/catch — a Firestore hiccup on the meta write should not
+ * propagate up and poison an otherwise-successful sync. Only call this
+ * AFTER the actual save completes; a failed scrape should NOT write the
+ * meta doc, otherwise the health-check sees a phantom "successful" run.
+ *
+ * In stub mode (no Firestore credentials), no-op silently — local CLI
+ * scrapers run without telemetry.
+ */
+export async function writeJobMeta(
+  jobName: string,
+  options: {
+    started: number;
+    docsWritten?: number;
+    errors?: number;
+    stats?: Record<string, unknown>;
+  },
+): Promise<void> {
+  if (isStubMode()) return;
+  try {
+    const db = await getLiveDb();
+    const payload: Record<string, unknown> = {
+      lastSyncedAt: new Date(),
+      durationMs: Date.now() - options.started,
+    };
+    if (options.docsWritten !== undefined) payload.docsWritten = options.docsWritten;
+    if (options.errors !== undefined) payload.errors = options.errors;
+    if (options.stats !== undefined) payload.stats = options.stats;
+    await db.collection("meta").doc(jobName).set(payload, { merge: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[meta] write to /meta/${jobName} failed: ${msg}`);
+  }
+}
+
 // ─── Public query API ───────────────────────────────────────────────────────
 
 export interface QueryResult<T> {

@@ -34,6 +34,7 @@ import { logger } from "firebase-functions/v2";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import {
+  getLiveDb,
   saveActivistOwnership,
   saveCongressionalTrades,
   saveFederalContractAwards,
@@ -45,7 +46,9 @@ import {
   saveLegislatorsHistorical,
   saveLobbyingFilings,
   saveMaterialEvents,
+  writeJobMeta,
 } from "../../src/firestore.js";
+import { runHealthCheck } from "./health-check.js";
 import {
   applyToolHandlers,
   createMcpServer,
@@ -88,13 +91,17 @@ export const scrape8kHourly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[8k-hourly] starting (1-day lookback)");
     const events = await scrape8kLiveFeed(1);
     logger.info(`[8k-hourly] scraper returned ${events.length} filings`);
+    let docsWritten = 0;
     if (events.length > 0) {
       const r = await saveMaterialEvents(events);
       logger.info(`[8k-hourly] saved ${r.saved} filings to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("materialEventsSync", { started, docsWritten });
   },
 );
 
@@ -113,13 +120,17 @@ export const scrapeForm4HalfHourly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[form4] starting (2-day lookback)");
     const trades = await scrapeForm4LiveFeed(2);
     logger.info(`[form4] scraper returned ${trades.length} trades`);
+    let docsWritten = 0;
     if (trades.length > 0) {
       const r = await saveInsiderTransactions(trades);
       logger.info(`[form4] saved ${r.saved} trades to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("insiderTradesSync", { started, docsWritten });
   },
 );
 
@@ -137,13 +148,17 @@ export const scrapeForm144Hourly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[form144] starting (2-day lookback)");
     const filings = await scrapeForm144LiveFeed(2);
     logger.info(`[form144] scraper returned ${filings.length} filings`);
+    let docsWritten = 0;
     if (filings.length > 0) {
       const r = await saveForm144Filings(filings);
       logger.info(`[form144] saved ${r.saved} filings to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("plannedInsiderSalesSync", { started, docsWritten });
   },
 );
 
@@ -161,13 +176,17 @@ export const scrapeForm3Hourly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[form3] starting (2-day lookback)");
     const holdings = await scrapeForm3LiveFeed(2);
     logger.info(`[form3] scraper returned ${holdings.length} holdings`);
+    let docsWritten = 0;
     if (holdings.length > 0) {
       const r = await saveForm3Holdings(holdings);
       logger.info(`[form3] saved ${r.saved} holdings to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("initialOwnershipBaselinesSync", { started, docsWritten });
   },
 );
 
@@ -186,13 +205,17 @@ export const scrapeActivistHourly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[13d-13g] starting (3-day lookback)");
     const rows = await scrapeActivistLiveFeed(3);
     logger.info(`[13d-13g] scraper returned ${rows.length} rows`);
+    let docsWritten = 0;
     if (rows.length > 0) {
       const r = await saveActivistOwnership(rows);
       logger.info(`[13d-13g] saved ${r.saved} rows to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("activistOwnershipSync", { started, docsWritten });
   },
 );
 
@@ -213,15 +236,18 @@ export const scrape13FQuarterHourly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[13f] starting (30-day lookback across tracked funds)");
-    const { getLiveDb } = await import("../../src/firestore.js");
     const db = await getLiveDb();
     const holdings = await scrape13FLiveFeed({ db, days: 30 });
     logger.info(`[13f] scraper returned ${holdings.length} holdings`);
+    let docsWritten = 0;
     if (holdings.length > 0) {
       const r = await saveInstitutionalHoldings(holdings);
       logger.info(`[13f] saved ${r.saved} holdings to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("institutional13FSync", { started, docsWritten });
   },
 );
 
@@ -241,13 +267,20 @@ export const scrapeSenateDaily = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[senate] starting (7-day lookback)");
     const trades = await scrapeSenateLiveFeed({ lookbackDays: 7 });
     logger.info(`[senate] scraper returned ${trades.length} trades`);
+    let docsWritten = 0;
     if (trades.length > 0) {
       const r = await saveCongressionalTrades(trades);
       logger.info(`[senate] saved ${r.saved} trades to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    // senate scraper not in Derek's monitored JOBS array (his project's
+    // congressional_trades is canonical), but writing telemetry for
+    // consistency + future visibility.
+    await writeJobMeta("senatePtrSync", { started, docsWritten });
   },
 );
 
@@ -265,16 +298,21 @@ export const scrapeHouseDaily = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[house] starting (7-day lookback, --extract)");
     const { trades } = await scrapeHouseLiveFeed({
       lookbackDays: 7,
       extractTrades: true,
     });
     logger.info(`[house] scraper returned ${trades.length} trades`);
+    let docsWritten = 0;
     if (trades.length > 0) {
       const r = await saveCongressionalTrades(trades);
       logger.info(`[house] saved ${r.saved} trades to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    // house scraper not in Derek's monitored JOBS array; consistency-only meta.
+    await writeJobMeta("housePtrSync", { started, docsWritten });
   },
 );
 
@@ -292,13 +330,17 @@ export const scrapeUSAspendingDaily = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[usaspending] starting (7-day lookback)");
     const awards = await scrapeContractsLiveFeed(7);
     logger.info(`[usaspending] scraper returned ${awards.length} awards`);
+    let docsWritten = 0;
     if (awards.length > 0) {
       const r = await saveFederalContractAwards(awards);
       logger.info(`[usaspending] saved ${r.saved} awards to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("federalContractsSync", { started, docsWritten });
   },
 );
 
@@ -329,12 +371,16 @@ export const scrapeLDADaily = onSchedule(
             ? "third_quarter"
             : "fourth_quarter";
     logger.info(`[lda] starting (${year} ${period}, max=1000)`);
+    const started = Date.now();
     const filings = await scrapeLobbyingByPeriod(year, period, 1000);
     logger.info(`[lda] scraper returned ${filings.length} filings`);
+    let docsWritten = 0;
     if (filings.length > 0) {
       const r = await saveLobbyingFilings(filings);
       logger.info(`[lda] saved ${r.saved} filings to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    await writeJobMeta("lobbyingFilingsSync", { started, docsWritten });
   },
 );
 
@@ -354,13 +400,18 @@ export const scrapeBioguideWeekly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[bioguide] starting weekly refresh");
     const legislators = await scrapeBioguideCatalog();
     logger.info(`[bioguide] scraper returned ${legislators.length} members`);
+    let docsWritten = 0;
     if (legislators.length > 0) {
       const r = await saveLegislators(legislators);
       logger.info(`[bioguide] saved ${r.saved} legislators to ${r.collection}`);
+      docsWritten = r.saved;
     }
+    // legislators not in Derek's JOBS (his /congress is canonical); consistency-only.
+    await writeJobMeta("legislatorsSync", { started, docsWritten });
   },
 );
 
@@ -379,16 +430,68 @@ export const scrapeBioguideHistoricalMonthly = onSchedule(
     retryCount: 0,
   },
   async () => {
+    const started = Date.now();
     logger.info("[bioguide-historical] starting monthly refresh");
     const legislators = await scrapeBioguideHistorical();
     logger.info(
       `[bioguide-historical] scraper returned ${legislators.length} members`,
     );
+    let docsWritten = 0;
     if (legislators.length > 0) {
       const r = await saveLegislatorsHistorical(legislators);
       logger.info(
         `[bioguide-historical] saved ${r.saved} legislators to ${r.collection}`,
       );
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("legislatorsHistoricalSync", { started, docsWritten });
+  },
+);
+
+// ─── Cross-project health-check (Slack alerts to shared channel) ─────────
+
+/**
+ * Slack incoming-webhook URL stored in Google Secret Manager. Set via:
+ *   firebase functions:secrets:set SLACK_HEALTHCHECK_WEBHOOK
+ *
+ * The same webhook is used by Derek's project (`capital-edge-d5038`) so
+ * both projects' alerts land in the same Slack channel. Messages are
+ * prefixed with `[capitaledge-api]` (this project) or `[capital-edge-d5038]`
+ * (Derek's) so the recipient can tell which project alerted at a glance.
+ */
+const SLACK_HEALTHCHECK_WEBHOOK = defineSecret("SLACK_HEALTHCHECK_WEBHOOK");
+
+/**
+ * Daily cron-freshness audit. Reads /meta/{jobName} for each monitored
+ * scraper, checks lastSyncedAt is within thresholds, posts to Slack on
+ * status CHANGE only (healthy weeks produce zero messages).
+ *
+ * Schedule: 12:30 ET daily — offset 30 minutes after Derek's 12:00 ET
+ * health-check so the two projects don't compete for resources or hit
+ * Firestore at the same instant.
+ */
+export const scheduledHealthCheck = onSchedule(
+  {
+    schedule: "30 12 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    secrets: [SLACK_HEALTHCHECK_WEBHOOK],
+    retryCount: 0,
+  },
+  async () => {
+    try {
+      const db = await getLiveDb();
+      const result = await runHealthCheck({
+        db,
+        slackWebhookUrl: SLACK_HEALTHCHECK_WEBHOOK.value(),
+        logger,
+      });
+      logger.info("[health-check] result:", result);
+    } catch (err) {
+      logger.error("[health-check] failed:", err);
+      throw err;
     }
   },
 );
