@@ -310,7 +310,7 @@ What runs end-to-end **right now**:
 
 ## What's Open / Next Up
 
-Day 7 (2026-05-07) end-of-day. **9 MCP tools live, server v0.16.0, 12 scrapers running autonomously, KeyVex landing page live at `capitaledge-api.web.app`, custom domain mapping for `mcp.keyvex.com` in DNS-propagation phase.** v1 + v2 build closed; rebrand to KeyVex shipped (v0.15.0); cross-project health-check shipped (v0.16.0); GitHub repo renamed to `Keyvex-API`; Firebase Hosting multi-site setup live.
+Day 7 (2026-05-07) end-of-day. **9 MCP tools live, server v0.16.0, 13 autonomous scrapers running across the unified KeyVex operation (8 in this codebase + 5 in the sibling dashboard codebase), KeyVex landing page live at `capitaledge-api.web.app`, custom domain `https://mcp.keyvex.com` LIVE with TLS.** v1 + v2 build closed; rebrand to KeyVex shipped (v0.15.0); cross-project health-check shipped (v0.16.0); GitHub repo renamed to `Keyvex-API`; Firebase Hosting multi-site setup live.
 
 ### DNS-blocked items (waiting on propagation; nothing for Greg to do)
 
@@ -616,7 +616,7 @@ Single intense session focused on shipping the public-facing pieces. Eight commi
 - **`049a568` — KeyVex landing page deployed LIVE.** `marketing/site/index.html`: single self-contained HTML with embedded CSS, ~23 KB on the wire. Pure dark default (no OS-theme switching), brand green (`#4dff20`) accent throughout, `PLAN. EXECUTE. ELEVATE.` slogan. All 7 sections from the copy draft. Mobile-responsive. Updated `firebase.json` to multi-site Hosting (the `hosting` block is now an array of two entries — keyvex-mcp + capitaledge-api). Deployed via `firebase deploy --only hosting:capitaledge-api`. Live at `https://capitaledge-api.web.app`. Logo files pending Greg's drop into `marketing/site/` (will swap into header + favicon when they land).
 
 State at end of Day 7:
-- **9 MCP tools live, server v0.16.0 advertised live, 12 scrapers running autonomously**, `scheduledHealthCheck` pinging Slack daily at 12:30 ET
+- **9 MCP tools live, server v0.16.0 advertised live, 13 autonomous scrapers across the unified KeyVex operation (8 in this codebase + 5 in the sibling dashboard codebase)**, `scheduledHealthCheck` pinging Slack daily at 12:30 ET
 - **Landing page live** at `https://capitaledge-api.web.app`
 - **MCP API endpoints**: `https://mcp.keyvex.com` (LIVE, customer-facing, TLS via Let's Encrypt) + `https://keyvex-mcp.web.app` (Hosting alias) + `https://us-central1-capitaledge-api.cloudfunctions.net/mcp` (canonical Cloud Functions URL, still works)
 - **Brand domain**: `keyvex.com` (DNS at GoDaddy now; custom-domain mappings to land in next session)

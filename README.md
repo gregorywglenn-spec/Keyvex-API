@@ -127,7 +127,7 @@ For the remote endpoint, one-click installation through Anthropic's MCP director
 - **Data layer:** Google Firestore via `firebase-admin`
 - **Hosting:** Firebase Cloud Functions Gen 2, region `us-central1`
 - **Auth:** API key in Google Secret Manager (`MCP_API_KEY`) for the public HTTP endpoint
-- **Scrapers:** 12 scheduled Cloud Functions, each owning one data source, writing to its own Firestore collection. No human in the loop.
+- **Scrapers:** 13 autonomous scrapers running on cron across the unified KeyVex operation (8 in this codebase covering SEC + USAspending + LDA; 5 in the sibling dashboard codebase covering congressional trades, member catalog, and Form 278 financial disclosures). No human in the loop.
 
 ---
 
@@ -169,7 +169,7 @@ src/
 └── index.ts               — stdio entry point (Claude Desktop)
 
 functions/
-├── src/index.ts           — Firebase Cloud Functions entry: 12 scheduled scrapers + the `mcp` HTTP function + a `scheduledHealthCheck` Slack pinger
+├── src/index.ts           — Firebase Cloud Functions entry: 12 scheduled scraper functions in this project (8 unique sources + 4 duplicates of dashboard-side scrapers, consolidation pending) + the `mcp` HTTP function + a `scheduledHealthCheck` Slack pinger
 ├── package.json           — minimal deps; rest bundled by esbuild
 └── tsconfig.json          — extends parent, includes ../src
 ```
@@ -186,7 +186,7 @@ The Firebase project ID `capitaledge-api` is permanent infrastructure (Google do
 
 ## Status
 
-Production. All 12 scrapers running autonomously on cron schedules in the `capitaledge-api` Firebase project. MCP server deployed as an authenticated HTTPS endpoint. Bioguide back-fill at 100% on congressional trades. Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
+Production. **All 13 autonomous scrapers** running on cron across the unified KeyVex operation (8 in this codebase, 5 in the sibling dashboard codebase). MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Bioguide back-fill at 100% on congressional trades. Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
 
 Custom domain (`mcp.keyvex.com`), public registry submissions (Anthropic / Smithery / Awesome-MCP / PulseMCP), and self-serve API key issuance are the next milestones.
 
