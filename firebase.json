@@ -2,6 +2,17 @@
   "firestore": {
     "indexes": "firestore.indexes.json"
   },
+  "hosting": {
+    "site": "keyvex-mcp",
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": { "serviceId": "mcp", "region": "us-central1" }
+      }
+    ]
+  },
   "functions": [
     {
       "source": "functions",
