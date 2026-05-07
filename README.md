@@ -54,15 +54,15 @@ Five separate disclosure sources joined by `ticker` + `bioguide_id` + `recipient
 ## Public endpoint
 
 ```
-https://us-central1-capitaledge-api.cloudfunctions.net/mcp
+https://mcp.keyvex.com
 ```
 
-A custom domain (`mcp.keyvex.com`) will be mapped on top of this URL once DNS work completes.
+Auto-managed TLS via Let's Encrypt. The canonical Cloud Functions URL (`https://us-central1-capitaledge-api.cloudfunctions.net/mcp`) still works and serves the same backend.
 
 ### Health check (no auth)
 
 ```bash
-curl https://us-central1-capitaledge-api.cloudfunctions.net/mcp
+curl https://mcp.keyvex.com
 ```
 
 Returns server version + tool count as JSON.
@@ -70,7 +70,7 @@ Returns server version + tool count as JSON.
 ### List tools (auth required)
 
 ```bash
-curl -X POST https://us-central1-capitaledge-api.cloudfunctions.net/mcp \
+curl -X POST https://mcp.keyvex.com \
   -H "Authorization: Bearer <YOUR_KEY>" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
@@ -80,7 +80,7 @@ curl -X POST https://us-central1-capitaledge-api.cloudfunctions.net/mcp \
 ### Call a tool
 
 ```bash
-curl -X POST https://us-central1-capitaledge-api.cloudfunctions.net/mcp \
+curl -X POST https://mcp.keyvex.com \
   -H "Authorization: Bearer <YOUR_KEY>" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \

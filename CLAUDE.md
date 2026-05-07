@@ -453,9 +453,11 @@ Day 7 (2026-05-07) end-of-day. **9 MCP tools live, server v0.16.0, 12 scrapers r
 - **Public MCP HTTPS endpoint via Hosting** (Day 7): `https://keyvex-mcp.web.app`
   - Same backend (Cloud Run rewrite via Firebase Hosting `keyvex-mcp` site)
   - Adds Firebase's auto-managed TLS layer
-- **Custom MCP domain (in DNS-propagation phase Day 7):** `https://mcp.keyvex.com`
-  - Mapped to the `keyvex-mcp` Hosting site in Firebase
-  - Pending: GoDaddy CNAME + ACME TXT records (waiting on nameserver propagation after switch from Afternic to GoDaddy defaults)
+- **Public custom MCP domain (LIVE Day 7 evening):** `https://mcp.keyvex.com`
+  - Mapped to the `keyvex-mcp` Hosting site in Firebase, rewrites to the `mcp` Cloud Run service
+  - TLS auto-managed via Let's Encrypt (renews automatically forever)
+  - DNS records added at GoDaddy: CNAME `mcp` → `keyvex-mcp.web.app` + TXT `_acme-challenge.mcp` (ACME challenge token)
+  - Verified working: `curl https://mcp.keyvex.com` returns the v0.16.0 health JSON
 - **Live KeyVex landing page** (Day 7): `https://capitaledge-api.web.app`
   - Static HTML served from `marketing/site/` via the `capitaledge-api` Hosting site (project's default site)
   - Will eventually be reachable at `https://keyvex.com` once apex DNS is mapped
@@ -616,7 +618,7 @@ Single intense session focused on shipping the public-facing pieces. Eight commi
 State at end of Day 7:
 - **9 MCP tools live, server v0.16.0 advertised live, 12 scrapers running autonomously**, `scheduledHealthCheck` pinging Slack daily at 12:30 ET
 - **Landing page live** at `https://capitaledge-api.web.app`
-- **MCP API endpoints**: `https://us-central1-capitaledge-api.cloudfunctions.net/mcp` (canonical) + `https://keyvex-mcp.web.app` (Hosting alias) + `https://mcp.keyvex.com` (pending DNS records at GoDaddy after nameserver propagation)
+- **MCP API endpoints**: `https://mcp.keyvex.com` (LIVE, customer-facing, TLS via Let's Encrypt) + `https://keyvex-mcp.web.app` (Hosting alias) + `https://us-central1-capitaledge-api.cloudfunctions.net/mcp` (canonical Cloud Functions URL, still works)
 - **Brand domain**: `keyvex.com` (DNS at GoDaddy now; custom-domain mappings to land in next session)
 - **GitHub repo**: `Keyvex-API` (renamed; old URL 301-redirects)
 - **Memory entries added**: `feedback_verify_inbound_specs.md` (verify before acting on conflicting inbound specs — captured Day 7 morning when Derek's Claude misdirected a spec); `project_canonical_google_account.md` (`claude1986aaa@gmail.com` is the canonical Google account for KeyVex; the Chrome MCP allowlist quirks led to discovering this).
@@ -633,6 +635,20 @@ State at end of Day 7:
 5. Once Greg drops the logo PNGs, wire them into the landing page's topbar + favicon
 6. Decide on Form 278 (port now vs. wait for Derek)
 
+### Day 7 LATE — `mcp.keyvex.com` LIVE with TLS (~5 PM ET)
+
+After the planned end-of-day, Greg pushed through the final DNS step. Sequence:
+1. Nameserver propagation completed in ~30 min (much faster than the 4-hour estimate)
+2. Greg added the two records at GoDaddy: CNAME `mcp` → `keyvex-mcp.web.app` + TXT `_acme-challenge.mcp` → `IY0Dn3j5cTtBzUVTW9lRAqrn__gL4Xyb95ZInx0qXUs`
+3. DNS verified globally via Node DNS lookup (records resolved instantly)
+4. Greg clicked Verify in Firebase Console → `"Custom domain setup successfully"`
+5. Firebase polled DNS, verified ownership via CNAME, requested Let's Encrypt cert via TXT challenge, started CDN propagation
+6. ~25 min later: `hostState: HOST_ACTIVE`, `ownershipState: OWNERSHIP_ACTIVE`, `cert.state: CERT_PROPAGATING`, `https://mcp.keyvex.com` returns HTTP 200 with the v0.16.0 health JSON in 2.4 sec
+
+**Customer-facing endpoint is now `https://mcp.keyvex.com`.** Auto-renewing TLS cert from Let's Encrypt (no manual renewal ever needed). README + landing page already referenced this URL aspirationally; once live, those references became accurate without further edits (small follow-up edits just polish the messaging from "future" to "now").
+
+**Landing page state:** still served at `https://capitaledge-api.web.app`. Apex `keyvex.com` and `www.keyvex.com` mappings are the next domain step (item 14 on the to-do list).
+
 **Last Updated**
 
-May 7, 2026 — Day 7 end-of-day. **9 MCP tools live, server v0.16.0, KeyVex rebrand complete, landing page shipped live at `capitaledge-api.web.app`, custom domain `mcp.keyvex.com` registered with Firebase + DNS propagation in flight, GitHub repo renamed to `Keyvex-API`, multi-site Firebase Hosting set up, service-key REST CLI built (`src/firebase-rest.ts`).** Remaining launch path: DNS records at GoDaddy → custom-domain Verify → logo wire-in → Privacy Policy + Loom + registry submissions → LLC + billing.
+May 7, 2026 — Day 7 LATE (~5 PM ET). **9 MCP tools live, server v0.16.0, KeyVex rebrand complete, landing page shipped live at `capitaledge-api.web.app`, `https://mcp.keyvex.com` LIVE with auto-managed TLS, GitHub repo renamed to `Keyvex-API`, multi-site Firebase Hosting set up, service-key REST CLI built (`src/firebase-rest.ts`).** Remaining launch path: map `keyvex.com` apex → landing page → logo wire-in → Privacy Policy + Loom + registry submissions → LLC + billing.

@@ -89,7 +89,7 @@ KeyVex is a stateless Streamable HTTP MCP server. Authentication is a Bearer tok
 
 **Endpoint:**
 ```
-https://mcp.keyvex.com    [coming soon — currently at us-central1-capitaledge-api.cloudfunctions.net/mcp]
+https://mcp.keyvex.com
 ```
 
 **Health check (no auth required):**
@@ -217,7 +217,7 @@ A: Not currently. Enterprise customers can discuss custom-deployment options.
 
 **Email:** `contact@keyvex.com` *(coming online soon — currently `contact@capitaledge.app`)*
 
-**API status:** [https://mcp.keyvex.com](https://us-central1-capitaledge-api.cloudfunctions.net/mcp) *(returns JSON; live status indicator coming)*
+**API status:** [https://mcp.keyvex.com](https://mcp.keyvex.com) *(returns JSON; live status indicator coming)*
 
 **Documentation:** [github.com/gregorywglenn-spec/Keyvex-API](https://github.com/gregorywglenn-spec/Keyvex-API) *(currently private; will be made public alongside launch)*
 
