@@ -559,16 +559,52 @@ interface EdgarSearchHit {
  * "SCHEDULE 13G", "SCHEDULE 13G/A" (NOT "SC 13D" — captured as a Hard
  * Lesson). Each form is searched separately to handle EDGAR's per-form
  * 100-result-per-page cap.
+ *
+ * Two modes:
+ *   - lookbackDays (default 7): pull last N days from now. Used by the
+ *     autonomous Cloud Function scheduler.
+ *   - startDate + endDate (ISO YYYY-MM-DD): explicit date range for
+ *     historical backfills. Both must be set together. Applied to BOTH
+ *     the 13D and 13G EDGAR FTS queries.
  */
 export async function scrapeActivistLiveFeed(
-  lookbackDays = 7,
-  maxFilingsPerForm = 100,
+  options: {
+    lookbackDays?: number;
+    maxFilingsPerForm?: number;
+    startDate?: string;
+    endDate?: string;
+  } = {},
 ): Promise<ActivistOwnership[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = start.toISOString().split("T")[0];
-  const endStr = end.toISOString().split("T")[0];
+  const hasStart =
+    typeof options.startDate === "string" && options.startDate.length > 0;
+  const hasEnd =
+    typeof options.endDate === "string" && options.endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "13D/G date-range mode requires BOTH startDate and endDate (got only one)",
+    );
+  }
+  const dateRangeMode = hasStart && hasEnd;
+
+  let startStr: string;
+  let endStr: string;
+  let modeDescription: string;
+
+  if (dateRangeMode) {
+    startStr = options.startDate as string;
+    endStr = options.endDate as string;
+    modeDescription = `date range ${startStr} → ${endStr}`;
+  } else {
+    const lookbackDays = options.lookbackDays ?? 7;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - lookbackDays);
+    startStr = start.toISOString().split("T")[0]!;
+    endStr = end.toISOString().split("T")[0]!;
+    modeDescription = `last ${lookbackDays}d`;
+  }
+
+  const maxFilingsPerForm = options.maxFilingsPerForm ?? 100;
 
   const forms = [
     "SCHEDULE 13D",
@@ -579,19 +615,51 @@ export async function scrapeActivistLiveFeed(
 
   const allFilings: FilingMeta[] = [];
 
+  // EDGAR FTS hard-caps each call at 100 hits. Walk pages via &from=N&size=100
+  // until totalAvailable is exhausted or PAGINATION_CAP is reached, per form.
+  // Each of the 4 form codes (SCHEDULE 13D, /A, 13G, /A) gets its own
+  // independent pagination loop.
+  const PAGE_SIZE = 100;
+  const PAGINATION_CAP = 50000;
+
   for (const form of forms) {
     const formEncoded = encodeURIComponent(form);
-    const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=${formEncoded}&dateRange=custom&startdt=${startStr}&enddt=${endStr}`;
+    const formHits: EdgarSearchHit[] = [];
+    let from = 0;
+    let totalAvailable = 0;
+
     try {
-      const data = (await fetchJson(url)) as {
-        hits?: { hits?: EdgarSearchHit[]; total?: { value?: number } };
-      };
-      const hits = data.hits?.hits ?? [];
+      while (true) {
+        const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=${formEncoded}&dateRange=custom&startdt=${startStr}&enddt=${endStr}&from=${from}&size=${PAGE_SIZE}`;
+        const data = (await fetchJson(url)) as {
+          hits?: { hits?: EdgarSearchHit[]; total?: { value?: number } };
+        };
+        const pageHits = data.hits?.hits ?? [];
+        if (totalAvailable === 0) {
+          totalAvailable = data.hits?.total?.value ?? pageHits.length;
+        }
+        console.error(
+          `[13d-g live]   ${form} page from=${from} returned ${pageHits.length} hits (total=${totalAvailable})`,
+        );
+        if (pageHits.length === 0) break;
+        formHits.push(...pageHits);
+        from += pageHits.length;
+        if (from >= totalAvailable) break;
+        if (formHits.length >= PAGINATION_CAP) {
+          console.error(
+            `[13d-g live] ${form}: hit pagination cap ${PAGINATION_CAP}, stopping`,
+          );
+          break;
+        }
+        // Brief delay between pages to be polite to EDGAR.
+        await sleep(CONFIG.RATE_LIMIT_MS);
+      }
+
       console.error(
-        `[13d-g live] ${form}: ${data.hits?.total?.value ?? hits.length} total, ${Math.min(hits.length, maxFilingsPerForm)} pulled`,
+        `[13d-g live] ${form}: ${totalAvailable} total available, ${formHits.length} paginated, ${Math.min(formHits.length, maxFilingsPerForm)} pulled`,
       );
 
-      for (const hit of hits.slice(0, maxFilingsPerForm)) {
+      for (const hit of formHits.slice(0, maxFilingsPerForm)) {
         const src = hit._source;
         if (!src) continue;
         // For 13D/13G, the issuer CIK is at ciks[0] (subject company),
@@ -617,7 +685,7 @@ export async function scrapeActivistLiveFeed(
   }
 
   console.error(
-    `[13d-g live] ${allFilings.length} total filings across all 13D/13G forms in last ${lookbackDays}d`,
+    `[13d-g live] ${allFilings.length} total filings across all 13D/13G forms (${modeDescription})`,
   );
 
   const allRows: ActivistOwnership[] = [];

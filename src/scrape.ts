@@ -144,6 +144,43 @@ function hasSaveFlag(args: string[]): boolean {
   return args.includes("--save");
 }
 
+/**
+ * Parse --start-date / --end-date / [days-positional] from CLI args.
+ * Returns options compatible with the SEC EDGAR scraper functions:
+ *   { startDate, endDate } when both flags are set
+ *   { lookbackDays } when only the positional [days] arg is given
+ *   { lookbackDays: defaultDays } when no args
+ *
+ * Throws when only one of --start-date / --end-date is given (mismatched).
+ */
+function parseDateRangeArgs(
+  args: string[],
+  defaultDays: number,
+): { startDate?: string; endDate?: string; lookbackDays?: number } {
+  const startFlag = args.find((a) => a.startsWith("--start-date="));
+  const endFlag = args.find((a) => a.startsWith("--end-date="));
+  const startDate = startFlag
+    ? startFlag.slice("--start-date=".length)
+    : undefined;
+  const endDate = endFlag ? endFlag.slice("--end-date=".length) : undefined;
+  const hasStart = typeof startDate === "string" && startDate.length > 0;
+  const hasEnd = typeof endDate === "string" && endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "Date-range mode requires BOTH --start-date and --end-date",
+    );
+  }
+  if (hasStart && hasEnd) {
+    return { startDate, endDate };
+  }
+  const positional = args.find((a) => !a.startsWith("--"));
+  const days = positional ? parseInt(positional, 10) : defaultDays;
+  if (Number.isNaN(days) || days < 1) {
+    throw new Error("Days must be a positive integer");
+  }
+  return { lookbackDays: days };
+}
+
 const COMMANDS: Record<string, CliCommand> = {
   ping: {
     description: "Verify Firestore connection (live mode) or report stub mode",
@@ -227,14 +264,10 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   "8k-feed": {
     description:
-      "Scrape Form 8-K material-event filings across all companies for the last N days (default 1; add --save to write to Firestore). Indexed by item_codes — agents can query for exec changes (5.02), M&A (1.01/2.01), earnings (2.02), etc. without needing to parse the prose body.",
+      "Scrape Form 8-K material-event filings across all companies. Two modes: (1) lookback — pass N days as positional (default 1) for recent activity; (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for backfill. Add --save to write to Firestore. Indexed by item_codes — query for exec changes (5.02), M&A (1.01/2.01), earnings (2.02), etc.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 1;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
-      }
-      const events = await scrape8kLiveFeed(days);
+      const range = parseDateRangeArgs(args, 1);
+      const events = await scrape8kLiveFeed(range);
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${events.length} material-event filings to Firestore...`,
@@ -403,14 +436,10 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   "13d-13g-feed": {
     description:
-      "Scrape Schedule 13D/13G filings across all issuers for the last N days (default 7; add --save to write to Firestore). Captures activist campaigns, hostile bids, large institutional accumulations.",
+      "Scrape Schedule 13D/13G filings across all issuers. Two modes: (1) lookback — pass N days as positional (default 7); (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for backfill. Add --save to write to Firestore. Captures activist campaigns, hostile bids, large institutional accumulations.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 7;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
-      }
-      const rows = await scrapeActivistLiveFeed(days);
+      const range = parseDateRangeArgs(args, 7);
+      const rows = await scrapeActivistLiveFeed(range);
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${rows.length} activist/passive ownership rows to Firestore...`,
@@ -446,14 +475,10 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   "form3-feed": {
     description:
-      "Scrape Form 3 initial-ownership snapshots across all companies for the last N days (default 7; add --save to write to Firestore). Use to spot newly-named insiders and freshly-disclosed 10%+ holders.",
+      "Scrape Form 3 initial-ownership snapshots across all companies. Two modes: (1) lookback — pass N days as positional (default 7); (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for backfill. Add --save to write to Firestore. Use to spot newly-named insiders and freshly-disclosed 10%+ holders.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 7;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
-      }
-      const holdings = await scrapeForm3LiveFeed(days);
+      const range = parseDateRangeArgs(args, 7);
+      const holdings = await scrapeForm3LiveFeed(range);
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${holdings.length} initial-ownership rows to Firestore...`,
@@ -528,14 +553,10 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   "form144-feed": {
     description:
-      "Scrape Form 144 planned-sale notices across all companies for the last N days (default 7; add --save to write to Firestore)",
+      "Scrape Form 144 planned-sale notices across all companies. Two modes: (1) lookback — pass N days as positional (default 7); (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for backfill. Add --save to write to Firestore.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 7;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
-      }
-      const filings = await scrapeForm144LiveFeed(days);
+      const range = parseDateRangeArgs(args, 7);
+      const filings = await scrapeForm144LiveFeed(range);
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${filings.length} planned-sale lines to Firestore...`,

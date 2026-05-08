@@ -458,27 +458,94 @@ interface EdgarSearchHit {
 /**
  * Live-feed mode: scan EDGAR full-text search for recent Form 144 filings
  * across all companies. "What insiders just announced they're about to sell."
+ *
+ * Two modes:
+ *   - lookbackDays (default 7): pull last N days from now. Used by the
+ *     autonomous Cloud Function scheduler.
+ *   - startDate + endDate (ISO YYYY-MM-DD): explicit date range for
+ *     historical backfills. Both must be set together.
  */
 export async function scrapeForm144LiveFeed(
-  lookbackDays = 7,
-  maxFilings = 100,
+  options: {
+    lookbackDays?: number;
+    maxFilings?: number;
+    startDate?: string;
+    endDate?: string;
+  } = {},
 ): Promise<Form144Filing[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = start.toISOString().split("T")[0];
-  const endStr = end.toISOString().split("T")[0];
+  const hasStart =
+    typeof options.startDate === "string" && options.startDate.length > 0;
+  const hasEnd =
+    typeof options.endDate === "string" && options.endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "Form 144 date-range mode requires BOTH startDate and endDate (got only one)",
+    );
+  }
+  const dateRangeMode = hasStart && hasEnd;
 
-  const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=144&dateRange=custom&startdt=${startStr}&enddt=${endStr}`;
-  const data = (await fetchJson(url)) as { hits?: { hits?: EdgarSearchHit[] } };
-  const hits = data.hits?.hits ?? [];
+  let startStr: string;
+  let endStr: string;
+  let modeDescription: string;
+
+  if (dateRangeMode) {
+    startStr = options.startDate as string;
+    endStr = options.endDate as string;
+    modeDescription = `date range ${startStr} → ${endStr}`;
+  } else {
+    const lookbackDays = options.lookbackDays ?? 7;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - lookbackDays);
+    startStr = start.toISOString().split("T")[0]!;
+    endStr = end.toISOString().split("T")[0]!;
+    modeDescription = `last ${lookbackDays}d`;
+  }
+
+  const maxFilings = options.maxFilings ?? 100;
+
+  // EDGAR FTS hard-caps each call at 100 hits. Walk pages via &from=N&size=100
+  // until totalAvailable is exhausted or PAGINATION_CAP is reached. This lets
+  // multi-month historical backfills actually pull all matching filings,
+  // not just the first 100.
+  const PAGE_SIZE = 100;
+  const PAGINATION_CAP = 50000;
+  const allHits: EdgarSearchHit[] = [];
+  let from = 0;
+  let totalAvailable = 0;
+
+  while (true) {
+    const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=144&dateRange=custom&startdt=${startStr}&enddt=${endStr}&from=${from}&size=${PAGE_SIZE}`;
+    const data = (await fetchJson(url)) as {
+      hits?: { hits?: EdgarSearchHit[]; total?: { value?: number } };
+    };
+    const pageHits = data.hits?.hits ?? [];
+    if (totalAvailable === 0) {
+      totalAvailable = data.hits?.total?.value ?? pageHits.length;
+    }
+    console.error(
+      `[form144 live]   page from=${from} returned ${pageHits.length} hits (total=${totalAvailable})`,
+    );
+    if (pageHits.length === 0) break;
+    allHits.push(...pageHits);
+    from += pageHits.length;
+    if (from >= totalAvailable) break;
+    if (allHits.length >= PAGINATION_CAP) {
+      console.error(
+        `[form144 live] hit pagination cap ${PAGINATION_CAP}, stopping`,
+      );
+      break;
+    }
+    // Brief delay between pages to be polite to EDGAR.
+    await sleep(150);
+  }
 
   console.error(
-    `[form144 live] ${hits.length} Form 144 filings in last ${lookbackDays}d`,
+    `[form144 live] ${allHits.length} Form 144 filings paginated (${modeDescription}, total available=${totalAvailable})`,
   );
 
   const filings: FilingMeta[] = [];
-  for (const hit of hits.slice(0, maxFilings)) {
+  for (const hit of allHits.slice(0, maxFilings)) {
     const src = hit._source;
     if (!src) continue;
     const companyCik = (src.ciks?.[0] ?? "").replace(/^0+/, "");

@@ -291,23 +291,96 @@ interface FtsHit {
  * the last N days across all companies. For each hit, build a MaterialEvent
  * from FTS metadata. When FTS doesn't carry the items field, fall back to
  * the submissions API for that filer (cached per-CIK).
+ *
+ * Two modes:
+ *   - lookbackDays (default 1): pull last N days from now. Used by the
+ *     autonomous Cloud Function scheduler (8-K is high volume).
+ *   - startDate + endDate (ISO YYYY-MM-DD): explicit date range for
+ *     historical backfills. Both must be set together.
+ *
+ * NOTE: 8-K is high volume; the maxFilings cap (default 200) is preserved
+ * to keep memory bounded. For long backfills, run shorter date windows
+ * back-to-back rather than one giant window.
  */
 export async function scrape8kLiveFeed(
-  lookbackDays = 1,
-  maxFilings = 200,
+  options: {
+    lookbackDays?: number;
+    maxFilings?: number;
+    startDate?: string;
+    endDate?: string;
+  } = {},
 ): Promise<MaterialEvent[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = start.toISOString().split("T")[0];
-  const endStr = end.toISOString().split("T")[0];
+  const hasStart =
+    typeof options.startDate === "string" && options.startDate.length > 0;
+  const hasEnd =
+    typeof options.endDate === "string" && options.endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "8-K date-range mode requires BOTH startDate and endDate (got only one)",
+    );
+  }
+  const dateRangeMode = hasStart && hasEnd;
+
+  let startStr: string;
+  let endStr: string;
+  let modeDescription: string;
+
+  if (dateRangeMode) {
+    startStr = options.startDate as string;
+    endStr = options.endDate as string;
+    modeDescription = `date range ${startStr} → ${endStr}`;
+  } else {
+    const lookbackDays = options.lookbackDays ?? 1;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - lookbackDays);
+    startStr = start.toISOString().split("T")[0]!;
+    endStr = end.toISOString().split("T")[0]!;
+    modeDescription = `last ${lookbackDays}d`;
+  }
+
+  const maxFilings = options.maxFilings ?? 200;
 
   // forms=8-K matches both 8-K and 8-K/A on EDGAR FTS.
-  const url = `${CONFIG.SEARCH_URL}?q=&forms=8-K&dateRange=custom&startdt=${startStr}&enddt=${endStr}`;
-  const data = (await fetchJson(url)) as { hits?: { hits?: FtsHit[] } };
-  const hits = data.hits?.hits ?? [];
+  // EDGAR FTS hard-caps each call at 100 hits. Walk pages via &from=N&size=100
+  // until totalAvailable is exhausted or PAGINATION_CAP is reached. This lets
+  // multi-month historical backfills actually pull all matching filings,
+  // not just the first 100.
+  const PAGE_SIZE = 100;
+  const PAGINATION_CAP = 50000;
+  const allHits: FtsHit[] = [];
+  let from = 0;
+  let totalAvailable = 0;
 
-  console.error(`[8k live] FTS returned ${hits.length} 8-K hits in last ${lookbackDays}d`);
+  while (true) {
+    const url = `${CONFIG.SEARCH_URL}?q=&forms=8-K&dateRange=custom&startdt=${startStr}&enddt=${endStr}&from=${from}&size=${PAGE_SIZE}`;
+    const data = (await fetchJson(url)) as {
+      hits?: { hits?: FtsHit[]; total?: { value?: number } };
+    };
+    const pageHits = data.hits?.hits ?? [];
+    if (totalAvailable === 0) {
+      totalAvailable = data.hits?.total?.value ?? pageHits.length;
+    }
+    console.error(
+      `[8k live]   page from=${from} returned ${pageHits.length} hits (total=${totalAvailable})`,
+    );
+    if (pageHits.length === 0) break;
+    allHits.push(...pageHits);
+    from += pageHits.length;
+    if (from >= totalAvailable) break;
+    if (allHits.length >= PAGINATION_CAP) {
+      console.error(
+        `[8k live] hit pagination cap ${PAGINATION_CAP}, stopping`,
+      );
+      break;
+    }
+    // Brief delay between pages to be polite to EDGAR.
+    await sleep(150);
+  }
+
+  console.error(
+    `[8k live] FTS returned ${allHits.length} 8-K hits paginated (${modeDescription}, total available=${totalAvailable})`,
+  );
 
   // Dedup by accession — FTS sometimes returns multiple rows per filing
   // (one per attached document). The 8-K we care about is one row per
@@ -315,7 +388,7 @@ export async function scrape8kLiveFeed(
   const seenAccessions = new Set<string>();
   const out: MaterialEvent[] = [];
 
-  for (const hit of hits) {
+  for (const hit of allHits) {
     if (out.length >= maxFilings) break;
     const src = hit._source;
     if (!src) continue;

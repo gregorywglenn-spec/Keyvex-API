@@ -95,7 +95,7 @@ export const scrape8kHourly = onSchedule(
   async () => {
     const started = Date.now();
     logger.info("[8k-hourly] starting (1-day lookback)");
-    const events = await scrape8kLiveFeed(1);
+    const events = await scrape8kLiveFeed({ lookbackDays: 1 });
     logger.info(`[8k-hourly] scraper returned ${events.length} filings`);
     let docsWritten = 0;
     if (events.length > 0) {
@@ -152,7 +152,7 @@ export const scrapeForm144Hourly = onSchedule(
   async () => {
     const started = Date.now();
     logger.info("[form144] starting (2-day lookback)");
-    const filings = await scrapeForm144LiveFeed(2);
+    const filings = await scrapeForm144LiveFeed({ lookbackDays: 2 });
     logger.info(`[form144] scraper returned ${filings.length} filings`);
     let docsWritten = 0;
     if (filings.length > 0) {
@@ -180,7 +180,7 @@ export const scrapeForm3Hourly = onSchedule(
   async () => {
     const started = Date.now();
     logger.info("[form3] starting (2-day lookback)");
-    const holdings = await scrapeForm3LiveFeed(2);
+    const holdings = await scrapeForm3LiveFeed({ lookbackDays: 2 });
     logger.info(`[form3] scraper returned ${holdings.length} holdings`);
     let docsWritten = 0;
     if (holdings.length > 0) {
@@ -209,7 +209,7 @@ export const scrapeActivistHourly = onSchedule(
   async () => {
     const started = Date.now();
     logger.info("[13d-13g] starting (3-day lookback)");
-    const rows = await scrapeActivistLiveFeed(3);
+    const rows = await scrapeActivistLiveFeed({ lookbackDays: 3 });
     logger.info(`[13d-13g] scraper returned ${rows.length} rows`);
     let docsWritten = 0;
     if (rows.length > 0) {
