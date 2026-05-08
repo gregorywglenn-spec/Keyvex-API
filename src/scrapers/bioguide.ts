@@ -25,9 +25,12 @@
 import yaml from "js-yaml";
 import type {
   CommitteeAssignment,
+  CrossReferenceIds,
+  CurrentTermContact,
   HistoricalTerm,
   Legislator,
   LegislatorHistorical,
+  SocialHandles,
 } from "../types.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
@@ -44,6 +47,19 @@ const CONFIG = {
 
 interface YamlIdBlock {
   bioguide?: string;
+  thomas?: string;
+  lis?: string;
+  govtrack?: number;
+  opensecrets?: string;
+  votesmart?: number;
+  /** FEC IDs are an array — members with multiple campaigns over their career
+   *  accumulate multiple IDs. */
+  fec?: string[];
+  cspan?: number;
+  wikipedia?: string;
+  ballotpedia?: string;
+  icpsr?: number;
+  wikidata?: string;
 }
 
 interface YamlNameBlock {
@@ -59,6 +75,16 @@ interface YamlBioBlock {
   gender?: string;
 }
 
+interface YamlSocialBlock {
+  twitter?: string;
+  twitter_id?: number;
+  facebook?: string;
+  youtube?: string;
+  youtube_id?: string;
+  instagram?: string;
+  instagram_id?: string;
+}
+
 interface YamlTerm {
   type?: string; // "sen" | "rep"
   start?: string;
@@ -67,12 +93,23 @@ interface YamlTerm {
   district?: number | string;
   party?: string;
   class?: number;
+  /** Per-term contact + office fields. Only populated on the most-recent
+   *  term-block(s); historical terms typically lack these. */
+  office?: string;
+  address?: string;
+  phone?: string;
+  fax?: string;
+  url?: string;
+  contact_form?: string;
+  state_rank?: string;
+  rss_url?: string;
 }
 
 interface YamlLegislator {
   id?: YamlIdBlock;
   name?: YamlNameBlock;
   bio?: YamlBioBlock;
+  social?: YamlSocialBlock;
   terms?: YamlTerm[];
 }
 
@@ -188,6 +225,58 @@ function currentTerm(terms: YamlTerm[] | undefined): YamlTerm | null {
 }
 
 /**
+ * Extract cross-reference IDs from the YAML id-block. Defensive against
+ * partial entries (older legislators may lack some IDs); empty values
+ * preferred over null/undefined to keep the response shape consistent.
+ */
+function extractCrossReferenceIds(idBlock: YamlIdBlock | undefined): CrossReferenceIds {
+  return {
+    thomas: idBlock?.thomas ?? "",
+    lis: idBlock?.lis ?? "",
+    govtrack: typeof idBlock?.govtrack === "number" ? idBlock.govtrack : null,
+    opensecrets: idBlock?.opensecrets ?? "",
+    votesmart: typeof idBlock?.votesmart === "number" ? idBlock.votesmart : null,
+    fec: Array.isArray(idBlock?.fec) ? idBlock.fec : [],
+    cspan: typeof idBlock?.cspan === "number" ? idBlock.cspan : null,
+    wikipedia: idBlock?.wikipedia ?? "",
+    ballotpedia: idBlock?.ballotpedia ?? "",
+    icpsr: typeof idBlock?.icpsr === "number" ? idBlock.icpsr : null,
+    wikidata: idBlock?.wikidata ?? "",
+  };
+}
+
+/**
+ * Extract social-media handles. Most members leave most of these empty.
+ */
+function extractSocial(socialBlock: YamlSocialBlock | undefined): SocialHandles {
+  return {
+    twitter: socialBlock?.twitter ?? "",
+    twitter_id: typeof socialBlock?.twitter_id === "number" ? socialBlock.twitter_id : null,
+    facebook: socialBlock?.facebook ?? "",
+    youtube: socialBlock?.youtube ?? "",
+    youtube_id: socialBlock?.youtube_id ?? "",
+    instagram: socialBlock?.instagram ?? "",
+    instagram_id: socialBlock?.instagram_id ?? "",
+  };
+}
+
+/**
+ * Extract DC office contact info from the current-term block.
+ */
+function extractContact(term: YamlTerm | null): CurrentTermContact {
+  return {
+    office: term?.office ?? "",
+    address: term?.address ?? "",
+    phone: term?.phone ?? "",
+    fax: term?.fax ?? "",
+    url: term?.url ?? "",
+    contact_form: term?.contact_form ?? "",
+    state_rank: term?.state_rank ?? "",
+    rss_url: term?.rss_url ?? "",
+  };
+}
+
+/**
  * Map a YAML legislator + committee assignments to our Legislator type.
  * Returns null when the entry is missing required fields (bioguide id,
  * current term — both should always be present in the current YAML, but
@@ -239,6 +328,9 @@ function normalizeLegislator(
     birthday: raw.bio?.birthday ?? "",
     gender: raw.bio?.gender ?? "",
     photo_url: `${CONFIG.PHOTO_BASE_URL}/${bioguide}.jpg`,
+    cross_reference_ids: extractCrossReferenceIds(raw.id),
+    social: extractSocial(raw.social),
+    contact: extractContact(term),
     committee_assignments: committeeAssignments,
   };
 }

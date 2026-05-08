@@ -64,6 +64,12 @@ export const definition: Tool = {
     "Photo URLs are constructed (theunitedstates.io/images/congress/",
     "original/{bioguide_id}.jpg) but Cloudflare-protected — clients",
     "fetch directly. Senate class field (1/2/3) on senators only.",
+    "",
+    "Each record also carries: cross_reference_ids{ICPSR, FEC, OpenSecrets,",
+    "GovTrack, Wikipedia, Wikidata, etc.} for joining to external datasets;",
+    "social{twitter, facebook, youtube, instagram} handles when published;",
+    "and contact{office, address, phone, url, contact_form} for the",
+    "current-term DC office. All sourced from the same daily-updated YAML.",
   ].join(" "),
   inputSchema: {
     type: "object",

@@ -397,6 +397,74 @@ export interface CommitteeAssignment {
 }
 
 /**
+ * Cross-reference identifiers for joining a legislator to other public
+ * datasets. Sourced from the `id:` block of legislators-current.yaml.
+ * Empty string / null when the catalog doesn't list a given identifier.
+ */
+export interface CrossReferenceIds {
+  /** Library of Congress Thomas system ID (5-digit zero-padded). */
+  thomas: string;
+  /** Senate's Legislative Information System ID (Senate-only). */
+  lis: string;
+  /** GovTrack numeric ID — joins to govtrack.us votes/sponsorship data. */
+  govtrack: number | null;
+  /** OpenSecrets candidate ID — joins to opensecrets.org advocacy + finance data. */
+  opensecrets: string;
+  /** VoteSmart candidate ID — joins to votesmart.org positions + endorsements. */
+  votesmart: number | null;
+  /** FEC candidate IDs (one member can have multiple campaigns over their career). */
+  fec: string[];
+  /** C-SPAN per-person numeric ID — joins to c-span.org appearances. */
+  cspan: number | null;
+  /** English-Wikipedia article title (NOT URL). */
+  wikipedia: string;
+  /** Ballotpedia article title. */
+  ballotpedia: string;
+  /** ICPSR numeric ID — joins to academic political-science datasets. */
+  icpsr: number | null;
+  /** Wikidata Q-ID (e.g., "Q22250"). */
+  wikidata: string;
+}
+
+/**
+ * Social-media handles when the catalog publishes them. Many legislators
+ * leave most of these empty. Twitter/X is the most-populated channel.
+ */
+export interface SocialHandles {
+  twitter: string;
+  /** Numeric Twitter user ID (stable even if username changes). */
+  twitter_id: number | null;
+  facebook: string;
+  youtube: string;
+  /** Numeric YouTube channel ID. */
+  youtube_id: string;
+  instagram: string;
+  instagram_id: string;
+}
+
+/**
+ * Office contact information from the legislator's current term.
+ * Members occasionally update offices mid-Congress; values reflect the
+ * latest term-block in the YAML (which is itself updated daily).
+ */
+export interface CurrentTermContact {
+  /** "311 Hart Senate Office Building" */
+  office: string;
+  /** Full DC mailing address (single-line). */
+  address: string;
+  phone: string;
+  fax: string;
+  /** Official website URL. */
+  url: string;
+  /** Public contact-form URL (varies by member). */
+  contact_form: string;
+  /** "junior" | "senior" — Senate only. Empty string for House. */
+  state_rank: string;
+  /** RSS feed URL when published. */
+  rss_url: string;
+}
+
+/**
  * One legislator (House Representative or Senator) record from the
  * unitedstates/congress-legislators catalog. Keyed by bioguide_id —
  * the permanent member identifier (e.g., "C001035" for Susan Collins).
@@ -444,6 +512,16 @@ export interface Legislator {
    * can swap the path segment.
    */
   photo_url: string;
+  /**
+   * Cross-reference IDs for joining to other public datasets (FEC,
+   * OpenSecrets, ICPSR, Wikipedia, Wikidata, etc.). Empty values when
+   * the catalog doesn't publish a given ID for this member.
+   */
+  cross_reference_ids: CrossReferenceIds;
+  /** Social-media handles when published. Empty values when not. */
+  social: SocialHandles;
+  /** Current-term contact info (DC office, phone, official URL, etc.). */
+  contact: CurrentTermContact;
   /** All committees + subcommittees this legislator currently sits on. */
   committee_assignments: CommitteeAssignment[];
 }
@@ -513,6 +591,35 @@ export interface LegislatorQuery {
   party?: string;
   /** Match against any committee_assignments[].committee_id. */
   committee_id?: string;
+  limit?: number;
+}
+
+/**
+ * Validated query parameters for the get_historical_member MCP tool —
+ * surfaces the `legislators_historical` collection (~12,230 members,
+ * 1789→present). Different schema from current legislators (no committee
+ * assignments, no contact, no current term — just the chronological terms
+ * array and basic biographical fields).
+ *
+ * Date filters are interpreted against the member's terms[] array:
+ *   - active_during: returns members who served any time during this date
+ *     range (their start ≤ until AND end ≥ since for any term)
+ *   - state: filters to members who served from this state (any term)
+ *   - chamber: filters to members who served in this chamber (any term)
+ */
+export interface LegislatorHistoricalQuery {
+  bioguide_id?: string;
+  member_name?: string;
+  state?: string;
+  chamber?: "house" | "senate";
+  /** "Democrat" | "Republican" | "Whig" | "Federalist" | etc. Matches against any term's party. */
+  party?: string;
+  /** ISO date — return members whose terms array overlaps with this date forward. */
+  active_since?: string;
+  /** ISO date — return members whose terms array overlaps with this date backward. */
+  active_until?: string;
+  /** Year filter — match if member served any portion of this calendar year. */
+  active_year?: number;
   limit?: number;
 }
 
