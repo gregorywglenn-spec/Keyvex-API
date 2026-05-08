@@ -318,12 +318,10 @@ interface PtrListEntry {
 
 async function fetchPtrList(
   session: { fetch: typeof fetch; csrfToken: string },
-  lookbackDays: number,
+  windowStart: Date,
+  windowEnd: Date,
+  paginationCap: number,
 ): Promise<PtrListEntry[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-
   const formatDate = (d: Date): string => {
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
@@ -335,70 +333,89 @@ async function fetchPtrList(
   // sends — the reference scraper at reference/congressional_scraper.js
   // confirmed this works live). Don't set Content-Type manually; fetch will
   // append the right multipart boundary string when given a FormData body.
-  // Field set matches the reference scraper exactly (fewer fields than the
-  // first-pass port — some optional fields trigger 400 if sent empty).
-  const body = new FormData();
-  body.append("start", "0");
-  body.append("length", String(CONFIG.PAGE_SIZE));
-  body.append("report_types", `[${CONFIG.REPORT_TYPE_PTR}]`);
-  body.append("submitted_start_date", formatDate(start));
-  body.append("submitted_end_date", formatDate(end));
-  body.append("candidate_state", "");
-  body.append("senator_state", "");
-  body.append("first_name", "");
-  body.append("last_name", "");
-  body.append("csrfmiddlewaretoken", session.csrfToken);
+  //
+  // Pagination: eFD caps at PAGE_SIZE per page; loop with `start` offset
+  // until we've collected recordsFiltered or hit the safety cap. Multi-year
+  // backfills can return thousands of rows; the original single-page fetch
+  // silently truncated to 100.
+  const allRows: unknown[][] = [];
+  let pageStart = 0;
+  let recordsTotal = 0;
 
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await session.fetch(CONFIG.DATA_URL, {
-    method: "POST",
-    headers: {
-      "User-Agent": CONFIG.USER_AGENT,
-      Origin: "https://efdsearch.senate.gov",
-      Referer: CONFIG.SEARCH_URL,
-      "X-CSRFToken": session.csrfToken,
-      "X-Requested-With": "XMLHttpRequest",
-    },
-    body,
-  });
-  if (!res.ok) {
-    throw new Error(`Senate /search/report/data/ HTTP ${res.status}`);
-  }
+  while (true) {
+    const body = new FormData();
+    body.append("start", String(pageStart));
+    body.append("length", String(CONFIG.PAGE_SIZE));
+    body.append("report_types", `[${CONFIG.REPORT_TYPE_PTR}]`);
+    body.append("submitted_start_date", formatDate(windowStart));
+    body.append("submitted_end_date", formatDate(windowEnd));
+    body.append("candidate_state", "");
+    body.append("senator_state", "");
+    body.append("first_name", "");
+    body.append("last_name", "");
+    body.append("csrfmiddlewaretoken", session.csrfToken);
 
-  // DataTables-shaped response:
-  //   { data: [[firstName, lastName, office, <link html>, dateFiled, ...], ...],
-  //     recordsTotal: <int>, recordsFiltered: <int> }
-  const rawText = await res.text();
-  let json: {
-    data?: unknown[][];
-    recordsTotal?: number;
-    recordsFiltered?: number;
-    error?: string;
-  } = {};
-  try {
-    json = JSON.parse(rawText);
-  } catch {
+    await sleep(CONFIG.RATE_LIMIT_MS);
+    const res = await session.fetch(CONFIG.DATA_URL, {
+      method: "POST",
+      headers: {
+        "User-Agent": CONFIG.USER_AGENT,
+        Origin: "https://efdsearch.senate.gov",
+        Referer: CONFIG.SEARCH_URL,
+        "X-CSRFToken": session.csrfToken,
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      body,
+    });
+    if (!res.ok) {
+      throw new Error(`Senate /search/report/data/ HTTP ${res.status}`);
+    }
+
+    const rawText = await res.text();
+    let json: {
+      data?: unknown[][];
+      recordsTotal?: number;
+      recordsFiltered?: number;
+      error?: string;
+    } = {};
+    try {
+      json = JSON.parse(rawText);
+    } catch {
+      console.error(
+        "[senate] /search/report/data/ did not return JSON. First 400 chars:",
+      );
+      console.error(rawText.slice(0, 400));
+      throw new Error(
+        "Senate data endpoint returned non-JSON (likely auth failure)",
+      );
+    }
+    const rows = Array.isArray(json.data) ? json.data : [];
+    if (recordsTotal === 0) {
+      recordsTotal = json.recordsFiltered ?? json.recordsTotal ?? rows.length;
+    }
     console.error(
-      "[senate] /search/report/data/ did not return JSON. First 400 chars:",
+      `[senate]   page start=${pageStart} returned ${rows.length} row(s)` +
+        (recordsTotal ? ` (total filtered=${recordsTotal})` : ""),
     );
-    console.error(rawText.slice(0, 400));
-    throw new Error("Senate data endpoint returned non-JSON (likely auth failure)");
-  }
-  const rows = Array.isArray(json.data) ? json.data : [];
-  console.error(
-    `[senate] /search/report/data/ returned ${rows.length} row(s)` +
-      (json.recordsTotal !== undefined
-        ? ` (recordsTotal=${json.recordsTotal}, recordsFiltered=${json.recordsFiltered ?? "?"})`
-        : ""),
-  );
-  if (rows.length === 0) {
-    console.error(
-      "[senate] Empty result — first 400 chars of raw response for inspection:",
-    );
-    console.error(rawText.slice(0, 400));
+    if (rows.length === 0 && pageStart === 0) {
+      console.error(
+        "[senate] Empty result — first 400 chars of raw response for inspection:",
+      );
+      console.error(rawText.slice(0, 400));
+    }
+    allRows.push(...rows);
+    if (rows.length < CONFIG.PAGE_SIZE) break;
+    pageStart += rows.length;
+    if (pageStart >= recordsTotal) break;
+    if (pageStart > paginationCap) {
+      console.error(
+        `[senate] stopping pagination at ${paginationCap} rows for safety`,
+      );
+      break;
+    }
   }
 
-  return rows
+  return allRows
     .map((row): PtrListEntry | null => {
       const firstName = String(row[0] ?? "");
       const lastName = String(row[1] ?? "");
@@ -567,10 +584,27 @@ export function parseSenatePtr(
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
+/** Parse YYYY-MM-DD to Date at UTC midnight. Throws on malformed input. */
+function parseIsoDate(s: string, label: string): Date {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    throw new Error(
+      `Invalid ${label} "${s}" — expected YYYY-MM-DD format (e.g., 2016-01-01)`,
+    );
+  }
+  const [, yyyy, mm, dd] = m;
+  const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid ${label} "${s}" — not a real calendar date`);
+  }
+  return d;
+}
+
 /**
- * Scrape Senate PTRs filed in the last `lookbackDays` days. Returns one
- * record per disclosed equity transaction line item (multiple per PTR
- * possible — some senators report dozens of trades on a single filing).
+ * Scrape Senate PTRs. Two modes:
+ *   1. lookback — pass `lookbackDays` for "last N days" (default 7).
+ *   2. date-range — pass `startDate` + `endDate` (ISO YYYY-MM-DD) for
+ *      historical backfill. Pagination cap raises to 50000 in this mode.
  *
  * Optionally caps the number of PTRs processed via `maxPtrs`. Useful for
  * testing without hammering the eFD portal.
@@ -579,19 +613,63 @@ export function parseSenatePtr(
  * (matches the form4.ts / 13f.ts pattern).
  */
 export async function scrapeSenateLiveFeed(
-  options: { lookbackDays?: number; maxPtrs?: number } = {},
+  options: {
+    lookbackDays?: number;
+    maxPtrs?: number;
+    /** ISO YYYY-MM-DD start (date-range mode). Mutually exclusive with lookbackDays. */
+    startDate?: string;
+    /** ISO YYYY-MM-DD end (date-range mode). */
+    endDate?: string;
+    /** Pagination safety cap. Defaults: 1000 in lookback mode, 50000 in date-range. */
+    paginationCap?: number;
+  } = {},
 ): Promise<CongressionalTrade[]> {
-  const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+  const hasStart = typeof options.startDate === "string" && options.startDate.length > 0;
+  const hasEnd = typeof options.endDate === "string" && options.endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "Senate date-range mode requires BOTH startDate and endDate (got only one)",
+    );
+  }
+  const dateRangeMode = hasStart && hasEnd;
+
+  let windowStart: Date;
+  let windowEnd: Date;
+  let modeDescription: string;
+
+  if (dateRangeMode) {
+    windowStart = parseIsoDate(options.startDate as string, "startDate");
+    windowEnd = parseIsoDate(options.endDate as string, "endDate");
+    if (windowEnd.getTime() < windowStart.getTime()) {
+      throw new Error(
+        `endDate (${options.endDate}) must be >= startDate (${options.startDate})`,
+      );
+    }
+    modeDescription = `date range ${options.startDate} → ${options.endDate}`;
+  } else {
+    const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+    windowEnd = new Date();
+    windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - lookbackDays);
+    modeDescription = `last ${lookbackDays} days`;
+  }
+  const paginationCap =
+    options.paginationCap ?? (dateRangeMode ? 50000 : 1000);
   const maxPtrs = options.maxPtrs;
 
-  console.error(`[senate] Initializing eFD session...`);
+  console.error(`[senate] Initializing eFD session (${modeDescription})...`);
   const session = await createSession();
   console.error(`[senate] Session ready (CSRF token obtained).`);
 
-  const allEntries = await fetchPtrList(session, lookbackDays);
+  const allEntries = await fetchPtrList(
+    session,
+    windowStart,
+    windowEnd,
+    paginationCap,
+  );
   const entries = maxPtrs ? allEntries.slice(0, maxPtrs) : allEntries;
   console.error(
-    `[senate] ${allEntries.length} PTR filings in last ${lookbackDays}d` +
+    `[senate] ${allEntries.length} PTR filings in window` +
       (maxPtrs ? ` (capped to ${entries.length} for this run)` : ""),
   );
 

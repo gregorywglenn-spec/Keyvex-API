@@ -92,14 +92,15 @@ interface ListEntry {
   dateFiled: string;
 }
 
-/** Fetch all matching Form 278 filings within the lookback window. */
+/** Fetch all matching Form 278 filings within the date window. */
 async function fetchForm278List(
   session: { fetch: typeof fetch; csrfToken: string },
-  lookbackDays: number,
+  windowStart: Date,
+  windowEnd: Date,
+  paginationCap: number,
 ): Promise<ListEntry[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
+  const end = windowEnd;
+  const start = windowStart;
 
   const formatDate = (d: Date): string => {
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -171,10 +172,10 @@ async function fetchForm278List(
     if (rows.length < CONFIG.PAGE_SIZE) break;
     pageStart += rows.length;
     if (pageStart >= recordsTotal) break;
-    // Hard stop at 1000 rows for safety; real lookback windows shouldn't
-    // exceed this. If they do, narrow the window.
-    if (pageStart > 1000) {
-      console.error("[form278] stopping pagination at 1000 rows for safety");
+    if (pageStart > paginationCap) {
+      console.error(
+        `[form278] stopping pagination at ${paginationCap} rows for safety`,
+      );
       break;
     }
   }
@@ -247,22 +248,82 @@ function parseOffice(office: string): { state: string; district: string } {
 }
 
 export interface ScrapeOptions {
+  /** Recent-window mode: pull last N days. Mutually exclusive with startDate/endDate. */
   lookbackDays?: number;
+  /** Date-range mode (ISO YYYY-MM-DD). Use both for historical backfill. */
+  startDate?: string;
+  /** Date-range mode (ISO YYYY-MM-DD). Use both for historical backfill. */
+  endDate?: string;
+  /** Pagination safety cap. Defaults to 1000 in lookback mode, 50000 in date-range mode. */
+  paginationCap?: number;
+}
+
+/** Parse YYYY-MM-DD to a Date at UTC midnight. Throws if malformed. */
+function parseIsoDate(s: string, label: string): Date {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    throw new Error(
+      `Invalid ${label} "${s}" — expected YYYY-MM-DD format (e.g., 2016-01-01)`,
+    );
+  }
+  const [, yyyy, mm, dd] = m;
+  const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid ${label} "${s}" — not a real calendar date`);
+  }
+  return d;
 }
 
 export async function scrapeSenateForm278(
   options: ScrapeOptions = {},
 ): Promise<Form278Filing[]> {
-  const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+  const hasStart = typeof options.startDate === "string" && options.startDate.length > 0;
+  const hasEnd = typeof options.endDate === "string" && options.endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "Form 278 date-range mode requires BOTH --start-date and --end-date (got only one)",
+    );
+  }
+  const dateRangeMode = hasStart && hasEnd;
+
+  let windowStart: Date;
+  let windowEnd: Date;
+  let modeDescription: string;
+
+  if (dateRangeMode) {
+    windowStart = parseIsoDate(options.startDate as string, "start-date");
+    windowEnd = parseIsoDate(options.endDate as string, "end-date");
+    if (windowEnd.getTime() < windowStart.getTime()) {
+      throw new Error(
+        `end-date (${options.endDate}) must be >= start-date (${options.startDate})`,
+      );
+    }
+    modeDescription = `date range ${options.startDate} → ${options.endDate}`;
+  } else {
+    const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+    windowEnd = new Date();
+    windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - lookbackDays);
+    modeDescription = `last ${lookbackDays} days`;
+  }
+
+  const paginationCap =
+    options.paginationCap ?? (dateRangeMode ? 50000 : 1000);
+
   console.error(
-    `[form278] Starting Senate Form 278 live-feed (last ${lookbackDays} days)...`,
+    `[form278] Starting Senate Form 278 scrape (${modeDescription})...`,
   );
 
   console.error("[form278] Establishing Senate eFD session...");
   const session = await createSession();
   console.error("[form278]   session ready");
 
-  const entries = await fetchForm278List(session, lookbackDays);
+  const entries = await fetchForm278List(
+    session,
+    windowStart,
+    windowEnd,
+    paginationCap,
+  );
   console.error(
     `[form278] Discovered ${entries.length} Form 278 filing(s) in the window`,
   );

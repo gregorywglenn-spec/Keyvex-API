@@ -533,20 +533,42 @@ export async function scrapeHouseLiveFeed(
     lookbackDays?: number;
     maxPtrs?: number;
     extractTrades?: boolean;
+    /** When set, scrape this specific year's full XML index (no lookback
+     *  filter). Mutually exclusive with lookbackDays. Use for historical
+     *  backfill (`--year=2018` etc.). */
+    year?: number;
   } = {},
 ): Promise<{
   ptrs: PtrIndexEntry[];
   trades: CongressionalTrade[];
 }> {
-  const lookback = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
-  const year = new Date().getFullYear();
-  const allPtrs = await fetchHousePtrIndex(year);
-  const filtered = filterByLookback(allPtrs, lookback);
-  const ptrs = options.maxPtrs ? filtered.slice(0, options.maxPtrs) : filtered;
-  console.error(
-    `[house] ${filtered.length} PTRs filed in last ${lookback}d` +
-      (options.maxPtrs ? ` (capped to ${ptrs.length} for this run)` : ""),
-  );
+  let ptrs: PtrIndexEntry[];
+  let modeDescription: string;
+
+  if (typeof options.year === "number") {
+    const targetYear = options.year;
+    if (targetYear < 2008 || targetYear > 2100) {
+      throw new Error(`Invalid year ${targetYear} — must be between 2008 and 2100`);
+    }
+    const allPtrs = await fetchHousePtrIndex(targetYear);
+    ptrs = options.maxPtrs ? allPtrs.slice(0, options.maxPtrs) : allPtrs;
+    modeDescription = `year ${targetYear}`;
+    console.error(
+      `[house] ${allPtrs.length} PTRs in ${targetYear} index` +
+        (options.maxPtrs ? ` (capped to ${ptrs.length} for this run)` : ""),
+    );
+  } else {
+    const lookback = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+    const year = new Date().getFullYear();
+    const allPtrs = await fetchHousePtrIndex(year);
+    const filtered = filterByLookback(allPtrs, lookback);
+    ptrs = options.maxPtrs ? filtered.slice(0, options.maxPtrs) : filtered;
+    modeDescription = `last ${lookback}d`;
+    console.error(
+      `[house] ${filtered.length} PTRs filed in last ${lookback}d` +
+        (options.maxPtrs ? ` (capped to ${ptrs.length} for this run)` : ""),
+    );
+  }
 
   const trades: CongressionalTrade[] = [];
   if (!options.extractTrades) {

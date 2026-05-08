@@ -604,13 +604,15 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   senate: {
     description:
-      "Scrape Senate eFD Periodic Transaction Reports (PTRs) for the last N days (default 7; add --save to write to Firestore, --max=N to cap PTRs processed for testing). Each PTR may contain multiple equity trades.",
+      "Scrape Senate eFD Periodic Transaction Reports (PTRs). Two modes: (1) lookback — pass N days as positional arg (default 7) for recent activity; (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for historical backfill (pagination cap raises to 50,000). Add --save to write to Firestore, --max=N to cap PTRs for testing.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 7;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
-      }
+      const startFlag = args.find((a) => a.startsWith("--start-date="));
+      const endFlag = args.find((a) => a.startsWith("--end-date="));
+      const startDate = startFlag
+        ? startFlag.slice("--start-date=".length)
+        : undefined;
+      const endDate = endFlag ? endFlag.slice("--end-date=".length) : undefined;
+
       const maxFlag = args.find((a) => a.startsWith("--max="));
       const maxPtrs = maxFlag
         ? parseInt(maxFlag.slice("--max=".length), 10)
@@ -618,10 +620,19 @@ const COMMANDS: Record<string, CliCommand> = {
       if (maxPtrs !== undefined && (Number.isNaN(maxPtrs) || maxPtrs < 1)) {
         throw new Error("--max=N must be a positive integer");
       }
-      const trades = await scrapeSenateLiveFeed({
-        lookbackDays: days,
-        maxPtrs,
-      });
+
+      let trades;
+      if (startDate || endDate) {
+        trades = await scrapeSenateLiveFeed({ startDate, endDate, maxPtrs });
+      } else {
+        const positional = args.find((a) => !a.startsWith("--"));
+        const days = positional ? parseInt(positional, 10) : 7;
+        if (Number.isNaN(days) || days < 1) {
+          throw new Error("Days must be a positive integer");
+        }
+        trades = await scrapeSenateLiveFeed({ lookbackDays: days, maxPtrs });
+      }
+
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${trades.length} congressional trades to Firestore...`,
@@ -660,14 +671,28 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   form278: {
     description:
-      "Scrape Senate eFD Form 278 (Annual Financial Disclosure) filings for the last N days (default 30). Captures filing metadata + URL to the actual report PDF/HTML — agents follow the URL to read asset / liability / income detail (PDF parsing for net-worth roll-up is v1.1). Add --save to write to Firestore.",
+      "Scrape Senate eFD Form 278 (Annual Financial Disclosure) filings. Two modes: (1) lookback — pass N days as positional arg (default 30) for recent activity; (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for historical backfill (pagination cap raises to 50,000). Add --save to write to Firestore.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 30;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
+      const startFlag = args.find((a) => a.startsWith("--start-date="));
+      const endFlag = args.find((a) => a.startsWith("--end-date="));
+      const startDate = startFlag
+        ? startFlag.slice("--start-date=".length)
+        : undefined;
+      const endDate = endFlag ? endFlag.slice("--end-date=".length) : undefined;
+
+      let filings;
+      if (startDate || endDate) {
+        // Date-range mode — start/end validated inside the scraper
+        filings = await scrapeSenateForm278({ startDate, endDate });
+      } else {
+        const positional = args.find((a) => !a.startsWith("--"));
+        const days = positional ? parseInt(positional, 10) : 30;
+        if (Number.isNaN(days) || days < 1) {
+          throw new Error("Days must be a positive integer");
+        }
+        filings = await scrapeSenateForm278({ lookbackDays: days });
       }
-      const filings = await scrapeSenateForm278({ lookbackDays: days });
+
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${filings.length} Form 278 filings to Firestore...`,
@@ -726,13 +751,16 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   house: {
     description:
-      "Scrape House Clerk PTRs filed in the last N days (default 7). Without --extract: index-only mode, returns PTR metadata. With --extract: fetches each PDF and runs the parser (Phase 2 — currently returns empty trades arrays until parser is tuned). With --save: writes trades to Firestore. Optional --max=N to cap PTRs processed.",
+      "Scrape House Clerk PTRs. Two modes: (1) lookback — pass N days as positional arg (default 7) for recent activity; (2) full-year — pass --year=YYYY to scrape that year's complete XML index (for historical backfill). Without --extract: index-only mode. With --extract: fetches each PDF and runs the parser. With --save: writes trades to Firestore. Optional --max=N to cap PTRs processed for testing.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 7;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
+      const yearFlag = args.find((a) => a.startsWith("--year="));
+      const year = yearFlag
+        ? parseInt(yearFlag.slice("--year=".length), 10)
+        : undefined;
+      if (year !== undefined && (Number.isNaN(year) || year < 2008 || year > 2100)) {
+        throw new Error("--year=YYYY must be an integer 2008..2100");
       }
+
       const maxFlag = args.find((a) => a.startsWith("--max="));
       const maxPtrs = maxFlag
         ? parseInt(maxFlag.slice("--max=".length), 10)
@@ -741,11 +769,23 @@ const COMMANDS: Record<string, CliCommand> = {
         throw new Error("--max=N must be a positive integer");
       }
       const extractTrades = args.includes("--extract");
-      const { ptrs, trades } = await scrapeHouseLiveFeed({
-        lookbackDays: days,
-        maxPtrs,
-        extractTrades,
-      });
+
+      let result;
+      if (year !== undefined) {
+        result = await scrapeHouseLiveFeed({ year, maxPtrs, extractTrades });
+      } else {
+        const positional = args.find((a) => !a.startsWith("--"));
+        const days = positional ? parseInt(positional, 10) : 7;
+        if (Number.isNaN(days) || days < 1) {
+          throw new Error("Days must be a positive integer");
+        }
+        result = await scrapeHouseLiveFeed({
+          lookbackDays: days,
+          maxPtrs,
+          extractTrades,
+        });
+      }
+      const { ptrs, trades } = result;
       if (hasSaveFlag(args)) {
         if (!extractTrades) {
           console.error(
