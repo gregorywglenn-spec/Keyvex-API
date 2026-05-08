@@ -26,6 +26,8 @@ import type {
   FederalContractAwardsQuery,
   Form144Filing,
   Form144FilingsQuery,
+  Form278Filing,
+  Form278FilingsQuery,
   Form3Holding,
   Form3HoldingsQuery,
   InsiderTransaction,
@@ -1524,6 +1526,90 @@ export async function pingFirestore(): Promise<{
     ...(projectId !== undefined ? { projectId } : {}),
     collectionsSeen: collections.length,
   };
+}
+
+// ─── Form 278 (Annual Financial Disclosure) query + save ──────────────────
+
+export async function queryForm278Filings(
+  query: Form278FilingsQuery,
+): Promise<QueryResult<Form278Filing>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("annual_financial_disclosures");
+
+  if (query.bioguide_id) q = q.where("bioguide_id", "==", query.bioguide_id);
+  if (query.chamber) q = q.where("chamber", "==", query.chamber);
+  if (query.state) q = q.where("state", "==", query.state);
+  if (query.party) q = q.where("party", "==", query.party);
+  if (query.filing_year !== undefined) {
+    q = q.where("filing_year", "==", query.filing_year);
+  }
+  if (query.report_type) q = q.where("report_type", "==", query.report_type);
+
+  const sortField = query.sort_by ?? "filing_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.member_name ? 5000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as Form278Filing);
+
+  if (query.member_name) {
+    const needle = query.member_name.toLowerCase();
+    docs = docs.filter((f) =>
+      (f.member_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+/**
+ * Save scraped Form 278 filings to Firestore. Idempotent — re-running the
+ * scraper writes the same doc IDs (`{filing_id}` already namespaces by
+ * source + subtype, e.g. `senate-annual-abc-123`).
+ */
+export async function saveForm278Filings(
+  filings: Form278Filing[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "annual_financial_disclosures";
+  if (filings.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = filings.slice(i, i + BATCH_SIZE);
+    for (const filing of chunk) {
+      batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
 }
 
 // ─── Stub mode implementation ───────────────────────────────────────────────

@@ -39,6 +39,7 @@ import {
   saveCongressionalTrades,
   saveFederalContractAwards,
   saveForm144Filings,
+  saveForm278Filings,
   saveForm3Holdings,
   saveInsiderTransactions,
   saveInstitutionalHoldings,
@@ -67,6 +68,7 @@ import { scrapeForm4LiveFeed } from "../../src/scrapers/form4.js";
 import { scrapeHouseLiveFeed } from "../../src/scrapers/house.js";
 import { scrapeLobbyingByPeriod } from "../../src/scrapers/lobbying.js";
 import { scrapeSenateLiveFeed } from "../../src/scrapers/senate.js";
+import { scrapeSenateForm278 } from "../../src/scrapers/form278.js";
 import { scrapeContractsLiveFeed } from "../../src/scrapers/usaspending.js";
 
 // ─── Common config ──────────────────────────────────────────────────────────
@@ -416,6 +418,44 @@ export const scrapeBioguideWeekly = onSchedule(
 );
 
 /**
+ * Senate Form 278 (Annual Financial Disclosure / Public Financial Disclosure)
+ * — captures filing metadata + URL to the actual report. Filings cluster in
+ * May (annual deadline May 15) but trickle in throughout the year (extensions,
+ * new filer reports on entering office, termination reports on leaving).
+ *
+ * Weekly Mondays @ 6:30 AM ET — staggered 30 min after senate/house/usaspending
+ * cluster to avoid stepping on Senate eFD CSRF flow.
+ *
+ * v1A scope is metadata only (filer + filing_date + URL). PDF parsing for
+ * Schedule A/B/C net-worth roll-ups lands in v1.1.
+ */
+export const scrapeForm278Weekly = onSchedule(
+  {
+    schedule: "30 6 * * 1",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[form278] starting weekly Senate Form 278 refresh");
+    // 35-day window catches the 30-day "what just disclosed" cluster + 5
+    // day buffer for delayed eFD updates over weekends.
+    const filings = await scrapeSenateForm278({ lookbackDays: 35 });
+    logger.info(`[form278] scraper returned ${filings.length} filings`);
+    let docsWritten = 0;
+    if (filings.length > 0) {
+      const r = await saveForm278Filings(filings);
+      logger.info(`[form278] saved ${r.saved} filings to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("form278Sync", { started, docsWritten });
+  },
+);
+
+/**
  * Bioguide historical catalog. Monthly 1st @ 6 AM ET.
  * The historical catalog is essentially static (only changes when a
  * sitting member departs Congress); monthly is plenty.
@@ -499,7 +539,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.16.0";
+const SERVER_VERSION = "0.17.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

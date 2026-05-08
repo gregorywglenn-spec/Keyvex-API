@@ -78,6 +78,7 @@ import {
   saveCongressionalTrades,
   saveFederalContractAwards,
   saveForm144Filings,
+  saveForm278Filings,
   saveForm3Holdings,
   saveInsiderTransactions,
   saveInstitutionalHoldings,
@@ -122,6 +123,7 @@ import {
   scrapeSenateLiveFeed,
   scrapeSenatePtrById,
 } from "./scrapers/senate.js";
+import { scrapeSenateForm278 } from "./scrapers/form278.js";
 import {
   dumpHousePtrText,
   scrapeHouseLiveFeed,
@@ -654,6 +656,28 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return trades;
+    },
+  },
+  form278: {
+    description:
+      "Scrape Senate eFD Form 278 (Annual Financial Disclosure) filings for the last N days (default 30). Captures filing metadata + URL to the actual report PDF/HTML — agents follow the URL to read asset / liability / income detail (PDF parsing for net-worth roll-up is v1.1). Add --save to write to Firestore.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 30;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const filings = await scrapeSenateForm278({ lookbackDays: days });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${filings.length} Form 278 filings to Firestore...`,
+        );
+        const result = await saveForm278Filings(filings);
+        console.error(
+          `[save] Saved ${result.saved} filings to ${result.collection}`,
+        );
+      }
+      return filings;
     },
   },
   "house-index": {

@@ -918,3 +918,75 @@ export interface CongressionalTradesQuery {
   sort_order?: "desc" | "asc";
   limit?: number;
 }
+
+// ─── Form 278 (Annual Financial Disclosure) ─────────────────────────────────
+
+/**
+ * Form 278 / Public Financial Disclosure — annual disclosure filed by every
+ * member of Congress (and senior executive-branch officials, federal judges).
+ * Different from Periodic Transaction Reports (PTRs):
+ *   - PTRs    = real-time trade notices, filed within 30-45 days
+ *   - Form 278 = year-end snapshot of net worth, assets, income, liabilities
+ *
+ * v1A captures filing metadata only: who filed, when, and a URL to the actual
+ * report PDF. Agents follow the URL to read the per-schedule detail. Net-worth
+ * roll-up parsing (Schedule A assets + Schedule C liabilities) is v1.1.
+ */
+export interface Form278Filing {
+  /** Stable doc ID — Senate report UUID or House DocID + year */
+  filing_id: string;
+
+  /** Where the filing came from */
+  source: "SENATE_EFD_AFD" | "HOUSE_CLERK_FD";
+  chamber: "senate" | "house";
+
+  /** Filer identity */
+  member_name: string;
+  member_first: string;
+  member_last: string;
+  /** Empty until back-fill from member catalog */
+  bioguide_id: string;
+  office: string;
+  state: string;
+  /** Empty for Senate; "12", "AL" (at-large), etc. for House */
+  state_district: string;
+  /** Empty until back-fill from member catalog */
+  party: string;
+
+  /** Filing details */
+  filing_year: number;
+  filing_date: string;
+  /** Human-readable filing flavor */
+  report_type:
+    | "Annual"
+    | "New Filer"
+    | "Termination"
+    | "Combined"
+    | "Periodic"
+    | "Amendment"
+    | "Other";
+  /** URL path subtype (e.g., "annual", "paper", "amendment") — preserves the
+   *  raw eFD/clerk identifier for diagnostics. */
+  report_subtype: string;
+  /** Direct URL to the Form 278 filing — agents follow this to read the
+   *  actual asset/liability/transaction schedules in v1A. */
+  report_url: string;
+
+  /** ISO timestamp of when our scraper ingested the metadata */
+  scraped_at: string;
+}
+
+export interface Form278FilingsQuery {
+  bioguide_id?: string;
+  member_name?: string;
+  chamber?: "senate" | "house";
+  state?: string;
+  party?: string;
+  filing_year?: number;
+  report_type?: Form278Filing["report_type"];
+  since?: string;
+  until?: string;
+  sort_by?: "filing_date" | "filing_year";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}

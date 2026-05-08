@@ -99,7 +99,7 @@ function businessDaysBetween(start: string, end: string): number | null {
  * Handles `name="X" value="Y"` and `value="Y" name="X"` orderings. Defaults
  * unspecified value to empty string.
  */
-function extractFormFields(html: string): Map<string, string> {
+export function extractFormFields(html: string): Map<string, string> {
   const fields = new Map<string, string>();
   // Crude but effective: each <input ...> element becomes one map entry
   const inputRe = /<input\b[^>]*>/gi;
@@ -156,7 +156,7 @@ function parseAmountMax(amountStr: string): number {
 /** Build a fetch with cookie-jar support, matching the eFD portal's CSRF
  *  protocol. The returned object also exposes `getCsrfToken()` for stamping
  *  on subsequent POST headers. */
-async function createSession(): Promise<{
+export async function createSession(): Promise<{
   fetch: typeof fetch;
   csrfToken: string;
   jar: CookieJar;

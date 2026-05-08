@@ -8,7 +8,7 @@ Congressional trades, executive insider transactions, institutional holdings, ac
 
 ## Why KeyVex
 
-Every other financial-data MCP today wraps a pre-existing REST API and ends up with 100–250 tools that overflow agent context windows. KeyVex starts from the agent: nine entity-based tools, rich filter parameters, no separate `get_X` and `get_X_by_ticker` and `get_recent_X` variants.
+Every other financial-data MCP today wraps a pre-existing REST API and ends up with 100–250 tools that overflow agent context windows. KeyVex starts from the agent: ten entity-based tools, rich filter parameters, no separate `get_X` and `get_X_by_ticker` and `get_recent_X` variants.
 
 **The wedge — one conversation, five sources, zero stitching:**
 
@@ -46,8 +46,11 @@ Five separate disclosure sources joined by `ticker` + `bioguide_id` + `recipient
 | `get_member_profile` | Current senators + reps + committee assignments | Weekly |
 | `get_material_events` | SEC 8-K (M&A, exec changes, earnings) | Hourly |
 | `get_lobbying_filings` | Senate LDA quarterly filings | Daily |
+| `get_annual_financial_disclosures` | SEC Form 278 / Public Financial Disclosure (Senate eFD; House v1.1) | Weekly |
 
 `get_insider_transactions` accepts `include_baseline:true` to fold in matching SEC Form 3 initial-ownership rows in the same call (Form 4 = deltas, Form 3 = starting positions).
+
+`get_annual_financial_disclosures` returns filing METADATA in v1A (filer, date, URL to the report PDF). Agents follow `report_url` to read the asset / liability / income schedules. PDF parsing for net-worth roll-up lands in v1.1.
 
 ---
 
@@ -127,7 +130,7 @@ For the remote endpoint, one-click installation through Anthropic's MCP director
 - **Data layer:** Google Firestore via `firebase-admin`
 - **Hosting:** Firebase Cloud Functions Gen 2, region `us-central1`
 - **Auth:** API key in Google Secret Manager (`MCP_API_KEY`) for the public HTTP endpoint
-- **Scrapers:** 13 autonomous scrapers running on cron across the unified KeyVex operation (8 in this codebase covering SEC + USAspending + LDA; 5 in the sibling dashboard codebase covering congressional trades, member catalog, and Form 278 financial disclosures). No human in the loop.
+- **Scrapers:** 13 autonomous scrapers running on cron across the unified KeyVex operation (9 in this codebase covering SEC + USAspending + LDA + Form 278 + senate/house PTRs + bioguide; 4 in the sibling dashboard codebase covering congressional analytics, derived rankings, and member-stats). No human in the loop.
 
 ---
 
@@ -186,7 +189,7 @@ The Firebase project ID `capitaledge-api` is permanent infrastructure (Google do
 
 ## Status
 
-Production. **All 13 autonomous scrapers** running on cron across the unified KeyVex operation (8 in this codebase, 5 in the sibling dashboard codebase). MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Bioguide back-fill at 100% on congressional trades. Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
+Production. **10 MCP tools, 13 autonomous scrapers** running on cron across the unified KeyVex operation (9 in this codebase + 4 in the sibling dashboard codebase). MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Bioguide back-fill at 100% on congressional trades. Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
 
 Custom domain (`mcp.keyvex.com`), public registry submissions (Anthropic / Smithery / Awesome-MCP / PulseMCP), and self-serve API key issuance are the next milestones.
 

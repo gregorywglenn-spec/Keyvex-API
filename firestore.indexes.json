@@ -266,6 +266,46 @@
         { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
         { "fieldPath": "income", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "annual_financial_disclosures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "annual_financial_disclosures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chamber", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "annual_financial_disclosures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "annual_financial_disclosures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filing_year", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "annual_financial_disclosures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "report_type", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
