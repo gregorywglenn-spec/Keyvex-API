@@ -80,6 +80,12 @@ References below to "Capital Edge" generally point to the dashboard project unle
 - **Firebase Hosting REST API exposes more DNS records than the Console UI.** Day 7: the Firebase Console's "Add custom domain" flow shows you the CNAME (or A records) for the host mapping but **may hide the TXT record needed for ACME (Let's Encrypt) cert validation**. Calling `customDomains.get` via REST returns *both* — the CNAME for hosting AND a `_acme-challenge.<domain>` TXT record. Without that TXT, the cert stays in `CERT_VALIDATING` indefinitely and `mcp.<domain>.com` never gets HTTPS. **Lesson: after adding a custom domain in Firebase Hosting, always check via REST (`npx tsx src/firebase-rest.ts get-domain <site> <domain>`) for the full `requiredDnsUpdates.desired[]` + `cert.verification.dns.desired[]` lists. Add every record those return, not just the ones the Console nudges you about.**
 - **GoDaddy aftermarket-purchased domains have DNS managed by Afternic by default.** Day 7: `keyvex.com` was purchased through GoDaddy for ~$900 (premium aftermarket name), but its nameservers initially pointed to Afternic (GoDaddy's marketplace subsidiary), not GoDaddy. The DNS Records tab at GoDaddy showed "DNS Provider: Afternic" with "DNS records can't be updated here." **Fix:** Nameservers tab → Change → "GoDaddy default nameservers" (`ns##.domaincontrol.com`) → Save. Propagation 15 min – 4 hr typically. **Lesson: this is normal for premium-domain aftermarket purchases through GoDaddy. Always check the Nameservers tab before trying to add DNS records — if it says Afternic / Custom, switch to defaults first.**
 - **Multi-site Firebase Hosting setup.** Day 7: one Firebase project can host multiple custom domains by using multiple Hosting "sites." Configure `hosting` as an array of objects in `firebase.json`, each with a `site` property naming a Hosting site. **Site IDs are GLOBALLY UNIQUE on Firebase and IMMUTABLE** once created (same constraint as project IDs). Pattern that works: `keyvex-mcp` site for the MCP API endpoint (rewrites all requests to a Cloud Run service), `capitaledge-api` (the project's default site) for the static landing page (just serves files from `marketing/site/`). Deploy with `firebase deploy --only hosting:<site-id>` to target one site, or `--only hosting` to deploy all. **Lesson: pick site IDs you'll be happy with forever — they're permanent. Plan multi-site early; trying to retrofit one big site into multiple sites later means re-mapping custom domains + waiting on DNS propagation again.**
+- **Git worktrees inherit code, not gitignored files like service-account.json.** Day 8: today's first Form 278 backfill ran clean for all 10 years (2016-2025) and exited code 0 — but wrote ZERO records. The worktree at `.claude/worktrees/<name>/` had no `secrets/` directory because that path is gitignored, so `isStubMode()` returned true and every `await saveForm278Filings()` threw with "Cannot save to Firestore in stub mode." Combined with the next Hard Lesson (bash pipe exit-code swallowing), the failures were silent — looked like a clean run from the for-loop's exit code. **Lesson: when running scrapers from a worktree, either copy `secrets/service-account.json` into the worktree's `secrets/` folder before starting OR run from the parent repo directory. Verify with `npx tsx src/scrape.ts ping` first — it confirms LIVE MODE before you commit to a long-running save.**
+- **Bash `for ... do cmd | grep ... done` swallows per-iteration exit codes.** Day 8: same Form 278 backfill silent-failure incident. The pipeline `npx tsx src/scrape.ts ... --save 2>&1 | grep -E "..."` makes the loop's per-iteration exit code = `grep`'s exit code (the LAST command in the pipe). When `tsx` exited 1 because of the stub-mode throw, the loop just continued to the next year. The outer for-loop's overall exit code was 0 (the final `echo "DONE"`). **Lesson: when running multi-iteration scrape loops, EITHER include `FATAL|Error` patterns in the inner grep filter so failures are visible in the log stream, OR check `${PIPESTATUS[0]}` to detect upstream-command failures, OR run the inner command without a pipe and tail the log with a separate filter. Stub-mode is the most-likely silent-failure mode; everything else surfaces eventually but stub-mode is invisible by design.**
+- **Derek's `financialDisclosures` collection is OpenSecrets-derived, NOT a primary-source Form 278 scrape.** Day 8 audit: Derek's `capital-edge-d5038` Firestore has 5,591 docs in `financialDisclosures` covering 2008-2024. Initially looked like a coverage benchmark. Closer look at the schema: `dataSource: "OPENSECRETS_SCRAPED"`, `sourceUrl: "https://www.opensecrets.org/personal-finances/..."`, only field populated is `estimatedNetWorth` (rolled-up number from OpenSecrets). All asset/liability/category breakdowns are null. **It's a third-party aggregator scrape, not a primary-source Form 278 ingestion.** Different product entirely. **Lesson: before treating someone else's collection size as a "we should match this" benchmark, inspect a sample doc to confirm the source. Pure-publisher posture means we don't republish OpenSecrets-derived numbers as ours; we go to the actual Form 278 PDFs (Senate eFD + House Clerk) and parse Schedule A/C ourselves. That's the v1.1 PDF-parsing task — and it produces RICHER data than Derek's (line-item assets vs. one rolled-up estimate) plus better source rigor.**
+- **Cross-project Firestore access requires explicit IAM grant or a separate service-account.json.** Day 8: trying to read Derek's `capital-edge-d5038` collections with our `capitaledge-api` service account threw `7 PERMISSION_DENIED`. Even though both projects are owned by the same Google account, IAM is per-project — service accounts authenticate against the project that issued them. Two paths to read another project's Firestore: (a) grant the calling service account `roles/datastore.viewer` (or similar) on the target project via GCP Console → IAM, or (b) use a separate service-account.json minted from the target project's Firebase Console → Project Settings → Service accounts → Generate new private key. Path (b) takes ~90 seconds and is reversible. **Lesson: keep the service-account.json files in `secrets/` named per-project (`service-account.json` for our project, `service-account-derek.json` for Derek's). Audits like the one we did today only need read access; mint short-lived keys, run the probe, optionally delete. Never grant production write access cross-project — that's how blast radius gets out of hand.**
+- **Audit Derek's data, don't copy it. Use it as a validation oracle.** Day 8: Greg asked "what should we copy from Derek's project?" The right answer for the publisher product (KeyVex/this project) is *almost nothing*: copying his collections puts secondary-source data under our brand and bakes in a dependency on his pipeline quality. The smarter move is using his data as a *validation oracle* during our own backfills — when we re-scrape a primary source ourselves, we cross-check counts and field values against Derek's records. Mismatches = bugs in our parser, dropped rows, or missing filings to investigate. The structure is ours, the data is ours, but the inspector has reference numbers. **Lesson: across Derek's 15 collections, only the `congress` (legislators) collection is a 1:1 functional match (we already ingest the same YAML); his `financialDisclosures` / `netWorthValidation` / `memberStats` are derived/secondary and shouldn't be republished; everything else (insider_trades, institutional_holdings, congressional_trades, etc.) is primary-source we can backfill ourselves via existing scrapers. Coverage gap closes via our own pipeline, not by copying his Firestore.**
+- **Derek's primary-source records aren't richer than ours — there are 3 small schema additions, not 30.** Day 8: I assumed Derek would have a richer per-record schema since he's been running longer. Audit found the opposite: most of our scrapers are field-complete vs. his, and `institutional_holdings` (where we capture `position_change` / `shares_change_pct` quarter-over-quarter that Derek doesn't) is actually richer in our shop. Real schema gaps were tiny: legislators-yaml `id` block (cross-reference IDs to ICPSR/FEC/OpenSecrets/etc. — already in the YAML, we were just throwing them away), legislators-yaml `social` block (Twitter/Facebook/YouTube/Instagram handles), legislators-yaml current-term `office`/`address`/`phone`/`url` (DC contact info). All shipped today as the `cross_reference_ids`/`social`/`contact` blocks on `Legislator`. **Lesson: don't assume a competitor with more records also has richer per-record fields. Sample 2-3 docs from each of their collections via a quick read-only Firestore probe before assuming you need to expand schemas. Most of the work is record-coverage backfill via existing scrapers, not schema redesign.**
 
 ## What This Project Is
 
@@ -721,3 +727,121 @@ After the backfill is done and verified, then proceed down the queued list (logo
 - `feedback_verify_inbound_specs.md` — verify-before-acting on inbound specs that contradict established state
 - `project_brand_keyvex.md` — brand is KeyVex, Firebase project ID `capitaledge-api` is permanent infra
 - `project_canonical_google_account.md` — `claude1986aaa@gmail.com` is canonical for KeyVex
+
+### Day 8 — Form 278 backfill + Bioguide enrichment + Congressional 10-year backfill (2026-05-08)
+
+Massive coverage day. Three shipments built on top of each other; total record count across primary collections grew ~75× in one session.
+
+**1. Form 278 10-year backfill (the day's stated top priority).**
+- Extended `src/scrapers/form278.ts` to accept `--start-date=YYYY-MM-DD --end-date=YYYY-MM-DD` (alternative to the existing `lookbackDays`). Pagination cap raises from 1,000 → 50,000 in date-range mode.
+- Extended `src/scrape.ts` form278 CLI command with the new flags.
+- Ran year-by-year 2016 → 2025 (per CLAUDE.md preference for "10 separate runs, easier to debug + recover").
+- **First run silently failed** — service-account.json missing in worktree's `secrets/` (gitignored, doesn't carry across worktrees), every save threw `isStubMode()` error, bash for-loop's `| grep` filter ate the per-iteration exit codes. Wrote zero records, exit code 0. Caught when post-run Firestore query showed 50 records (unchanged from morning baseline).
+- Copied service-account.json into worktree's `secrets/`, re-ran with widened grep filter that includes `FATAL` patterns. All 10 years saved cleanly.
+- **Final state: 50 → 1,803 records in `annual_financial_disclosures` (36× growth).** Per-year: 139 / 132 / 161 / 150 / 162 / 170 / 147 / 225 / 265 / 203 (election-year peaks 2024 + 2020).
+
+**2. Cross-project audit of Derek's `capital-edge-d5038` Firestore.**
+- Greg minted a service-account-derek.json in Firebase Console (~90 sec); cross-project IAM was not pre-granted.
+- Read-only audit of all 15 of Derek's top-level collections, schema-sampled 3 docs from each.
+- **Critical finding:** Derek's `financialDisclosures` (5,591 docs that CLAUDE.md cited as the credibility benchmark) is NOT a primary-source Form 278 scrape. It's `dataSource: "OPENSECRETS_SCRAPED"` — net-worth estimates aggregated from opensecrets.org, with `assets: null`, `liabilities: null`, `byCategory: null` (only `estimatedNetWorth` populated). Different product entirely; would dilute our pure-publisher posture if copied. Captured as a Hard Lesson.
+- **Schema audit of his primary-source collections** (insider_trades / institutional_holdings / activist_ownership / etc.): surprisingly few real schema gaps. Most of our scrapers are field-complete vs. his; `institutional_holdings` (where we capture quarter-over-quarter `position_change` / `shares_change_pct`) is actually richer in our shop. Real gaps were three small ones in `legislators` only.
+
+**3. Bioguide enrichment (the schema improvements from the audit).**
+- Added three nested blocks to `Legislator` in `src/types.ts`: `cross_reference_ids` (ICPSR / FEC[] / OpenSecrets / GovTrack / Wikipedia / Wikidata / Ballotpedia / Thomas / LIS / VoteSmart / C-SPAN), `social` (Twitter / Facebook / YouTube / Instagram + numeric IDs), `contact` (DC office / address / phone / fax / official URL / contact form / state_rank / RSS).
+- Updated `src/scrapers/bioguide.ts` `YamlIdBlock` / `YamlSocialBlock` / `YamlTerm` interfaces and `extractCrossReferenceIds` / `extractSocial` / `extractContact` helpers. All three blocks read from the same `legislators-current.yaml` we were already parsing — fields just weren't being captured.
+- Re-ran `npx tsx src/scrape.ts bioguide --save`. **All 536 current legislators now carry the new blocks.** Cantwell verified: ICPSR=39310, FEC=[S8WA00194, H2WA01054], OpenSecrets=N00007836, GovTrack=300018, Wikidata=Q22250, full DC contact info populated.
+- Updated `src/tools/member-profile.ts` description to surface the new fields to MCP clients.
+
+**4. Senate + House date-range/year backfill mode.**
+- Extended `src/scrapers/senate.ts`: added `startDate` / `endDate` options to `scrapeSenateLiveFeed`, added pagination loop (the previous version was single-page, silently truncating at PAGE_SIZE=100), pagination cap raises to 50,000 in date-range mode.
+- Extended `src/scrapers/house.ts`: added `year` option to `scrapeHouseLiveFeed` for full-year XML index scrape (alternative to lookbackDays). Year mode skips the lookback filter and pulls every PTR in that year's XML index.
+- Updated CLI in `src/scrape.ts` for both: `senate --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD --save` and `house --year=YYYY --extract --save`.
+
+**5. Congressional trades 10-year backfill (the big one).**
+- Senate 2016 → 2025: **12,773 trades from 1,440 PTRs.** Year-by-year: 1497 / 1529 / 1465 / 1421 / 1751 / 1113 / 917 / 1164 / 918 / 998. Election-year spikes (2020 highest at 1751). Runtime ~30 min.
+- House 2016 → 2025: **40,649 trades from 5,762 PTRs.** Year-by-year: 1401 / 1275 / 3117 / 4660 / 6557 / 5515 / 3604 / 4180 / 2696 / 7644. House files dramatically more PTRs than Senate (435 reps vs 100 senators) but lower trades-per-PTR ratio (~7 vs Senate's ~9). 2020 (COVID) and 2025 (off-cycle) highest. PDF extraction successful across all years — older 2016/2017 PDF formats parsed cleanly with no schema-shift bugs. Runtime ~85 min.
+- **Final `congressional_trades` count: 581 → 54,140 (93× growth).** Senate 13,035 + House 41,105. Reaches 75% of Derek's 72,410 — remaining ~25% gap is purely pre-2016 paper-era filings (House Clerk's electronic mandate for PTRs took until ~2014; Senate eFD electronic mandate post-2012). Closing the rest would mean extending the year loop back to 2010-2015, ~30 min code + ~60 min runtime. Probably yields ~5K-15K more records, with diminishing quality (paper-PTR amendments increase in frequency further back).
+
+**Audit results: what to do about Derek's other primary-source coverage gaps**
+
+| Collection | Ours (after today) | Derek's | Gap | Status |
+|---|---|---|---|---|
+| congressional_trades | 54,140 | 72,410 | 25% gap | **CLOSED 75% today.** Remaining = pre-2016. Optional. |
+| material_events | 100 | 1,047 | 10× | Backfill via existing `8k-feed` with extended window. ~30 min. |
+| activist_ownership | 165 | 1,763 | 11× | Backfill via existing `13d-13g-feed`. ~30 min. |
+| institutional_holdings | ~100 | 627 | 6× | Backfill via existing `13f-feed` per fund per quarter. ~1-2 hr. |
+| planned_insider_sales | 90 | 596 | 6.6× | Backfill via existing `form144-feed`. ~30 min. |
+| insider_trades | 76 | 363 | 4.7× | Backfill via existing `form4-feed`. ~30 min. |
+| initial_ownership_baselines | 98 | 461 | 4.7× | Backfill via existing `form3-feed`. ~30 min. |
+| lobbying_filings | 100 | 382 | 3.8× | Backfill via existing `lobbying-feed` for prior quarters. ~30 min. |
+| federal_contracts | unknown | 3,052 | tbd | Backfill via existing `usaspending-feed`. ~30 min. |
+| legislators (congress) | 12,766 | 12,766 | parity | Already covered. |
+
+**Schema posture confirmed:** Pure-publisher posture stays. `signalWeight` (from Derek's congressional_trades), `estimatedNetWorth` (from Derek's financialDisclosures), `chamberMedianLag` / percentile rankings (from Derek's memberStats), and `osLikelyOutlier` (from Derek's netWorthValidation) are all derived/computed values that DO NOT belong in our records. Confirmed via audit; locked.
+
+**What's open after Day 8:**
+1. **Pre-2016 congressional_trades backfill** — optional ~25% additional coverage. Quick win if desired.
+2. **Smaller-collection backfills** (8-K / 13D-G / 13F / Form 144 / Form 4 / Form 3 / lobbying / USAspending) — same date-range pattern, each is its own ~30-60 min job. Greg should pick the order.
+3. **Form 278 PDF parsing for Schedule A asset detail** (the v1.1 killer feature) — the moat. Derek doesn't have asset-level detail (`assets: null` in his collection); we'd be the only MCP server with line-item Form 278 data. 4-6 hours, deserves a fresh session.
+4. **Day 7 launch path items still queued:** logo wire-in (`keyvex-mark.png` / `keyvex-wordmark.png` drop), apex domain mapping (`keyvex.com` → capitaledge-api Hosting site), Privacy Policy, Loom demo, MCP registry submissions, LLC + Stripe.
+
+**Strategic note for next session:** Greg explicitly authorized "do as much as you can without me" partway through the day. I followed standing rules: did all schema/code/backfill work autonomously but did NOT git commit (per "NEVER commit unless the user explicitly asks you to"). All changes are staged and ready for Greg's `git commit` review when he returns.
+
+### Day 8 LATER — 13 sources / 12 tools (v0.18.0) + competitive audit + LDA backfill
+
+After the morning's Form 278 + bioguide + congressional backfill, second wave of work focused on tool-surface completeness vs the 13-source landing-page promise.
+
+**Production endpoint health-check (mcp.keyvex.com).** All 10 v0.17.0 tools verified working end-to-end with bearer auth. Round-trip latency 150-1,000ms, Susan Collins's `get_member_profile` response confirmed the new `cross_reference_ids{}` / `social{}` / `contact{}` blocks flowing through the production endpoint **without redeploy** — the deployed function reads from Firestore at request time, so morning's bioguide enrichment was live to customers immediately.
+
+**Competitive audit** at Greg's request — "how do others deliver this data?" Surveyed the landscape:
+- Direct primary-source government UIs (free, brittle): SEC EDGAR, Senate eFD, House Clerk, LDA, USAspending. The actual sources we scrape.
+- Aggregator REST APIs ($30-100/month): Quiver Quantitative, FMP, Alpha Vantage, Polygon. Closest competitors. Quiver added MCP layer in 2024 — bolted onto pre-existing REST API.
+- Aggregator dashboards (consumer-facing): CapitolTrades, WhaleWisdom, Stockanalysis, OpenSecrets, Bloomberg Terminal, Unusual Whales.
+- Pure data dumps: SEC EDGAR FTP, OpenSecrets bulk CSVs.
+- MCP-native (newest): Unusual Whales (REST-bolted-MCP, ~50 tools), one-off hobbyist servers, **KeyVex** (designed agent-first from scratch, 10-12 tools with rich filters). The wedge.
+
+**Senate vs House merge decision** (Greg's pushback, then resolution): "they're 2 different sources, scraped from 2 different places, 2 different things." Initial response leaned toward splitting into `get_senate_trades` + `get_house_trades`. Competitive scan showed CapitolTrades / Unusual Whales / Stockanalysis / Bloomberg / Smart Insider all **merge** — only Quiver splits (because their general design is many-narrow-endpoints). 5 of 6 merge. Greg's call: **"handle that like the competition does."** Decision: KEEP merged `get_congressional_trades`. Already has `chamber` filter, every record's `data_source` field discloses provenance (`SENATE_EFD_PTR` vs `HOUSE_CLERK_PTR`). Done.
+
+**Two new MCP tools shipped (v0.17.0 → v0.18.0):**
+
+1. **`get_initial_ownership_baselines`** — Form 3 dedicated tool. Previously folded into `get_insider_transactions` via `include_baseline:true`. Now also queryable directly. The fold pattern stays as a convenience, but agents searching specifically for "who became a NEW insider at AAPL this year" get a focused tool.
+2. **`get_historical_member`** — surfaces the `legislators_historical` collection (~12,230 members, 1789→present) that was previously internal-only (used by the bioguide back-fill matcher's Tier-4 fallback). New filters: `active_year`, `active_since`, `active_until`, plus state/chamber/party against the terms[] array. Smoke-tested against real Firestore data: Henry Clay (C000482) lookup, MA senators in 1925 (Butler + Gillett), Whigs in House, all return correct results.
+
+**Tool surface now 12, fully aligned to 13 disclosure sources** (10→12, with Senate+House merged into 1 tool by design):
+
+| Source | Tool |
+|---|---|
+| SEC Form 4 | `get_insider_transactions` |
+| SEC Form 144 | `get_planned_insider_sales` |
+| SEC Form 3 | `get_initial_ownership_baselines` (new) |
+| SEC 13F | `get_institutional_holdings` |
+| SEC 13D / 13G | `get_activist_stakes` |
+| SEC 8-K | `get_material_events` |
+| USAspending | `get_federal_contracts` |
+| Senate LDA | `get_lobbying_filings` |
+| Senate eFD + House Clerk PTRs | `get_congressional_trades` (merged by design — competitive norm) |
+| Current legislators | `get_member_profile` |
+| Historical legislators (1789→present) | `get_historical_member` (new) |
+| Form 278 | `get_annual_financial_disclosures` |
+
+**Version bump 0.17.0 → 0.18.0** in `src/index.ts`, `functions/src/index.ts`, `package.json`. **Cloud Function NOT yet redeployed** (per commit rule — staged for Greg's explicit deploy authorization). Once redeployed, `mcp.keyvex.com/` health-check will report `version: "0.18.0", tools: 12, tool_names: [...,"get_initial_ownership_baselines","get_historical_member"]`.
+
+**LDA backfill 2020-2025 launched in background.** First attempt hung silently due to bash for-loop pipe buffering issue (grep without `--line-buffered` swallows output until buffer fills) — same family of issue as morning's `[save] Saved` line invisibility. Killed and relaunched with `grep --line-buffered` and tighter `--max=2000` per quarter. Running 24 quarters total (6 years × 4 quarters). ETA varies on LDA API rate (2 req/sec sustained; can be slower); some quarters may saturate the 2000 cap (large quarters), others won't (smaller historical ones). Watch the live Firestore count to verify progress.
+
+**Pre-2016 congressional_trades backfill launched in background.** Senate 2012-2015 is running. **2012 and 2013 returned 0 records** — confirms CLAUDE.md prediction that Senate eFD pre-2014 is paper-mostly. Expecting modest yield from 2014/2015 (a few hundred records each). House pre-2016 will run after Senate completes; House Clerk's electronic-PTR mandate took effect 2014 so only 2014-2015 will yield real data (~1,500-3,000 records combined estimate).
+
+**Hard Lesson reinforced:** Bash `cmd | grep ...` without `--line-buffered` will buffer pipe output indefinitely on long-running commands, making it look like the upstream command is hung when it's actually progressing fine. Always use `grep --line-buffered` (or `awk` with explicit fflush) when piping a long-running command's output through grep. Same pattern as the morning's `^\[(form278|save)\]` issue but for a different reason (buffering vs. exit-code swallowing).
+
+**Files touched in Day 8 LATER:**
+- `src/types.ts` — added `LegislatorHistoricalQuery` interface
+- `src/firestore.ts` — added `queryLegislatorsHistorical` function (~80 lines, with date-range filter against terms[])
+- `src/tools/historical-member.ts` (NEW) — 12,230 historical members exposed via 8 filter dimensions
+- `src/tools/initial-ownership-baselines.ts` (NEW) — Form 3 dedicated tool
+- `src/tools/index.ts` — registered both new tools, count is now 12
+- `src/index.ts`, `functions/src/index.ts`, `package.json` — version bump 0.17.0 → 0.18.0
+
+Combined with morning's work, total Day 8 file count: **13 modified + 2 new** = 15 files staged.
+
+**Last Updated**
+
+May 8, 2026 — Day 8 LATER. **12 MCP tools live in code (server v0.18.0 staged, v0.17.0 deployed), 13 autonomous scrapers in production, 54,140 congressional trades + 1,803 Form 278 filings + 536 enriched legislators + 12,230 historical legislators now queryable + LDA + pre-2016 backfills running in background.** All staged for Greg's commit + deploy. Production endpoint already serves the new bioguide-enrichment data and the existing 54K+1.8K+12K records; the 2 new tools (`get_initial_ownership_baselines`, `get_historical_member`) require redeploy to be customer-facing.
