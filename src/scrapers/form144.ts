@@ -51,28 +51,106 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchJson(url: string): Promise<unknown> {
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": CONFIG.USER_AGENT,
-      Accept: "application/json",
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`EDGAR ${res.status} ${res.statusText} — ${url}`);
+  const MAX_ATTEMPTS = 4;
+  let lastErr: Error | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await sleep(CONFIG.RATE_LIMIT_MS);
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": CONFIG.USER_AGENT,
+          Accept: "application/json",
+        },
+      });
+      if (res.status === 429 || res.status >= 500) {
+        const retryAfter = Number(res.headers.get("Retry-After")) * 1000;
+        const backoff =
+          Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter
+            : Math.min(2000 * 2 ** (attempt - 1), 16000);
+        console.error(
+          `[edgar-retry] ${res.status} on attempt ${attempt}/${MAX_ATTEMPTS}, backing off ${backoff}ms — ${url}`,
+        );
+        if (attempt === MAX_ATTEMPTS) {
+          throw new Error(
+            `EDGAR ${res.status} after ${MAX_ATTEMPTS} attempts — ${url}`,
+          );
+        }
+        await sleep(backoff);
+        continue;
+      }
+      if (!res.ok) {
+        throw new Error(`EDGAR ${res.status} ${res.statusText} — ${url}`);
+      }
+      return res.json();
+    } catch (err) {
+      const isNetworkError =
+        err instanceof TypeError ||
+        (err instanceof Error &&
+          /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND/i.test(err.message));
+      if (isNetworkError && attempt < MAX_ATTEMPTS) {
+        const backoff = Math.min(2000 * 2 ** (attempt - 1), 16000);
+        console.error(
+          `[edgar-retry] network error on attempt ${attempt}/${MAX_ATTEMPTS}, backing off ${backoff}ms: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await sleep(backoff);
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        continue;
+      }
+      throw err;
+    }
   }
-  return res.json();
+  throw lastErr ?? new Error(`Max retries exceeded — ${url}`);
 }
 
 async function fetchText(url: string): Promise<string> {
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await fetch(url, {
-    headers: { "User-Agent": CONFIG.USER_AGENT },
-  });
-  if (!res.ok) {
-    throw new Error(`EDGAR ${res.status} ${res.statusText} — ${url}`);
+  const MAX_ATTEMPTS = 4;
+  let lastErr: Error | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      await sleep(CONFIG.RATE_LIMIT_MS);
+      const res = await fetch(url, {
+        headers: { "User-Agent": CONFIG.USER_AGENT },
+      });
+      if (res.status === 429 || res.status >= 500) {
+        const retryAfter = Number(res.headers.get("Retry-After")) * 1000;
+        const backoff =
+          Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter
+            : Math.min(2000 * 2 ** (attempt - 1), 16000);
+        console.error(
+          `[edgar-retry] ${res.status} on attempt ${attempt}/${MAX_ATTEMPTS}, backing off ${backoff}ms — ${url}`,
+        );
+        if (attempt === MAX_ATTEMPTS) {
+          throw new Error(
+            `EDGAR ${res.status} after ${MAX_ATTEMPTS} attempts — ${url}`,
+          );
+        }
+        await sleep(backoff);
+        continue;
+      }
+      if (!res.ok) {
+        throw new Error(`EDGAR ${res.status} ${res.statusText} — ${url}`);
+      }
+      return res.text();
+    } catch (err) {
+      const isNetworkError =
+        err instanceof TypeError ||
+        (err instanceof Error &&
+          /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND/i.test(err.message));
+      if (isNetworkError && attempt < MAX_ATTEMPTS) {
+        const backoff = Math.min(2000 * 2 ** (attempt - 1), 16000);
+        console.error(
+          `[edgar-retry] network error on attempt ${attempt}/${MAX_ATTEMPTS}, backing off ${backoff}ms: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await sleep(backoff);
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        continue;
+      }
+      throw err;
+    }
   }
-  return res.text();
+  throw lastErr ?? new Error(`Max retries exceeded — ${url}`);
 }
 
 const formatAccession = (a: string): string => a.replace(/-/g, "");

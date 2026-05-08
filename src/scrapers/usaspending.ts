@@ -203,14 +203,40 @@ function normalizeAward(raw: RawAwardResult): FederalContractAward | null {
  * size — bigger windows would need bumping or a date-walking strategy.
  */
 export async function scrapeContractsLiveFeed(
-  lookbackDays = 7,
-  maxPages = CONFIG.DEFAULT_MAX_PAGES,
+  options: {
+    lookbackDays?: number;
+    maxPages?: number;
+    /** ISO YYYY-MM-DD (date-range mode). Mutually exclusive with lookbackDays. */
+    startDate?: string;
+    /** ISO YYYY-MM-DD (date-range mode). */
+    endDate?: string;
+  } = {},
 ): Promise<FederalContractAward[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = start.toISOString().split("T")[0]!;
-  const endStr = end.toISOString().split("T")[0]!;
+  const hasStart =
+    typeof options.startDate === "string" && options.startDate.length > 0;
+  const hasEnd =
+    typeof options.endDate === "string" && options.endDate.length > 0;
+  if (hasStart !== hasEnd) {
+    throw new Error(
+      "USAspending date-range mode requires BOTH startDate and endDate",
+    );
+  }
+  const dateRangeMode = hasStart && hasEnd;
+
+  let startStr: string;
+  let endStr: string;
+  if (dateRangeMode) {
+    startStr = options.startDate!;
+    endStr = options.endDate!;
+  } else {
+    const lookbackDays = options.lookbackDays ?? 7;
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - lookbackDays);
+    startStr = start.toISOString().split("T")[0]!;
+    endStr = end.toISOString().split("T")[0]!;
+  }
+  const maxPages = options.maxPages ?? CONFIG.DEFAULT_MAX_PAGES;
 
   console.error(
     `[usaspending live] Window ${startStr} → ${endStr}, max ${maxPages} pages of ${CONFIG.PAGE_SIZE}`,
@@ -244,7 +270,7 @@ export async function scrapeContractsLiveFeed(
   }
 
   console.error(
-    `[usaspending live] TOTAL: ${all.length} contract awards in last ${lookbackDays}d`,
+    `[usaspending live] TOTAL: ${all.length} contract awards from ${startStr} → ${endStr}`,
   );
   return all;
 }

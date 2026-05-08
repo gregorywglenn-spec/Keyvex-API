@@ -391,14 +391,20 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   "usaspending-feed": {
     description:
-      "Scrape recent federal contract awards across all recipients for the last N days (default 7; add --save to write to Firestore). The political-alpha source — joins to congressional_trades by recipient_name + date.",
+      "Scrape federal contract awards across all recipients. Two modes: (1) lookback — pass N days as positional (default 7); (2) date-range — pass --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD for backfill. Add --max-pages=N to override the 10-page (1000 award) cap. Add --save to write to Firestore. The political-alpha source — joins to congressional_trades by recipient_name + date.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 7;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
+      const range = parseDateRangeArgs(args, 7);
+      const maxPagesFlag = args.find((a) => a.startsWith("--max-pages="));
+      const maxPages = maxPagesFlag
+        ? parseInt(maxPagesFlag.slice("--max-pages=".length), 10)
+        : undefined;
+      if (maxPages !== undefined && (Number.isNaN(maxPages) || maxPages < 1)) {
+        throw new Error("--max-pages=N must be a positive integer");
       }
-      const awards = await scrapeContractsLiveFeed(days);
+      const awards = await scrapeContractsLiveFeed({
+        ...range,
+        ...(maxPages !== undefined ? { maxPages } : {}),
+      });
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${awards.length} federal contract awards to Firestore...`,

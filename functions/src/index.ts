@@ -334,7 +334,7 @@ export const scrapeUSAspendingDaily = onSchedule(
   async () => {
     const started = Date.now();
     logger.info("[usaspending] starting (7-day lookback)");
-    const awards = await scrapeContractsLiveFeed(7);
+    const awards = await scrapeContractsLiveFeed({ lookbackDays: 7 });
     logger.info(`[usaspending] scraper returned ${awards.length} awards`);
     let docsWritten = 0;
     if (awards.length > 0) {
