@@ -215,21 +215,26 @@ async function queryInsiderTransactionsLive(
 
   const sortField = query.sort_by ?? "disclosure_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "disclosure_date";
 
-  // Firestore allows AT MOST ONE range filter per query (across all .where
-  // calls combined with orderBy). When the agent passes both since/until
-  // (range on sortField) AND min_value (range on total_value), we have to
-  // defer one to client-side. since/until is more selective and aligns
-  // with the orderBy, so it stays on the server. min_value is applied
-  // client-side after fetch.
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS a date field.
+  const sortIsDate =
+    sortField === dateField || sortField === "transaction_date";
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
 
-  // min_value applied as a server-side filter ONLY when there's no other
-  // range filter on a different field. Otherwise defer to client-side.
-  const hasOtherRange = !!(query.since || query.until);
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
+
+  // min_value applied as a server-side filter ONLY when sortField is also
+  // total_value (so the inequality and orderBy align). Otherwise we'd hit
+  // Firestore's "range on multiple fields" restriction. Defer to client-side
+  // in all other cases.
   const applyMinValueClientSide =
-    hasOtherRange && query.min_value !== undefined;
+    query.min_value !== undefined && sortField !== "total_value";
   if (query.min_value !== undefined && !applyMinValueClientSide) {
     q = q.where("total_value", ">=", query.min_value);
   }
@@ -245,13 +250,26 @@ async function queryInsiderTransactionsLive(
   // is enough for v1's data volume (~hundreds of insider records) and
   // protects against runaway memory on later growth. See v1.1 polish item
   // for moving substring search to Firestore-side via tokenized indexes.
-  // Same wider window when min_value is deferred to client-side.
-  const needsClientFilter = query.officer_name || applyMinValueClientSide;
+  // Same wider window when min_value is deferred to client-side or date
+  // filter runs client-side.
+  const needsClientFilter =
+    query.officer_name || applyMinValueClientSide || useClientSideDateFilter;
   const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as InsiderTransaction);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((t) => (t[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((t) => (t[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.officer_name) {
     const needle = query.officer_name.toLowerCase();
@@ -426,15 +444,28 @@ export async function queryCongressionalTrades(
     q = q.where("transaction_type", "==", query.transaction_type);
   }
   if (query.owner) q = q.where("owner", "==", query.owner);
-  if (query.min_amount !== undefined) {
-    q = q.where("amount_min", ">=", query.min_amount);
-  }
 
   const sortField = query.sort_by ?? "disclosure_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "disclosure_date";
 
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS a date field.
+  const sortIsDate =
+    sortField === dateField || sortField === "transaction_date";
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
+
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
+
+  // min_amount is always deferred client-side: amount_min is not in this
+  // collection's sort_by union, so it can never align with the orderBy
+  // field, and a server-side `where(amount_min)` plus `orderBy(date)` would
+  // hit Firestore's "range on multiple fields" error.
+  const applyMinAmountClientSide = query.min_amount !== undefined;
 
   q = q.orderBy(sortField, sortOrder);
 
@@ -443,12 +474,28 @@ export async function queryCongressionalTrades(
   // Same substring-filter consideration as queryInsiderTransactionsLive: when
   // member_name (substring filter) is set, pull a much larger Firestore window
   // so the client-side filter sees the full universe.
-  const fetchLimit = query.member_name ? 5000 : userLimit + 1;
+  const needsClientFilter =
+    query.member_name || applyMinAmountClientSide || useClientSideDateFilter;
+  const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as CongressionalTrade);
 
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((t) => (t[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((t) => (t[dateField] ?? "") <= until);
+    }
+  }
+  if (applyMinAmountClientSide && query.min_amount !== undefined) {
+    const minAmount = query.min_amount;
+    docs = docs.filter((t) => (t.amount_min ?? 0) >= minAmount);
+  }
   if (query.member_name) {
     const needle = query.member_name.toLowerCase();
     docs = docs.filter((t) =>
@@ -519,21 +566,26 @@ export async function queryForm144Filings(
 
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "filing_date";
 
-  // Firestore allows AT MOST ONE range filter per query (across all .where
-  // calls combined with orderBy). When the agent passes both since/until
-  // (range on sortField) AND min_value (range on aggregate_market_value),
-  // we have to defer one to client-side. since/until is more selective and
-  // aligns with the orderBy, so it stays on the server. min_value is
-  // applied client-side after fetch.
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS a date field.
+  const sortIsDate =
+    sortField === dateField || sortField === "approximate_sale_date";
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
 
-  // min_value applied as a server-side filter ONLY when there's no other
-  // range filter on a different field. Otherwise defer to client-side.
-  const hasOtherRange = !!(query.since || query.until);
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
+
+  // min_value applied as a server-side filter ONLY when sortField is also
+  // aggregate_market_value (so inequality and orderBy align). Defer
+  // client-side in all other cases to avoid Firestore "range on multiple
+  // fields" error.
   const applyMinValueClientSide =
-    hasOtherRange && query.min_value !== undefined;
+    query.min_value !== undefined && sortField !== "aggregate_market_value";
   if (query.min_value !== undefined && !applyMinValueClientSide) {
     q = q.where("aggregate_market_value", ">=", query.min_value);
   }
@@ -545,13 +597,25 @@ export async function queryForm144Filings(
   // Same substring-filter consideration as the other collections: when
   // filer_name is set, pull a much larger Firestore window so the client-side
   // filter sees the full universe. Same wider window when min_value is
-  // deferred to client-side.
-  const needsClientFilter = query.filer_name || applyMinValueClientSide;
+  // deferred to client-side or date filter runs client-side.
+  const needsClientFilter =
+    query.filer_name || applyMinValueClientSide || useClientSideDateFilter;
   const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as Form144Filing);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((f) => (f[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((f) => (f[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
@@ -631,9 +695,18 @@ export async function queryForm3Holdings(
 
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "filing_date";
 
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS the date field.
+  const sortIsDate = sortField === dateField;
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
+
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
 
   q = q.orderBy(sortField, sortOrder);
 
@@ -641,12 +714,25 @@ export async function queryForm3Holdings(
 
   // Same substring-filter consideration as the other collections: when
   // filer_name is set, pull a much larger Firestore window so the client-side
-  // filter sees the full universe.
-  const fetchLimit = query.filer_name ? 5000 : userLimit + 1;
+  // filter sees the full universe. Same wider window when date filter runs
+  // client-side.
+  const needsClientFilter = query.filer_name || useClientSideDateFilter;
+  const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as Form3Holding);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((f) => (f[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((f) => (f[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
@@ -726,22 +812,27 @@ export async function queryActivistOwnership(
 
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "filing_date";
 
-  // Firestore allows AT MOST ONE range filter per query (across all .where
-  // calls combined with orderBy). When the agent passes both since/until
-  // (range on sortField) AND min_percent_of_class (range on
-  // percent_of_class), we have to defer one to client-side. since/until is
-  // more selective and aligns with the orderBy, so it stays on the server.
-  // min_percent_of_class is applied client-side after fetch.
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality (range) field to match the orderBy
+  // field. So since/until can only run server-side when sortField IS the
+  // date field. When sorting by something else (e.g., shares_owned), we
+  // defer the date filter to client-side.
+  const sortIsDate = sortField === dateField || sortField === "event_date";
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
 
-  // min_percent_of_class applied as a server-side filter ONLY when there's
-  // no other range filter on a different field. Otherwise defer to
-  // client-side.
-  const hasOtherRange = !!(query.since || query.until);
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
+
+  // min_percent_of_class applied as a server-side filter ONLY when
+  // sortField is also percent_of_class (so inequality and orderBy align).
+  // Defer client-side in all other cases.
   const applyMinPercentClientSide =
-    hasOtherRange && query.min_percent_of_class !== undefined;
+    query.min_percent_of_class !== undefined &&
+    sortField !== "percent_of_class";
   if (
     query.min_percent_of_class !== undefined &&
     !applyMinPercentClientSide
@@ -756,13 +847,26 @@ export async function queryActivistOwnership(
   // Same substring-filter consideration as the other collections: when
   // filer_name is set, pull a much larger Firestore window so the client-side
   // filter sees the full universe. Same wider window when
-  // min_percent_of_class is deferred to client-side.
-  const needsClientFilter = query.filer_name || applyMinPercentClientSide;
+  // min_percent_of_class is deferred to client-side or date filter runs
+  // client-side.
+  const needsClientFilter =
+    query.filer_name || applyMinPercentClientSide || useClientSideDateFilter;
   const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as ActivistOwnership);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((f) => (f[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((f) => (f[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
@@ -842,21 +946,25 @@ export async function queryFederalContractAwards(
 
   const sortField = query.sort_by ?? "last_modified_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "last_modified_date";
 
-  // Firestore allows AT MOST ONE range filter per query (across all .where
-  // calls combined with orderBy). When the agent passes both since/until
-  // (range on sortField) AND min_amount (range on award_amount), we have
-  // to defer one to client-side. since/until is more selective and aligns
-  // with the orderBy, so it stays on the server. min_amount is applied
-  // client-side after fetch.
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS a date field.
+  const sortIsDate =
+    sortField === dateField || sortField === "start_date";
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
 
-  // min_amount applied as a server-side filter ONLY when there's no other
-  // range filter on a different field. Otherwise defer to client-side.
-  const hasOtherRange = !!(query.since || query.until);
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
+
+  // min_amount applied as a server-side filter ONLY when sortField is also
+  // award_amount (so inequality and orderBy align). Defer client-side in
+  // all other cases to avoid Firestore "range on multiple fields" error.
   const applyMinAmountClientSide =
-    hasOtherRange && query.min_amount !== undefined;
+    query.min_amount !== undefined && sortField !== "award_amount";
   if (query.min_amount !== undefined && !applyMinAmountClientSide) {
     q = q.where("award_amount", ">=", query.min_amount);
   }
@@ -866,13 +974,25 @@ export async function queryFederalContractAwards(
   const userLimit = query.limit ?? 50;
 
   // Wider fetch window when client-side filtering kicks in (substring on
-  // recipient_name or min_amount-after-since/until).
-  const needsClientFilter = query.recipient_name || applyMinAmountClientSide;
+  // recipient_name, min_amount deferred, or date filter deferred).
+  const needsClientFilter =
+    query.recipient_name || applyMinAmountClientSide || useClientSideDateFilter;
   const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as FederalContractAward);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((c) => (c[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((c) => (c[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.recipient_name) {
     const needle = query.recipient_name.toLowerCase();
@@ -956,21 +1076,24 @@ export async function queryLobbyingFilings(
 
   const sortField = query.sort_by ?? "dt_posted";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "dt_posted";
 
-  // Firestore allows AT MOST ONE range filter per query (across all .where
-  // calls combined with orderBy). When the agent passes both since/until
-  // (range on sortField) AND min_income (range on income), we have to defer
-  // one to client-side. since/until is more selective and aligns with the
-  // orderBy, so it stays on the server. min_income is applied client-side
-  // after fetch.
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS the date field.
+  const sortIsDate = sortField === dateField;
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
 
-  // min_income applied as a server-side filter ONLY when there's no other
-  // range filter on a different field. Otherwise defer to client-side.
-  const hasOtherRange = !!(query.since || query.until);
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
+
+  // min_income applied as a server-side filter ONLY when sortField is also
+  // income (so inequality and orderBy align). Defer client-side in all
+  // other cases to avoid Firestore "range on multiple fields" error.
   const applyMinIncomeClientSide =
-    hasOtherRange && query.min_income !== undefined;
+    query.min_income !== undefined && sortField !== "income";
   if (query.min_income !== undefined && !applyMinIncomeClientSide) {
     q = q.where("income", ">=", query.min_income);
   }
@@ -988,17 +1111,30 @@ export async function queryLobbyingFilings(
   // EXXONMOBIL CORPORATION record was older than the 5000th most-recent
   // dt_posted. Tradeoff: client-side substring queries are slower (downloads
   // ~all records to filter) but correctness > speed for substring queries.
-  // Same wider window when min_income is deferred to client-side.
+  // Same wider window when min_income or date filter is deferred to
+  // client-side.
   const needsClientSideFilter =
     query.registrant_name ||
     query.client_name ||
     query.government_entity ||
-    applyMinIncomeClientSide;
+    applyMinIncomeClientSide ||
+    useClientSideDateFilter;
   const fetchLimit = needsClientSideFilter ? 100000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as LobbyingFiling);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((f) => (f[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((f) => (f[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.registrant_name) {
     const needle = query.registrant_name.toLowerCase();
@@ -1457,17 +1593,39 @@ export async function queryMaterialEvents(
 
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "filing_date";
 
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS a date field.
+  const sortIsDate =
+    sortField === dateField || sortField === "period_of_report";
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
+
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
 
   q = q.orderBy(sortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
-  q = q.limit(userLimit + 1);
+  const fetchLimit = useClientSideDateFilter ? 5000 : userLimit + 1;
+  q = q.limit(fetchLimit);
 
   const snap = await q.get();
-  const docs = snap.docs.map((d) => d.data() as MaterialEvent);
+  let docs = snap.docs.map((d) => d.data() as MaterialEvent);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((m) => (m[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((m) => (m[dateField] ?? "") <= until);
+    }
+  }
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
@@ -1753,18 +1911,39 @@ export async function queryForm278Filings(
 
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
+  const dateField = "filing_date";
 
-  if (query.since) q = q.where(sortField, ">=", query.since);
-  if (query.until) q = q.where(sortField, "<=", query.until);
+  // Firestore requires the inequality field to match the orderBy field.
+  // since/until can only run server-side when sortField IS the date field.
+  const sortIsDate = sortField === dateField;
+  const useClientSideDateFilter =
+    !sortIsDate && (query.since !== undefined || query.until !== undefined);
+
+  if (!useClientSideDateFilter) {
+    if (query.since) q = q.where(sortField, ">=", query.since);
+    if (query.until) q = q.where(sortField, "<=", query.until);
+  }
 
   q = q.orderBy(sortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.member_name ? 5000 : userLimit + 1;
+  const needsClientFilter = query.member_name || useClientSideDateFilter;
+  const fetchLimit = needsClientFilter ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as Form278Filing);
+
+  if (useClientSideDateFilter) {
+    if (query.since) {
+      const since = query.since;
+      docs = docs.filter((f) => (f[dateField] ?? "") >= since);
+    }
+    if (query.until) {
+      const until = query.until;
+      docs = docs.filter((f) => (f[dateField] ?? "") <= until);
+    }
+  }
 
   if (query.member_name) {
     const needle = query.member_name.toLowerCase();
