@@ -101,7 +101,7 @@ export const definition: Tool = {
           "total_outlays",
         ],
         description:
-          "Field used for ordering and for the since/until filters. Default: last_modified_date (most-recently-modified first).",
+          "Field used for ordering and for the since/until filters. last_modified_date = most recent modification on USAspending; start_date = period of performance start; award_amount = obligated dollars; total_outlays = dollars actually paid out. Default: last_modified_date.",
       },
       sort_order: {
         type: "string",

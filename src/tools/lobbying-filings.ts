@@ -125,7 +125,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["dt_posted", "filing_year", "income"],
         description:
-          "Field used for ordering and for since/until filters. Default: dt_posted (when the filing was submitted).",
+          "Field used for ordering and for since/until filters. dt_posted = when the filing was submitted to SOPR; filing_year = the calendar year being reported on; income = USD income paid to the registrant. Default: dt_posted.",
       },
       sort_order: {
         type: "string",

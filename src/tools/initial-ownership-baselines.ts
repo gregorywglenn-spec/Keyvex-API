@@ -109,7 +109,8 @@ export const definition: Tool = {
       sort_by: {
         type: "string",
         enum: ["filing_date", "shares_owned"],
-        description: "Default 'filing_date' for newest-first.",
+        description:
+          "filing_date = SEC submission date (newest-first by default); shares_owned = absolute snapshot count (use for 'who has the largest baseline at this company'). Also bounds since/until. Default 'filing_date'.",
       },
       sort_order: {
         type: "string",

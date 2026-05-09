@@ -66,7 +66,7 @@ export const definition: Tool = {
       officer_name: {
         type: "string",
         description:
-          "Full or partial officer name; case-insensitive substring match.",
+          "Full or partial officer name; case-insensitive substring match. Example: 'Cook' matches Tim Cook's filings.",
       },
       transaction_type: {
         type: "string",
@@ -92,7 +92,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["disclosure_date", "transaction_date", "total_value"],
         description:
-          "Field used for ordering and for the since/until date filters. Default: disclosure_date.",
+          "Field used for ordering and for the since/until date filters. disclosure_date = when filed with SEC; transaction_date = when the trade actually occurred; total_value = USD size of the trade. Default: disclosure_date.",
       },
       sort_order: {
         type: "string",

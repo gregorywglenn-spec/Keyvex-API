@@ -76,7 +76,7 @@ export const definition: Tool = {
       is_activist: {
         type: "boolean",
         description:
-          "Filter to 13D filings only (true) or 13G only (false). Omit to include both. Use is_activist=true to surface takeover/activist signal.",
+          "true = 13D activist/takeover-style filings only; false = 13G passive filings only; omit for both. Use is_activist=true to filter out the 13G institutional firehose (BlackRock, Vanguard, State Street dominate that volume) and surface real activist campaigns.",
       },
       filing_type: {
         type: "string",
@@ -108,7 +108,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["filing_date", "event_date", "percent_of_class", "shares_owned"],
         description:
-          "Field used for ordering and for the since/until date filters. Default: filing_date.",
+          "Field used for ordering and for the since/until date filters. filing_date = SEC submission date; event_date = the trigger event (acquisition, threshold cross); percent_of_class = ownership stake size; shares_owned = absolute shares. Default: filing_date.",
       },
       sort_order: {
         type: "string",

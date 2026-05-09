@@ -132,7 +132,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["filing_date", "filing_year"],
         description:
-          "Field to sort by. Default 'filing_date' (most recent filings first).",
+          "Sort field (also bounds since/until). filing_date = the date the filer submitted to the eFD; filing_year = the calendar year being reported on. Default 'filing_date' (most recent filings first).",
       },
       sort_order: {
         type: "string",

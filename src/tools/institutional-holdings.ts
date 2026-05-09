@@ -81,7 +81,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["market_value", "shares_held", "shares_change_pct"],
         description:
-          "Field used for ordering. Default: market_value (largest positions first).",
+          "Field used for ordering. market_value = USD value of the position; shares_held = absolute share count; shares_change_pct = percent change vs prior quarter (use with position_change for biggest movers). Default: market_value (largest positions first).",
       },
       sort_order: {
         type: "string",

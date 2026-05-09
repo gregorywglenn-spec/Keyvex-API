@@ -45,6 +45,19 @@ export const definition: Tool = {
     "Most Form 144 filings list one security line, but a single filing can",
     "cover multiple share classes (e.g., separate Class A + Class B). Each",
     "line is returned as its own record.",
+    "",
+    "Signal differentiator: each record carries `is_10b5_1_plan` (boolean)",
+    "and `plan_adoption_date`. is_10b5_1_plan=true means the sale is",
+    "scheduled under a pre-arranged Rule 10b5-1 trading plan (calendar-",
+    "driven, automated, lower discretionary signal). is_10b5_1_plan=false",
+    "is a DISCRETIONARY sale — the insider chose to sell because of",
+    "something happening now. Discretionary sales are the higher-conviction",
+    "signal. (Real example: Larry Fink's $35.6M BlackRock filing was",
+    "discretionary; Tim Cook's $33M Apple filings were 10b5-1 scheduled.)",
+    "Field set: filer_name, officer_title, shares_to_be_sold,",
+    "aggregate_market_value, shares_outstanding, pct_of_outstanding,",
+    "approximate_sale_date, is_10b5_1_plan, plan_adoption_date, exchange,",
+    "broker_name, notice_date.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -86,7 +99,7 @@ export const definition: Tool = {
           "aggregate_market_value",
         ],
         description:
-          "Field used for ordering and for the since/until date filters. Default: filing_date.",
+          "Field used for ordering and for the since/until date filters. filing_date = SEC submission date; approximate_sale_date = the insider's filed estimate of when they plan to sell; aggregate_market_value = USD size of the planned sale. Default: filing_date.",
       },
       sort_order: {
         type: "string",
