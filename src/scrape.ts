@@ -107,8 +107,10 @@ import {
   scrapeForm3LiveFeed,
 } from "./scrapers/form3.js";
 import {
+  scrapeActivistByIssuerCIKs,
   scrapeActivistByTicker,
   scrapeActivistLiveFeed,
+  getTickerInfo,
 } from "./scrapers/activist.js";
 import {
   scrapeContractsByRecipient,
@@ -180,6 +182,28 @@ function parseDateRangeArgs(
   }
   return { lookbackDays: days };
 }
+
+// Top ~60 S&P big-caps for targeted 13D/13G scraping. Big-caps file few
+// 13G/A annually (Vanguard, BlackRock, State Street are the typical ones)
+// so they get buried below the per-form parse cap on the cross-issuer
+// live feed. Querying their issuer CIKs directly lands those filings.
+const BIG_CAP_TICKERS = [
+  // Mag 7
+  "AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMZN", "TSLA",
+  // Other large tech
+  "AMD", "AVGO", "ORCL", "CRM", "ADBE", "NFLX", "INTC", "CSCO", "QCOM",
+  "PLTR", "SNOW", "CRWD", "PANW", "NOW", "INTU", "IBM",
+  // Financials
+  "JPM", "BAC", "WFC", "GS", "MS", "V", "MA", "AXP", "BLK", "SCHW", "C",
+  // Consumer
+  "WMT", "HD", "COST", "KO", "PEP", "MCD", "NKE", "DIS", "SBUX", "TGT",
+  "LOW", "PG",
+  // Health
+  "UNH", "JNJ", "LLY", "PFE", "MRK", "ABBV", "TMO", "BMY", "AMGN",
+  // Industrial / energy / defense
+  "BA", "CAT", "GE", "HON", "UPS", "RTX", "LMT", "NOC", "GD", "DE",
+  "XOM", "CVX",
+];
 
 const COMMANDS: Record<string, CliCommand> = {
   ping: {
@@ -459,6 +483,62 @@ const COMMANDS: Record<string, CliCommand> = {
         ...range,
         ...(maxFilingsPerForm !== undefined ? { maxFilingsPerForm } : {}),
       });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${rows.length} activist/passive ownership rows to Firestore...`,
+        );
+        const result = await saveActivistOwnership(rows);
+        console.error(
+          `[save] Saved ${result.saved} rows to ${result.collection}`,
+        );
+      }
+      return rows;
+    },
+  },
+  "13d-13g-issuers": {
+    description:
+      "Scrape 13D/13G filings against a list of big-cap issuers via EDGAR FTS &ciks=<cik> filter. Surgical alternative to 13d-13g-feed — solves the per-form parse cap by querying each issuer directly. Pass --tickers=AAPL,MSFT,... or --big-caps for the built-in S&P top ~60 list. Requires --start-date and --end-date. Add --save to write.",
+    run: async (args) => {
+      const tickersFlag = args.find((a) => a.startsWith("--tickers="));
+      const bigCapsFlag = args.includes("--big-caps");
+      let tickers: string[];
+      if (bigCapsFlag) {
+        tickers = BIG_CAP_TICKERS;
+      } else if (tickersFlag) {
+        tickers = tickersFlag.slice("--tickers=".length).split(",").map((s) => s.trim()).filter(Boolean);
+      } else {
+        throw new Error(
+          "Usage: tsx src/scrape.ts 13d-13g-issuers --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD [--big-caps | --tickers=AAPL,MSFT,...] [--save]",
+        );
+      }
+
+      const startFlag = args.find((a) => a.startsWith("--start-date="));
+      const endFlag = args.find((a) => a.startsWith("--end-date="));
+      if (!startFlag || !endFlag) {
+        throw new Error("Both --start-date=YYYY-MM-DD and --end-date=YYYY-MM-DD are required");
+      }
+      const startDate = startFlag.slice("--start-date=".length);
+      const endDate = endFlag.slice("--end-date=".length);
+
+      // Resolve tickers → CIKs
+      console.error(`[13d-g issuers] Resolving ${tickers.length} tickers to CIKs...`);
+      const ciks: string[] = [];
+      const skipped: string[] = [];
+      for (const t of tickers) {
+        const info = await getTickerInfo(t);
+        if (!info) {
+          skipped.push(t);
+          continue;
+        }
+        ciks.push(info.cik);
+        console.error(`[13d-g issuers]   ${t} → ${info.name} (CIK ${info.cik})`);
+      }
+      if (skipped.length > 0) {
+        console.error(`[13d-g issuers] SKIPPED (no CIK): ${skipped.join(", ")}`);
+      }
+      console.error(`[13d-g issuers] Querying ${ciks.length} CIKs × 4 form codes for ${startDate} → ${endDate}...`);
+
+      const rows = await scrapeActivistByIssuerCIKs({ ciks, startDate, endDate });
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${rows.length} activist/passive ownership rows to Firestore...`,

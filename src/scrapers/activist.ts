@@ -623,6 +623,121 @@ export async function scrapeActivistByTicker(
   return allRows;
 }
 
+/**
+ * Fetch all 13D/13G filings AGAINST a list of issuer CIKs across a date
+ * range. Uses EDGAR FTS with the `&ciks=<cik>` filter to surgically pull
+ * filings for specific big-caps. Solves the live-feed coverage gap — when
+ * walking the full FTS feed (~10K hits per form code per year), big-cap
+ * filings (Vanguard/BlackRock annual 13G/A on AAPL etc.) are buried beyond
+ * the per-form parse cap. Querying by issuer CIK directly returns just the
+ * handful of filings against that issuer.
+ *
+ * Each (cik × form) query returns up to 100 hits — for any single big-cap
+ * over a 1-2 year window that's plenty. No pagination needed.
+ */
+export async function scrapeActivistByIssuerCIKs(options: {
+  ciks: string[];
+  startDate: string;
+  endDate: string;
+}): Promise<ActivistOwnership[]> {
+  const { startDate, endDate } = options;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    throw new Error(
+      "scrapeActivistByIssuerCIKs requires ISO YYYY-MM-DD startDate + endDate",
+    );
+  }
+
+  const forms = [
+    "SCHEDULE 13D",
+    "SCHEDULE 13D/A",
+    "SCHEDULE 13G",
+    "SCHEDULE 13G/A",
+  ];
+
+  const allFilings: FilingMeta[] = [];
+  const seenAccessions = new Set<string>();
+
+  for (const cik of options.ciks) {
+    const cikPadded = cik.padStart(10, "0");
+    const cikRaw = cikPadded.replace(/^0+/, "");
+
+    for (const form of forms) {
+      const formEncoded = encodeURIComponent(form);
+      const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=${formEncoded}&ciks=${cikPadded}&dateRange=custom&startdt=${startDate}&enddt=${endDate}&from=0&size=100`;
+
+      let data: {
+        hits?: { hits?: EdgarSearchHit[]; total?: { value?: number } };
+      };
+      try {
+        data = (await fetchJson(url)) as {
+          hits?: { hits?: EdgarSearchHit[]; total?: { value?: number } };
+        };
+      } catch (err) {
+        console.error(
+          `[13d-g issuers] CIK=${cikPadded} ${form}: SKIP — ${err instanceof Error ? err.message : String(err)}`,
+        );
+        continue;
+      }
+
+      const hits = data.hits?.hits ?? [];
+      const total = data.hits?.total?.value ?? hits.length;
+      console.error(
+        `[13d-g issuers]   CIK=${cikPadded} ${form}: ${hits.length} hits (total=${total})`,
+      );
+
+      for (const hit of hits) {
+        const src = hit._source;
+        if (!src) continue;
+        const accession = src.adsh ?? "";
+        const filedAt = src.file_date ?? "";
+        if (!accession || seenAccessions.has(accession)) continue;
+        seenAccessions.add(accession);
+        const accessionNoSlash = formatAccession(accession);
+        // EDGAR FTS does not return primaryDocument in search hits.
+        // Construct the standard primary_doc.xml path directly. If a
+        // filing uses a non-standard primary doc name, parsing will fail
+        // and the SKIP path logs it.
+        const primaryDoc = "primary_doc.xml";
+        // For 13D/G, the issuer CIK is at ciks[0] (subject company).
+        // Use the queried CIK as the archive root.
+        allFilings.push({
+          accession,
+          archiveCik: cikRaw,
+          filedAt,
+          url: `${CONFIG.EDGAR_URL}/Archives/edgar/data/${cikRaw}/${accessionNoSlash}/${primaryDoc}`,
+        });
+      }
+
+      // Brief pause between CIK × form requests to be polite to EDGAR.
+      await sleep(CONFIG.RATE_LIMIT_MS);
+    }
+  }
+
+  console.error(
+    `[13d-g issuers] ${allFilings.length} unique filings across ${options.ciks.length} issuers`,
+  );
+
+  const allRows: ActivistOwnership[] = [];
+  for (const filing of allFilings) {
+    try {
+      const xmlText = await fetchText(filing.url);
+      const rows = await parseActivistXml(xmlText, filing);
+      allRows.push(...rows);
+      if (rows.length > 0) {
+        console.error(
+          `[13d-g issuers]   ${filing.accession}: ${rows.length} reporters`,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[13d-g issuers]   ${filing.accession}: SKIP — ${msg}`);
+    }
+  }
+
+  console.error(`[13d-g issuers] TOTAL: ${allRows.length} ownership rows`);
+  return allRows;
+}
+
 // ─── Fetcher: live feed (cross-issuer) ──────────────────────────────────────
 
 interface EdgarSearchHit {
