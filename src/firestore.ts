@@ -891,12 +891,18 @@ export async function queryLobbyingFilings(
 
   const userLimit = query.limit ?? 50;
 
-  // Substring filters (registrant_name, client_name, government_entity) need
-  // a wider Firestore window so the post-fetch filter sees the full universe.
-  // 5000 ceiling matches other collections.
+  // Substring filters (registrant_name, client_name, government_entity)
+  // need to scan the full collection because Firestore can't substring-index.
+  // The lobbying_filings collection has 50K+ records. Bumping the window from
+  // 5000 to 100000 closes a real customer-facing bug — the previous limit
+  // truncated to the first-5000-by-sort, missing matches for any company
+  // outside that window. Customer query "Exxon" returned 0 because the 1
+  // EXXONMOBIL CORPORATION record was older than the 5000th most-recent
+  // dt_posted. Tradeoff: client-side substring queries are slower (downloads
+  // ~all records to filter) but correctness > speed for substring queries.
   const needsClientSideFilter =
     query.registrant_name || query.client_name || query.government_entity;
-  const fetchLimit = needsClientSideFilter ? 5000 : userLimit + 1;
+  const fetchLimit = needsClientSideFilter ? 100000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -1495,9 +1501,12 @@ export async function queryLegislatorsHistorical(
   const userLimit = query.limit ?? 50;
 
   // Most filters need to look inside terms[] which Firestore can't index,
-  // so we fetch a wide window and filter client-side. 5000 docs ≈ 1/3 of the
-  // collection — covers any reasonable filter combination.
-  const FETCH_WINDOW = 5000;
+  // so we fetch a wide window and filter client-side. The historical
+  // collection has ~12,230 records (every member of Congress 1789→present);
+  // bump the window past that so EVERY member is reachable. The previous
+  // 5000 limit alphabetically truncated — Charles Sumner (S001078) was
+  // unreachable because S- bioguide IDs come after the 5000-doc cutoff.
+  const FETCH_WINDOW = 15000;
   const snap = await db
     .collection("legislators_historical")
     .limit(FETCH_WINDOW)

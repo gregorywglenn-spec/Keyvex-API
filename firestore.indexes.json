@@ -514,6 +514,78 @@
         { "fieldPath": "psc_code", "order": "ASCENDING" },
         { "fieldPath": "last_modified_date", "order": "DESCENDING" }
       ]
+    },
+
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "chamber", "order": "ASCENDING" },
+        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "total_value", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "planned_insider_sales",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "approximate_sale_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "initial_ownership_baselines",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "is_derivative", "order": "ASCENDING" },
+        { "fieldPath": "shares_owned", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "initial_ownership_baselines",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "is_derivative", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
