@@ -31,3 +31,6 @@ yarn-error.log*
 # Test coverage
 coverage/
 .nyc_output/
+
+# Claude Code local session state (per-machine, not project)
+.claude/
