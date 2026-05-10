@@ -133,7 +133,7 @@
     .sources li strong { display: block; margin-bottom: 4px; font-size: 14px; }
     .sources li .desc { color: var(--muted); font-size: 13.5px; line-height: 1.45; }
 
-    /* Pricing */
+    /* Pricing + Comparison tables */
     .pricing-table {
       width: 100%; border-collapse: collapse;
       margin: 24px 0 16px;
@@ -142,6 +142,7 @@
     .pricing-table th, .pricing-table td {
       padding: 12px 14px; text-align: left;
       border-bottom: 1px solid var(--border);
+      vertical-align: top;
     }
     .pricing-table thead th {
       font-weight: 600; font-size: 13px; color: var(--muted);
@@ -152,6 +153,20 @@
     .pricing-table .tier-price { font-size: 16px; }
     .pricing-table .check { color: var(--accent); font-weight: 700; }
     .pricing-table .dash { color: var(--muted); }
+    /* Comparison-table specific: highlight KeyVex column */
+    .compare-table th.us, .compare-table td.us {
+      background: rgba(77, 255, 32, 0.06);
+      border-left: 1px solid rgba(77, 255, 32, 0.25);
+      border-right: 1px solid rgba(77, 255, 32, 0.25);
+    }
+    .compare-table thead th.us { color: var(--accent); }
+    .compare-table .compare-row-label { font-weight: 600; min-width: 220px; }
+    .compare-table { font-size: 13.5px; }
+    .compare-table .small-note { color: var(--muted); font-size: 12.5px; display: block; margin-top: 2px; }
+    @media (max-width: 720px) {
+      .compare-table { font-size: 12.5px; }
+      .compare-table th, .compare-table td { padding: 8px 8px; }
+    }
 
     /* FAQ */
     details {
@@ -352,7 +367,128 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
       </p>
     </section>
 
-    <!-- Section 4 — Pricing -->
+    <!-- Section 4 — How KeyVex compares -->
+    <section id="compare">
+      <h2>How KeyVex compares.</h2>
+      <p class="lead">
+        Honest side-by-side with the closest alternatives. Each provider has
+        its own focus — KeyVex specializes in US public-disclosure data with
+        MCP-native cross-source composability. Competitors specialize in
+        adjacent categories and have their own strengths.
+      </p>
+      <table class="pricing-table compare-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="us">KeyVex</th>
+            <th>Quiver Quantitative</th>
+            <th>EODHD</th>
+            <th>Raw public sources</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="compare-row-label">Primary focus</td>
+            <td class="us">US public disclosures</td>
+            <td>Alt-data + congressional</td>
+            <td>Market price + fundamentals</td>
+            <td>Raw government sites</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">MCP server</td>
+            <td class="us check">✓ designed agent-first</td>
+            <td>—</td>
+            <td>✓ added 2025</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Cross-source query <span class="small-note">join 13 sources in one agent conversation</span></td>
+            <td class="us check">✓</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Congressional trades <span class="small-note">Senate + House unified</span></td>
+            <td class="us check">✓</td>
+            <td class="check">✓</td>
+            <td class="dash">—</td>
+            <td>partial (separate sites)</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">SEC Form 4 insider trades <span class="small-note">+ Form 3 baseline anchor</span></td>
+            <td class="us check">✓</td>
+            <td class="check">✓</td>
+            <td>summary only</td>
+            <td>raw via EDGAR</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Form 144 / 13D / 13G / 8-K <span class="small-note">with item-code filtering</span></td>
+            <td class="us check">✓</td>
+            <td class="dash">—</td>
+            <td class="dash">—</td>
+            <td>raw via EDGAR</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Federal contracts <span class="small-note">USAspending.gov</span></td>
+            <td class="us check">✓ deep</td>
+            <td>summary</td>
+            <td class="dash">—</td>
+            <td>via USAspending.gov</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Senate LDA lobbying <span class="small-note">quarterly filings + activities</span></td>
+            <td class="us check">✓</td>
+            <td>summary</td>
+            <td class="dash">—</td>
+            <td>via Senate site</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Member profiles <span class="small-note">+ committee assignments + historical (1789–present)</span></td>
+            <td class="us check">✓</td>
+            <td>basic</td>
+            <td class="dash">—</td>
+            <td>partial</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Stock prices / fundamentals <span class="small-note">honest: out of KeyVex's scope</span></td>
+            <td class="us dash">—</td>
+            <td class="dash">—</td>
+            <td class="check">✓ deep</td>
+            <td class="dash">—</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Pure-publisher posture <span class="small-note">raw filings, no derived signals or scores</span></td>
+            <td class="us check">✓</td>
+            <td>—  <span class="small-note">has alt-data signals</span></td>
+            <td>n/a (price data)</td>
+            <td class="check">✓</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Free tier</td>
+            <td class="us">5,000 calls/mo</td>
+            <td>limited</td>
+            <td>20 calls/day (~600/mo)</td>
+            <td>unlimited (unstructured)</td>
+          </tr>
+          <tr>
+            <td class="compare-row-label">Paid entry</td>
+            <td class="us tier-price">$29/mo</td>
+            <td class="tier-price">$30/mo</td>
+            <td class="tier-price">$20/mo</td>
+            <td>n/a</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="muted small">
+        Reflects publicly-listed pricing and feature sets as of May 2026. Each
+        provider's offering evolves; consult their current pricing pages for
+        the latest. KeyVex doesn't claim parity in market data or fundamentals
+        — that's not our category.
+      </p>
+    </section>
+
+    <!-- Section 5 — Pricing -->
     <section id="pricing">
       <h2>Pay for what you actually use.</h2>
       <p class="lead">
@@ -364,29 +500,29 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
         <thead>
           <tr>
             <th></th>
-            <th>Hacker</th>
-            <th>Builder</th>
+            <th>Free</th>
             <th>Pro</th>
+            <th>Team</th>
             <th>Enterprise</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td class="tier-name">Price</td>
-            <td class="tier-price">Free</td>
+            <td class="tier-price">$0</td>
             <td class="tier-price">$29/mo</td>
-            <td class="tier-price">$199/mo</td>
-            <td class="tier-price">Custom</td>
+            <td class="tier-price">$99/mo</td>
+            <td class="tier-price">$499+/mo</td>
           </tr>
           <tr>
             <td class="tier-name">API calls / month</td>
             <td>5,000</td>
-            <td>50,000</td>
+            <td>100,000</td>
             <td>500,000</td>
-            <td>Unlimited</td>
+            <td>Custom</td>
           </tr>
           <tr>
-            <td class="tier-name">All 13 tools</td>
+            <td class="tier-name">All 12 tools</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
@@ -414,10 +550,17 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
             <td class="check">✓</td>
           </tr>
           <tr>
-            <td class="tier-name">Annual discount</td>
+            <td class="tier-name">SSO / private deployment</td>
             <td class="dash">—</td>
-            <td>$290/yr (2 mo free)</td>
-            <td>$1,990/yr (2 mo free)</td>
+            <td class="dash">—</td>
+            <td class="dash">—</td>
+            <td class="check">✓</td>
+          </tr>
+          <tr>
+            <td class="tier-name">Annual discount <span class="small-note" style="font-weight:400">2 months free on annual prepay</span></td>
+            <td class="dash">—</td>
+            <td>$290/yr</td>
+            <td>$990/yr</td>
             <td>Custom</td>
           </tr>
         </tbody>
@@ -545,7 +688,7 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
       <details>
         <summary>Is there an SLA?</summary>
         <p>
-          Best-effort uptime for Hacker / Builder / Pro tiers — we run on Google
+          Best-effort uptime for Free / Pro / Team tiers — we run on Google
           Cloud Functions Gen 2 with autonomous failover, but no formal SLA.
           Enterprise tier includes a contractual uptime commitment.
         </p>
