@@ -7,7 +7,7 @@
  * production conversation.
  */
 
-const ENDPOINT = "https://mcp.keyvex.com";
+const ENDPOINT = "https://mcp.keyvex.com/api";
 const API_KEY =
   "daadc3245a89ec5b134b27a6bda572485b5bb50583a602da5870d36b33874d7f";
 

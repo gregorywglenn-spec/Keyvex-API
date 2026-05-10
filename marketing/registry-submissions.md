@@ -12,7 +12,7 @@
 > - [x] GitHub repo renamed `CapitalEdge-API` → `Keyvex-API` (canonical URL: `https://github.com/gregorywglenn-spec/Keyvex-API`)
 > - [x] @keyvex_ X account created
 > - [x] u/KeyVex_ Reddit account created
-> - [x] Health-check endpoint `https://mcp.keyvex.com/` returns version + 12 tools
+> - [x] Health-check endpoint `https://mcp.keyvex.com/health` returns version + 12 tools; product landing page at `https://mcp.keyvex.com/`; MCP JSON-RPC API at `https://mcp.keyvex.com/api`
 > - [x] 12 MCP tools live (server v0.18.0)
 > - [x] Battle-tested at 84% data hit / 0 failures / sub-1s latency
 >
@@ -82,7 +82,7 @@
     - government-data
     - public-disclosures
     - agent-tools
-  endpoint: https://mcp.keyvex.com
+  endpoint: https://mcp.keyvex.com/api
   homepage: https://keyvex.com
   documentation: https://github.com/gregorywglenn-spec/Keyvex-API#readme
   privacy_policy: https://keyvex.com/privacy
@@ -166,7 +166,7 @@
   Twelve entity-based tools spanning thirteen government disclosure sources. SEC EDGAR (Form 4, Form 144, Form 3, 13F, 13D/G, 8-K, Form 278), congressional trades from Senate eFD and House Clerk PTRs, federal contracts from USAspending, Senate LDA lobbying filings, current and historical legislators with committee assignments. Designed agent-first — cross-source queries (e.g., political-alpha plays joining congressional trades to federal contracts to 8-K disclosures) compose naturally in one agent conversation. Pure-publisher posture: raw normalized filings, no derived signals.
   ```
 - **Category:** `Finance` (or `Government Data` if Smithery has it as a separate category)
-- **Endpoint URL:** `https://mcp.keyvex.com`
+- **Endpoint URL:** `https://mcp.keyvex.com/api`
 - **Homepage:** `https://keyvex.com`
 - **Privacy Policy URL:** `https://keyvex.com/privacy`
 - **Source repo:** `https://github.com/gregorywglenn-spec/Keyvex-API`

@@ -12,7 +12,7 @@
 > - **Resolution**: 1080p
 > - **Audio**: external mic if available, otherwise built-in is fine. Test for echo first.
 > - **Browser**: clean Chrome window, no other tabs. Bookmarks bar hidden.
-> - **Claude Desktop**: open and connected to mcp.keyvex.com. Test the connection works BEFORE hitting record.
+> - **Claude Desktop**: open and connected to mcp.keyvex.com/api (the MCP API endpoint). Test the connection works BEFORE hitting record.
 > - **Lighting**: face the window or a lamp. Avoid backlighting that silhouettes you.
 >
 > One-take or multi-take?
@@ -49,7 +49,7 @@
 
 **Show Claude Desktop with the KeyVex MCP server already connected (green dot in the MCP server panel, or the tools-available indicator).**
 
-> "Quick context: Claude Desktop, with KeyVex configured as an MCP server. Bearer-authenticated, points at `mcp.keyvex.com`. The agent can see twelve tools. I'm not going to walk through each one — instead I'll show you what becomes possible when an agent can compose them."
+> "Quick context: Claude Desktop, with KeyVex configured as an MCP server. Bearer-authenticated, points at `mcp.keyvex.com/api`. The agent can see twelve tools. I'm not going to walk through each one — instead I'll show you what becomes possible when an agent can compose them."
 
 > "Let me ask it a real question."
 
@@ -106,7 +106,7 @@ disclosures, and lobbying spend. Look for any pattern across them.
 
 **Back on camera (or stay on landing page if simpler).**
 
-> "If you build agents that need US public-disclosure data — please poke at it. Free tier is real. Signup takes thirty seconds. The endpoint is `mcp.keyvex.com`. The site is `keyvex.com`."
+> "If you build agents that need US public-disclosure data — please poke at it. Free tier is real. Signup takes thirty seconds. The API endpoint is `mcp.keyvex.com/api`. The product page is `mcp.keyvex.com`. The company is `keyvex.com`."
 
 > "If you find a question your agent can't answer, that's the kind of feedback I most want."
 
@@ -118,11 +118,11 @@ disclosures, and lobbying spend. Look for any pattern across them.
 
 ## Things to test BEFORE recording
 
-- [ ] **Claude Desktop is talking to mcp.keyvex.com.** Verify by asking it any KeyVex tool query in a test conversation. If MCP server shows red or "disconnected," fix before recording.
+- [ ] **Claude Desktop is talking to mcp.keyvex.com/api.** Verify by asking it any KeyVex tool query in a test conversation. If MCP server shows red or "disconnected," fix before recording.
 - [ ] **The LMT prompt actually returns substantive cross-source results.** Test it once in a throwaway Claude conversation. If the agent comes back with "no matches found" on one of the sources, swap the ticker (NVDA, BA, RTX as fallbacks).
 - [ ] **Lockheed Martin really has data across all four sources.** Quick spot-check via curl:
   ```bash
-  curl -X POST https://mcp.keyvex.com -H "Authorization: Bearer <key>" \
+  curl -X POST https://mcp.keyvex.com/api -H "Authorization: Bearer <key>" \
     -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_congressional_trades","arguments":{"ticker":"LMT","limit":3}}}'
   ```

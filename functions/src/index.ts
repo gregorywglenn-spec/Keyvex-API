@@ -560,8 +560,18 @@ const mcpApiKey = defineSecret("MCP_API_KEY");
  * for v1; can split into a dedicated MCP-only function later if it
  * becomes user-facing latency.
  *
- * Health-check: GET /mcp returns JSON with version + tool count, NO auth
- * required. Useful for uptime monitoring.
+ * URL layout (under mcp.keyvex.com):
+ *   GET  /              → Firebase Hosting serves static HTML landing page
+ *                         (Cloud Run never sees these requests)
+ *   GET  /health        → THIS handler, returns JSON status (no auth)
+ *   POST /api           → THIS handler, MCP JSON-RPC protocol (Bearer auth)
+ *   GET  /<image>.png   → Firebase Hosting static
+ *   GET  /privacy       → Firebase Hosting static (privacy.html)
+ *
+ * Firebase Hosting's static-file priority applies to ALL HTTP methods,
+ * not just GET — so the MCP API path must NOT have a matching static
+ * file. /api was chosen because it's the most conventional path for an
+ * API endpoint and reads naturally in client config.
  */
 export const mcp = onRequest(
   {
@@ -573,21 +583,37 @@ export const mcp = onRequest(
     cors: false,
   },
   async (req, res) => {
-    // Health check — auth-free GET returns server status.
+    const path = req.path ?? "/";
+
+    // Auth-free JSON health check at /health
     if (req.method === "GET") {
-      res.json({
-        status: "ok",
-        service: SERVER_NAME,
-        version: SERVER_VERSION,
-        tools: TOOLS.length,
-        tool_names: TOOLS.map((t) => t.definition.name),
-      });
+      if (path === "/health" || path === "/" || path === "") {
+        res.json({
+          status: "ok",
+          service: SERVER_NAME,
+          version: SERVER_VERSION,
+          tools: TOOLS.length,
+          tool_names: TOOLS.map((t) => t.definition.name),
+          api_endpoint: "https://mcp.keyvex.com/api",
+        });
+        return;
+      }
+      res.status(404).json({ error: "Not found" });
       return;
     }
 
-    // MCP protocol uses POST exclusively.
+    // MCP protocol uses POST exclusively, on /api path.
     if (req.method !== "POST") {
-      res.status(405).json({ error: "Method not allowed; use POST" });
+      res.status(405).json({ error: "Method not allowed; use POST /api" });
+      return;
+    }
+
+    // POST anywhere other than /api returns a clear pointer.
+    if (path !== "/api" && path !== "/") {
+      res.status(404).json({
+        error: "Not found",
+        hint: "MCP endpoint is POST https://mcp.keyvex.com/api",
+      });
       return;
     }
 

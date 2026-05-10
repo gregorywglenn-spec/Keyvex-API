@@ -5,8 +5,10 @@
   "hosting": [
     {
       "site": "keyvex-mcp",
-      "public": "public",
+      "public": "marketing/mcp-site",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "cleanUrls": true,
+      "trailingSlash": false,
       "rewrites": [
         {
           "source": "**",

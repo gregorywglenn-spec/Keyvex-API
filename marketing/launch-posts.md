@@ -115,7 +115,7 @@ Auth is bearer-token. There's a free tier (no credit card) for
 exploration; paid tiers for production usage are tracked but not yet
 billed (LLC formation in progress).
 
-Endpoint: https://mcp.keyvex.com
+API endpoint: https://mcp.keyvex.com/api
 Landing page: https://keyvex.com
 Privacy policy: https://keyvex.com/privacy
 
@@ -176,7 +176,8 @@ keep the data fresh. esbuild bundle ~15MB on cold start.
 Pure-publisher posture: no derived intelligence in tool outputs. No
 convergence score, no "buy" signal. Just normalized filings.
 
-Endpoint: https://mcp.keyvex.com (bearer auth)
+API endpoint: https://mcp.keyvex.com/api (bearer auth)
+Product page: https://mcp.keyvex.com
 Landing: https://keyvex.com (free tier, no card)
 Source-side notes: https://github.com/gregorywglenn-spec/Keyvex-API
 
@@ -240,7 +241,7 @@ that filled my agent's context before it could even reason. KeyVex
 is designed agent-first — tool surface deliberately small, each tool
 deeply parameterized.
 
-Endpoint: https://mcp.keyvex.com
+API endpoint: https://mcp.keyvex.com/api
 Site: https://keyvex.com
 
 Would love feedback from people building agents against this kind of
@@ -345,7 +346,7 @@ hit rate, 0 query failures. ↓
 9/ Free tier: no credit card, instant API key, 1k requests/month.
 Paid tiers tracked but not yet billed (LLC formation in flight).
 
-Endpoint: https://mcp.keyvex.com
+API endpoint: https://mcp.keyvex.com/api
 Landing: https://keyvex.com
 Privacy: https://keyvex.com/privacy
 ↓

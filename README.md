@@ -4,7 +4,7 @@ The Model Context Protocol (MCP) server for **US public financial disclosures**.
 
 Congressional trades, executive insider transactions, institutional holdings, activist stakes, federal contracts, lobbying spend, material events, planned insider sales, ownership baselines, annual financial disclosures, current and historical legislators with full committee assignments — every tool callable from Claude, Cursor, or any MCP-compatible agent through one Bearer-authenticated endpoint. Designed for AI agents from the ground up: fewer tools, smarter parameters, tool descriptions that help the agent decide *when* to use each one — not yet another REST API with MCP bolted on top.
 
-**Endpoint:** `https://mcp.keyvex.com` · **Site:** [keyvex.com](https://keyvex.com) · **Privacy:** [keyvex.com/privacy](https://keyvex.com/privacy)
+**API endpoint:** `https://mcp.keyvex.com/api` (POST, Bearer auth) · **Health:** `https://mcp.keyvex.com/health` (no auth) · **Product page:** [mcp.keyvex.com](https://mcp.keyvex.com) · **Privacy:** [keyvex.com/privacy](https://keyvex.com/privacy)
 
 ---
 
@@ -67,24 +67,26 @@ A few design notes:
 
 ## Public endpoint
 
-```
-https://mcp.keyvex.com
-```
+| URL | Purpose | Auth |
+|---|---|---|
+| `https://mcp.keyvex.com` | Product landing page (HTML, browser-friendly) | — |
+| `https://mcp.keyvex.com/api` | MCP JSON-RPC API endpoint (POST) | Bearer |
+| `https://mcp.keyvex.com/health` | JSON status / tool count | — |
 
 Auto-managed TLS via Let's Encrypt. The canonical Cloud Functions URL (`https://us-central1-capitaledge-api.cloudfunctions.net/mcp`) still works and serves the same backend.
 
 ### Health check (no auth)
 
 ```bash
-curl https://mcp.keyvex.com
+curl https://mcp.keyvex.com/health
 ```
 
-Returns server version + tool count as JSON.
+Returns server version + tool count + API endpoint as JSON.
 
 ### List tools (auth required)
 
 ```bash
-curl -X POST https://mcp.keyvex.com \
+curl -X POST https://mcp.keyvex.com/api \
   -H "Authorization: Bearer <YOUR_KEY>" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
@@ -94,7 +96,7 @@ curl -X POST https://mcp.keyvex.com \
 ### Call a tool
 
 ```bash
-curl -X POST https://mcp.keyvex.com \
+curl -X POST https://mcp.keyvex.com/api \
   -H "Authorization: Bearer <YOUR_KEY>" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
@@ -202,7 +204,7 @@ The Firebase project ID `capitaledge-api` is permanent infrastructure (Google do
 
 Production. **12 MCP tools** at server v0.18.0, **13 autonomous scrapers** running on cron, **~165,000 records** across 13 Firestore collections.
 
-- **API endpoint** `https://mcp.keyvex.com` — auto-managed TLS via Let's Encrypt. Stateless Streamable HTTP transport. Bearer auth via Google Secret Manager.
+- **API endpoint** `https://mcp.keyvex.com/api` — auto-managed TLS via Let's Encrypt. Stateless Streamable HTTP transport. Bearer auth via Google Secret Manager. Product landing page at `https://mcp.keyvex.com`; JSON health at `/health`.
 - **Landing page** `https://keyvex.com` (apex + `www`) — auto-managed TLS.
 - **Autonomous data freshness** — 13 Cloud Functions Gen 2 keep collections current on cadences from every 30 minutes (Form 4) to monthly (historical legislators). Cross-project health-check pings Slack daily.
 - **Battle-tested** — 200+ randomized realistic-load queries at 84% data hit / 0 query failures / sub-1s avg latency. Big-cap activist coverage (Vanguard's 9.47% AAPL 13G/A from July 2025, etc.) verified via targeted issuer-CIK backfill.

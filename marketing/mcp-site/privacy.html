@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — KeyVex</title>
+  <meta name="description" content="KeyVex Privacy Policy. What data we collect, why, who we share it with, and your rights." />
+  <meta name="robots" content="index, follow" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1117'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='32' fill='%234dff20'%3EK%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --border: #21262d;
+      --code-bg: #161b22;
+      --accent: #4dff20;
+      --accent-hover: #6dff48;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--fg);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 0 24px 64px; }
+    header.topbar {
+      max-width: 760px; margin: 0 auto; padding: 28px 24px 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: inline-flex; align-items: center; text-decoration: none; }
+    .logo img { height: 30px; width: auto; display: block; }
+    nav.topnav a {
+      color: var(--muted); text-decoration: none; margin-left: 22px; font-size: 14px;
+    }
+    nav.topnav a:hover { color: var(--fg); }
+    h1 { font-size: 36px; letter-spacing: -0.02em; line-height: 1.15; margin: 48px 0 8px; }
+    h2 { font-size: 22px; letter-spacing: -0.01em; margin: 40px 0 12px; }
+    h3 { font-size: 17px; margin: 24px 0 8px; }
+    p { margin: 0 0 14px; }
+    a { color: var(--accent); }
+    a:hover { color: var(--accent-hover); }
+    ul { padding-left: 22px; margin: 0 0 16px; }
+    ul li { margin-bottom: 8px; }
+    .muted { color: var(--muted); }
+    .effective {
+      font-size: 14px; color: var(--muted); margin-bottom: 32px;
+    }
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.92em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .table-of-contents {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 24px;
+      margin: 24px 0 40px;
+    }
+    .table-of-contents strong { display: block; margin-bottom: 8px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .table-of-contents ol { padding-left: 22px; margin: 0; color: var(--muted); font-size: 14.5px; }
+    .table-of-contents ol li { margin-bottom: 4px; }
+    .table-of-contents a { text-decoration: none; }
+    .table-of-contents a:hover { text-decoration: underline; }
+
+    footer {
+      max-width: 760px; margin: 0 auto; padding: 48px 24px 64px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 14px;
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--fg); }
+    .footer-links { margin-bottom: 12px; }
+    .footer-links a { margin-right: 18px; }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <a href="/" class="logo" aria-label="KeyVex"><img src="/keyvex-wordmark.png" alt="KeyVex" /></a>
+    <nav class="topnav">
+      <a href="/">Home</a>
+      <a href="https://github.com/gregorywglenn-spec/Keyvex-API">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Privacy Policy</h1>
+    <p class="effective">Effective May 10, 2026. Last updated May 10, 2026.</p>
+
+    <p>
+      KeyVex provides a Model Context Protocol (MCP) server that exposes
+      U.S. public financial-disclosure data (SEC filings, congressional
+      trades, federal contracts, lobbying disclosures, and similar
+      government-published records) to AI agents and developers. This
+      Privacy Policy explains what data we collect, why we collect it,
+      who we share it with, and the rights you have over your data.
+    </p>
+
+    <p>
+      <strong>Plain-English summary:</strong> we collect the minimum data
+      needed to run the service (your email, an API key, and request logs).
+      We do not sell your data. We do not use third-party advertising or
+      tracking. We share data only with the service providers who help us
+      operate the platform (Google Cloud, Stripe, etc.) and only when we
+      have to.
+    </p>
+
+    <div class="table-of-contents">
+      <strong>Contents</strong>
+      <ol>
+        <li><a href="#who-we-are">Who we are</a></li>
+        <li><a href="#what-we-collect">What we collect</a></li>
+        <li><a href="#why-we-collect">Why we collect it</a></li>
+        <li><a href="#sharing">Who we share data with</a></li>
+        <li><a href="#retention">How long we keep it</a></li>
+        <li><a href="#your-rights">Your rights</a></li>
+        <li><a href="#cookies">Cookies and tracking</a></li>
+        <li><a href="#security">Data security</a></li>
+        <li><a href="#children">Children's privacy</a></li>
+        <li><a href="#international">International users</a></li>
+        <li><a href="#changes">Changes to this policy</a></li>
+        <li><a href="#contact">Contact us</a></li>
+      </ol>
+    </div>
+
+    <h2 id="who-we-are">1. Who we are</h2>
+    <p>
+      KeyVex is a software service operated by the team behind
+      <code>keyvex.com</code> and <code>mcp.keyvex.com</code>. The
+      operating legal entity is in the process of formation; once
+      established, this section will be updated with the entity's full
+      name, jurisdiction, and registered address.
+    </p>
+    <p>
+      KeyVex is a <strong>data publisher</strong>, not a registered
+      investment adviser. The records we surface come from primary
+      government sources (SEC EDGAR, the U.S. Senate Office of Public
+      Records, the U.S. House Clerk, USAspending.gov, and similar
+      public registries). We do not provide investment advice and we do
+      not generate proprietary financial recommendations.
+    </p>
+
+    <h2 id="what-we-collect">2. What we collect</h2>
+    <p>We collect three categories of data, all of them limited:</p>
+    <h3>Account information</h3>
+    <ul>
+      <li><strong>Email address.</strong> Required for signup, account
+          recovery, and operational notices (e.g., service-status emails,
+          security alerts).</li>
+      <li><strong>API key.</strong> A unique secret we issue when you sign
+          up, used to authenticate your requests to the MCP server. You
+          can rotate or revoke it at any time.</li>
+      <li><strong>Display name (optional).</strong> If you choose to
+          provide one for support correspondence.</li>
+    </ul>
+    <h3>Usage data</h3>
+    <ul>
+      <li><strong>Request logs.</strong> For each MCP request, we record
+          which tool was called, the request timestamp, the originating
+          IP address, response status, and (for paid tiers) the byte
+          count of the response.</li>
+      <li><strong>Aggregate metrics.</strong> Counts of requests per day,
+          per endpoint, used for capacity planning and billing.</li>
+    </ul>
+    <h3>Payment information (paid tiers only)</h3>
+    <ul>
+      <li>If you subscribe to a paid plan, we use
+          <a href="https://stripe.com/privacy">Stripe</a> to process
+          payments. Stripe collects your name, billing address, and
+          payment-method details directly. <strong>KeyVex does not
+          store credit-card numbers, bank-account numbers, or full
+          payment-method details on our servers.</strong> We receive
+          only a Stripe customer identifier and the metadata Stripe
+          surfaces to merchants (last four digits, card brand, etc.).</li>
+    </ul>
+
+    <p class="muted">
+      We do <strong>not</strong> collect: contents of any documents you
+      upload (we don't accept uploads), tracking pixels or third-party
+      ad-network identifiers, contact-list data, behavioral profiles
+      across other sites, or any sensitive personal information
+      (race, religion, health, sexual orientation, etc.).
+    </p>
+
+    <h2 id="why-we-collect">3. Why we collect it</h2>
+    <ul>
+      <li><strong>Deliver the service.</strong> Email + API key are
+          required to authenticate your MCP requests.</li>
+      <li><strong>Bill paid customers.</strong> Request logs feed into
+          quota and overage calculations.</li>
+      <li><strong>Detect abuse.</strong> IP-level rate limiting and
+          anomaly detection to protect the service from misuse.</li>
+      <li><strong>Operational notices.</strong> Email you about service
+          incidents, breaking changes, or material policy updates.</li>
+      <li><strong>Improve the product.</strong> Aggregate usage metrics
+          tell us which tools agents use most, where queries time out,
+          and where to invest in performance.</li>
+    </ul>
+    <p>
+      We do <strong>not</strong> use your data to train AI models. We do
+      not sell, rent, lease, or barter your data to any third party for
+      any purpose. Period.
+    </p>
+
+    <h2 id="sharing">4. Who we share data with</h2>
+    <p>We share data only with the service providers that help us run KeyVex:</p>
+    <ul>
+      <li><strong>Google Cloud / Firebase</strong> (United States) — hosts
+          the MCP server, the Firestore database where account and log
+          data live, and the Hosting platform that serves
+          <code>keyvex.com</code>.</li>
+      <li><strong>Stripe, Inc.</strong> (United States) — payment
+          processing for paid-tier subscribers.</li>
+      <li><strong>Email-delivery provider</strong> (TBD; will be one of
+          Postmark, SendGrid, or Resend) — operational and billing
+          emails.</li>
+      <li><strong>Law enforcement / regulators</strong> — only when
+          required by law (a valid subpoena, court order, or similar
+          legal process). We will challenge overly broad requests.</li>
+    </ul>
+    <p>
+      All service providers are bound by their own privacy policies and
+      data-processing agreements. We do not authorize them to use your
+      data for their own marketing or product purposes.
+    </p>
+    <p>
+      We do <strong>not</strong> share your account or usage data with
+      Anthropic, OpenAI, or any other AI model provider. The MCP
+      protocol is direct between your client (e.g., Claude Desktop) and
+      our server; the AI model provider only sees the responses you
+      relay through your client, not your KeyVex account credentials.
+    </p>
+
+    <h2 id="retention">5. How long we keep it</h2>
+    <ul>
+      <li><strong>Account data</strong> (email, API key, display name) —
+          retained for as long as your account is active. Deleted within
+          30 days after you close your account, except where we are
+          legally required to retain longer (e.g., tax or accounting
+          records).</li>
+      <li><strong>Request logs</strong> — retained for up to 13 months
+          (rolling) for billing reconciliation and abuse detection, then
+          deleted or anonymized.</li>
+      <li><strong>Aggregate metrics</strong> — retained indefinitely in
+          de-identified form (counts of requests, no per-user attribution).</li>
+      <li><strong>Payment records</strong> — retained as required by
+          applicable tax law, typically 7 years.</li>
+    </ul>
+
+    <h2 id="your-rights">6. Your rights</h2>
+    <p>You have the following rights regardless of where you live:</p>
+    <ul>
+      <li><strong>Access.</strong> Request a copy of the personal data
+          we hold about you.</li>
+      <li><strong>Correction.</strong> Ask us to correct inaccurate or
+          incomplete data.</li>
+      <li><strong>Deletion.</strong> Close your account and request that
+          we delete your personal data (subject to the retention rules
+          above for legal compliance).</li>
+      <li><strong>Export.</strong> Request a machine-readable copy of
+          your account data and usage history.</li>
+      <li><strong>Opt out of marketing email.</strong> Every promotional
+          email we send (if any) includes an unsubscribe link.
+          Operational and security emails cannot be opted out while you
+          have an active account.</li>
+    </ul>
+    <p>
+      Residents of <strong>California</strong> (CCPA / CPRA), the
+      <strong>European Economic Area</strong> (GDPR), the
+      <strong>United Kingdom</strong> (UK GDPR), and other jurisdictions
+      with comparable privacy laws have the additional rights granted
+      by those laws, including the right to lodge a complaint with a
+      data-protection authority. Contact us at the address below to
+      exercise any of these rights and we will respond within the
+      timelines required by applicable law (typically 30 to 45 days).
+    </p>
+
+    <h2 id="cookies">7. Cookies and tracking</h2>
+    <p>
+      The KeyVex marketing site (<code>keyvex.com</code>) does not set
+      tracking cookies and does not run third-party analytics, ad
+      networks, or fingerprinting scripts. The MCP API endpoint
+      (<code>mcp.keyvex.com</code>) is a JSON API and does not use
+      browser cookies.
+    </p>
+    <p>
+      A future authenticated dashboard (when launched) will use a single
+      first-party session cookie strictly for keeping you logged in. No
+      cross-site or behavioral tracking will be added without an updated
+      Privacy Policy and, where required, your prior consent.
+    </p>
+
+    <h2 id="security">8. Data security</h2>
+    <p>
+      We protect your data with industry-standard measures:
+    </p>
+    <ul>
+      <li>All traffic to <code>keyvex.com</code> and
+          <code>mcp.keyvex.com</code> uses TLS encryption.</li>
+      <li>API keys are stored hashed in our database; we cannot recover
+          a key after issuance — only rotate it.</li>
+      <li>Production credentials are stored in Google Secret Manager
+          with audit logging.</li>
+      <li>Access to production systems is limited to the engineering
+          team and is logged.</li>
+    </ul>
+    <p>
+      No internet-connected service can be 100% secure. If we ever
+      experience a security incident that affects your data, we will
+      notify you in line with applicable breach-notification laws.
+    </p>
+
+    <h2 id="children">9. Children's privacy</h2>
+    <p>
+      KeyVex is a developer tool for accessing financial-disclosure data.
+      It is not directed to children under 13, and we do not knowingly
+      collect personal information from children under 13. If you
+      believe a child has provided us with personal information, please
+      contact us and we will delete it.
+    </p>
+
+    <h2 id="international">10. International users</h2>
+    <p>
+      KeyVex is operated from the United States. If you access the
+      service from outside the United States, your data will be
+      transferred to, processed, and stored in the U.S. (and any other
+      country where our service providers operate). By using the service
+      you consent to that transfer.
+    </p>
+    <p>
+      Where required (e.g., for users in the EEA or UK), we rely on
+      Standard Contractual Clauses or other valid transfer mechanisms
+      with our service providers.
+    </p>
+
+    <h2 id="changes">11. Changes to this policy</h2>
+    <p>
+      We may update this Privacy Policy from time to time. The
+      <em>Effective</em> and <em>Last updated</em> dates at the top of
+      this page reflect the most recent changes. Material changes
+      (i.e., changes that affect what we collect, how we use it, or who
+      we share it with) will be communicated to active account holders
+      by email at least 30 days before they take effect.
+    </p>
+    <p>
+      Continued use of the service after a policy update constitutes
+      acceptance of the updated policy. If you do not agree to the
+      updated policy, you may close your account before it takes effect.
+    </p>
+
+    <h2 id="contact">12. Contact us</h2>
+    <p>
+      Questions about this Privacy Policy, or to exercise any of the
+      rights described above:
+    </p>
+    <ul>
+      <li>Email: <a href="mailto:privacy@keyvex.com">privacy@keyvex.com</a>
+          <span class="muted">(once configured; in the meantime use
+          <a href="mailto:contact@capitaledge.app">contact@capitaledge.app</a>)</span></li>
+      <li>Web: <a href="https://keyvex.com">keyvex.com</a></li>
+    </ul>
+    <p>
+      We will respond to verified requests within 30 days, or sooner if
+      required by applicable law.
+    </p>
+  </main>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/privacy">Privacy</a>
+      <a href="https://github.com/gregorywglenn-spec/Keyvex-API">GitHub</a>
+    </div>
+    <p>
+      KeyVex is a data publisher, not an investment adviser. Nothing on
+      this site or in API responses is investment advice.
+    </p>
+  </footer>
+</body>
+</html>
