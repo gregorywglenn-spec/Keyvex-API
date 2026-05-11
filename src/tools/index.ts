@@ -8,6 +8,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import * as activistStakes from "./activist-stakes.js";
 import * as annualFinancialDisclosures from "./annual-financial-disclosures.js";
+import * as bills from "./bills.js";
 import * as congressionalTrades from "./congressional-trades.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
 import * as federalContracts from "./federal-contracts.js";
@@ -17,6 +18,7 @@ import * as lobbyingFilings from "./lobbying-filings.js";
 import * as materialEvents from "./material-events.js";
 import * as memberProfile from "./member-profile.js";
 import * as plannedInsiderSales from "./planned-insider-sales.js";
+import * as rollCallVotes from "./roll-call-votes.js";
 import * as tenderOffers from "./tender-offers.js";
 
 export interface ToolModule {
@@ -37,6 +39,8 @@ export const TOOLS: ToolModule[] = [
   annualFinancialDisclosures,
   fecCandidateProfile,
   tenderOffers,
+  bills,
+  rollCallVotes,
 ];
 
 export function findTool(name: string): ToolModule | undefined {

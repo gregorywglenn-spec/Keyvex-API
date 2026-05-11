@@ -75,12 +75,14 @@ import {
   getDbIfLive,
   pingFirestore,
   saveActivistOwnership,
+  saveBills,
   saveCongressionalTrades,
   saveFecCandidates,
   saveFecCommittees,
   saveFederalContractAwards,
   saveForm144Filings,
   saveForm278Filings,
+  saveRollCallVotes,
   saveTenderOffers,
   saveForm3Holdings,
   saveInsiderTransactions,
@@ -125,6 +127,10 @@ import {
   scrapeTenderOffersByTicker,
   scrapeTenderOffersLiveFeed,
 } from "./scrapers/tender-offers.js";
+import {
+  scrapeBills,
+  scrapeRollCallVotes,
+} from "./scrapers/congress-legislation.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -776,6 +782,75 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  bills: {
+    description:
+      "Scrape congressional bills (and resolutions) from api.congress.gov for a specific Congress. Default: 119th. Optional: --type=hr|s|hjres|sjres|hconres|sconres|hres|sres for a single bill type (default: all 8 types). Add --save to write to bills Firestore collection. Requires api.data.gov key in CONGRESS_API_KEY or FEC_API_KEY env var.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const congress = positional ? parseInt(positional, 10) : 119;
+      if (Number.isNaN(congress) || congress < 1 || congress > 999) {
+        throw new Error("Congress must be a positive integer (e.g., 119)");
+      }
+      const typeFlag = args.find((a) => a.startsWith("--type="));
+      const billTypes = typeFlag
+        ? [typeFlag.slice("--type=".length).toLowerCase()]
+        : undefined;
+      const bills = await scrapeBills({
+        congress,
+        ...(billTypes && { billTypes }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${bills.length} bills to Firestore...`,
+        );
+        const result = await saveBills(bills);
+        console.error(
+          `[save] Saved ${result.saved} bills to ${result.collection}`,
+        );
+      }
+      return bills;
+    },
+  },
+  "roll-call-votes": {
+    description:
+      "Scrape congressional roll-call votes from api.congress.gov for a specific Congress. Default: 119th. Optional: --session=1|2 (default both), --chamber=house|senate (default both). v1A is metadata-only — per-member vote positions live at source_data_url. Add --save to write to roll_call_votes Firestore collection.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const congress = positional ? parseInt(positional, 10) : 119;
+      if (Number.isNaN(congress) || congress < 1 || congress > 999) {
+        throw new Error("Congress must be a positive integer (e.g., 119)");
+      }
+      const sessionFlag = args.find((a) => a.startsWith("--session="));
+      const chamberFlag = args.find((a) => a.startsWith("--chamber="));
+      const session = sessionFlag
+        ? parseInt(sessionFlag.slice("--session=".length), 10)
+        : undefined;
+      const chamber = chamberFlag
+        ? (chamberFlag.slice("--chamber=".length) as "house" | "senate")
+        : undefined;
+      if (chamber && chamber !== "house" && chamber !== "senate") {
+        throw new Error("--chamber must be 'house' or 'senate'");
+      }
+      if (session !== undefined && (Number.isNaN(session) || session < 1 || session > 2)) {
+        throw new Error("--session must be 1 or 2");
+      }
+      const votes = await scrapeRollCallVotes({
+        congress,
+        ...(session !== undefined && { session }),
+        ...(chamber && { chamber }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${votes.length} roll-call votes to Firestore...`,
+        );
+        const result = await saveRollCallVotes(votes);
+        console.error(
+          `[save] Saved ${result.saved} votes to ${result.collection}`,
+        );
+      }
+      return votes;
     },
   },
   "tender-offers": {

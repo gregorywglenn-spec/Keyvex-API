@@ -1125,6 +1125,135 @@ export interface FecCommittee {
 }
 
 /**
+ * Congressional bill — one row per (congress, billType, number) tuple.
+ * Sourced from api.congress.gov/v3/bill. v1A is metadata only; full action
+ * history, sponsor list, related bills, text, and summaries live behind
+ * `api_url` and `congress_gov_url` — agents follow those for detail.
+ *
+ * Bill types we cover:
+ *   HR        — House Bill
+ *   S         — Senate Bill
+ *   HRES      — House Simple Resolution
+ *   SRES      — Senate Simple Resolution
+ *   HJRES     — House Joint Resolution
+ *   SJRES     — Senate Joint Resolution
+ *   HCONRES   — House Concurrent Resolution
+ *   SCONRES   — Senate Concurrent Resolution
+ */
+export interface Bill {
+  /** Composite key, e.g., "119-HR-134". Primary key in Firestore. */
+  bill_id: string;
+  /** Numeric Congress (e.g., 119 = January 2025 → January 2027). */
+  congress: number;
+  /** Type code (HR | S | HRES | SRES | HJRES | SJRES | HCONRES | SCONRES). */
+  bill_type: string;
+  /** Bill number (string for stable formatting; numeric-only but kept as string). */
+  number: string;
+  /** Bill title as filed. */
+  title: string;
+  /** Originating chamber: "House" | "Senate". */
+  origin_chamber: string;
+  /** Originating chamber code: "H" | "S". */
+  origin_chamber_code: string;
+  /** ISO date of the most recent floor / committee / status action. */
+  latest_action_date: string;
+  /** Human-readable description of the latest action. */
+  latest_action_text: string;
+  /** ISO date this record was last updated server-side. */
+  update_date: string;
+  /** Public-facing URL on congress.gov. */
+  congress_gov_url: string;
+  /** API detail URL for sponsors, cosponsors, full history, etc. */
+  api_url: string;
+  scraped_at: string;
+}
+
+export interface BillsQuery {
+  /** Composite key lookup ("119-HR-134"). Fastest path. */
+  bill_id?: string;
+  /** Congress number filter (e.g., 119). */
+  congress?: number;
+  /** Bill type filter (HR | S | HRES | etc.). */
+  bill_type?: string;
+  /** Substring match against title (case-insensitive). */
+  title?: string;
+  /** Origin chamber filter. */
+  origin_chamber?: "House" | "Senate";
+  /** Latest-action date lower bound (ISO YYYY-MM-DD inclusive). */
+  since?: string;
+  /** Latest-action date upper bound (ISO YYYY-MM-DD inclusive). */
+  until?: string;
+  sort_by?: "latest_action_date" | "update_date";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
+ * Congressional roll-call vote — one row per (chamber, congress, session, rcNumber).
+ * Sourced from api.congress.gov/v3/{house-vote,senate-vote}. v1A is metadata only;
+ * per-member vote positions (yea/nay/present per bioguide_id) live in the per-vote
+ * detail XML at `source_data_url` and are NOT extracted in v1A. v1.1 will add a
+ * `roll_call_member_votes` collection keyed by (vote_id, bioguide_id).
+ */
+export interface RollCallVote {
+  /** Composite key: "{chamber}-{congress}-{session}-{rcNumber}", e.g., "house-119-1-240". */
+  vote_id: string;
+  /** Numeric Congress. */
+  congress: number;
+  /** Session number within the Congress (1 or 2). */
+  session_number: number;
+  /** "house" | "senate". */
+  chamber: "house" | "senate";
+  /** Roll call number assigned within (congress, session, chamber). */
+  roll_call_number: number;
+  /** "2/3 Yea-And-Nay" | "Yea-And-Nay" | "Recorded Vote" | "Quorum" | etc. */
+  vote_type: string;
+  /** "Passed" | "Failed" | "Agreed to" | "Rejected" | etc. */
+  result: string;
+  /** Type code of the legislation voted on (HR | S | HRES | etc.); empty for procedural votes. */
+  legislation_type: string;
+  /** Bill number of the legislation voted on; empty for procedural votes. */
+  legislation_number: string;
+  /** Composite bill_id reference if this vote is on a bill ("119-HR-134"); empty otherwise. */
+  bill_id: string;
+  /** ISO 8601 datetime of vote start (with timezone). */
+  start_date: string;
+  /** ISO date the record was last updated server-side. */
+  update_date: string;
+  /** Chamber-Clerk XML URL with full per-member positions (House Clerk or Senate). */
+  source_data_url: string;
+  /** Public-facing URL on congress.gov. */
+  congress_gov_url: string;
+  /** API detail URL for member-level votes. */
+  api_url: string;
+  scraped_at: string;
+}
+
+export interface RollCallVotesQuery {
+  /** Direct vote_id lookup. */
+  vote_id?: string;
+  /** Congress number (e.g., 119). */
+  congress?: number;
+  /** Session within the Congress (1 or 2). */
+  session_number?: number;
+  /** "house" | "senate". */
+  chamber?: "house" | "senate";
+  /** Filter to votes on a specific bill (composite, e.g., "119-HR-134"). */
+  bill_id?: string;
+  /** Filter to votes on a specific legislation type (HR | S | HJRES | etc.). */
+  legislation_type?: string;
+  /** Substring match against result (case-insensitive, e.g., "passed", "failed"). */
+  result?: string;
+  /** Vote-start lower bound (ISO YYYY-MM-DD inclusive). */
+  since?: string;
+  /** Vote-start upper bound (ISO YYYY-MM-DD inclusive). */
+  until?: string;
+  sort_by?: "start_date" | "update_date";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * SEC Schedule TO filing — a tender offer disclosure. Pairs naturally with
  * 13D activist stake disclosures: "they took a 5% stake, then bid for the
  * rest." v1A scope is metadata only — bidder, target, form type, filing

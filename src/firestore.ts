@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 import type {
   ActivistOwnership,
   ActivistOwnershipQuery,
+  Bill,
+  BillsQuery,
   CongressionalTrade,
   CongressionalTradesQuery,
   FecCandidate,
@@ -45,6 +47,8 @@ import type {
   LobbyingFilingsQuery,
   MaterialEvent,
   MaterialEventsQuery,
+  RollCallVote,
+  RollCallVotesQuery,
   TenderOffer,
   TenderOffersQuery,
 } from "./types.js";
@@ -1610,6 +1614,196 @@ export async function saveForm278Filings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Bills (congress.gov) query + save ───────────────────────────────────
+
+export async function queryBills(
+  query: BillsQuery,
+): Promise<QueryResult<Bill>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  // Direct lookup by bill_id is fastest.
+  if (query.bill_id) {
+    const doc = await db.collection("bills").doc(query.bill_id).get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as Bill], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("bills");
+
+  if (query.congress !== undefined) {
+    q = q.where("congress", "==", query.congress);
+  }
+  if (query.bill_type) {
+    q = q.where("bill_type", "==", query.bill_type.toUpperCase());
+  }
+  if (query.origin_chamber) {
+    q = q.where("origin_chamber", "==", query.origin_chamber);
+  }
+
+  // Client-side sort + substring filter (same pattern as FEC / legislators).
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.title ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as Bill);
+
+  if (query.title) {
+    const needle = query.title.toLowerCase();
+    docs = docs.filter((b) => (b.title ?? "").toLowerCase().includes(needle));
+  }
+  if (query.since) {
+    docs = docs.filter((b) => b.latest_action_date >= query.since!);
+  }
+  if (query.until) {
+    docs = docs.filter((b) => b.latest_action_date <= query.until!);
+  }
+
+  const sortField = query.sort_by ?? "latest_action_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, string>)[sortField] ?? "";
+    const bv = (b as unknown as Record<string, string>)[sortField] ?? "";
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveBills(
+  bills: Bill[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "bills";
+  if (bills.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < bills.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = bills.slice(i, i + BATCH_SIZE);
+    for (const bill of chunk) {
+      batch.set(collection.doc(bill.bill_id), bill, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Roll-call votes query + save ─────────────────────────────────────────
+
+export async function queryRollCallVotes(
+  query: RollCallVotesQuery,
+): Promise<QueryResult<RollCallVote>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.vote_id) {
+    const doc = await db.collection("roll_call_votes").doc(query.vote_id).get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as RollCallVote], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("roll_call_votes");
+
+  if (query.congress !== undefined) {
+    q = q.where("congress", "==", query.congress);
+  }
+  if (query.session_number !== undefined) {
+    q = q.where("session_number", "==", query.session_number);
+  }
+  if (query.chamber) {
+    q = q.where("chamber", "==", query.chamber);
+  }
+  if (query.bill_id) {
+    q = q.where("bill_id", "==", query.bill_id);
+  }
+  if (query.legislation_type) {
+    q = q.where("legislation_type", "==", query.legislation_type.toUpperCase());
+  }
+
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.result ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as RollCallVote);
+
+  if (query.result) {
+    const needle = query.result.toLowerCase();
+    docs = docs.filter((v) => (v.result ?? "").toLowerCase().includes(needle));
+  }
+  if (query.since) {
+    docs = docs.filter((v) => v.start_date >= query.since!);
+  }
+  if (query.until) {
+    docs = docs.filter((v) => v.start_date <= query.until!);
+  }
+
+  const sortField = query.sort_by ?? "start_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, string>)[sortField] ?? "";
+    const bv = (b as unknown as Record<string, string>)[sortField] ?? "";
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveRollCallVotes(
+  votes: RollCallVote[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "roll_call_votes";
+  if (votes.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < votes.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = votes.slice(i, i + BATCH_SIZE);
+    for (const vote of chunk) {
+      batch.set(collection.doc(vote.vote_id), vote, { merge: true });
     }
     await batch.commit();
     saved += chunk.length;
