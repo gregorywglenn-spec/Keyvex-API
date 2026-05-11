@@ -22,6 +22,10 @@ import type {
   ActivistOwnershipQuery,
   CongressionalTrade,
   CongressionalTradesQuery,
+  FecCandidate,
+  FecCandidateQuery,
+  FecCommittee,
+  FecCommitteeQuery,
   FederalContractAward,
   FederalContractAwardsQuery,
   Form144Filing,
@@ -41,6 +45,8 @@ import type {
   LobbyingFilingsQuery,
   MaterialEvent,
   MaterialEventsQuery,
+  TenderOffer,
+  TenderOffersQuery,
 } from "./types.js";
 
 // Resolve service-account.json relative to the project root, not cwd. This
@@ -1604,6 +1610,319 @@ export async function saveForm278Filings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Tender offers (SC TO) query + save ──────────────────────────────────
+
+export async function queryTenderOffers(
+  query: TenderOffersQuery,
+): Promise<QueryResult<TenderOffer>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  // Direct accession lookup is fastest.
+  if (query.accession_number) {
+    const doc = await db
+      .collection("tender_offers")
+      .doc(query.accession_number)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as TenderOffer], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("tender_offers");
+
+  if (query.target_ticker) {
+    q = q.where("target_ticker", "==", query.target_ticker.toUpperCase());
+  }
+  if (query.target_cik) {
+    q = q.where("target_cik", "==", query.target_cik.padStart(10, "0"));
+  }
+  if (query.bidder_cik) {
+    q = q.where("bidder_cik", "==", query.bidder_cik.padStart(10, "0"));
+  }
+  if (query.form_type) {
+    q = q.where("form_type", "==", query.form_type);
+  }
+  if (query.third_party_only) {
+    q = q.where("is_issuer_tender", "==", false);
+  } else if (query.issuer_only) {
+    q = q.where("is_issuer_tender", "==", true);
+  }
+  if (query.exclude_amendments) {
+    q = q.where("is_amendment", "==", false);
+  }
+
+  // Client-side sort + substring filter (same pattern as FEC / legislators).
+  const userLimit = query.limit ?? 50;
+  const needsClient = query.target_name || query.bidder_name;
+  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as TenderOffer);
+
+  if (query.target_name) {
+    const needle = query.target_name.toLowerCase();
+    docs = docs.filter((o) =>
+      (o.target_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.bidder_name) {
+    const needle = query.bidder_name.toLowerCase();
+    docs = docs.filter((o) =>
+      (o.bidder_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.since) docs = docs.filter((o) => o.filing_date >= query.since!);
+  if (query.until) docs = docs.filter((o) => o.filing_date <= query.until!);
+
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    if (a.filing_date === b.filing_date) return 0;
+    const cmp = a.filing_date < b.filing_date ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveTenderOffers(
+  offers: TenderOffer[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "tender_offers";
+  if (offers.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < offers.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = offers.slice(i, i + BATCH_SIZE);
+    for (const offer of chunk) {
+      // Accession numbers contain hyphens — Firestore doc IDs allow those,
+      // but slashes (from /A amendments would be illegal). Accession itself
+      // is just numeric+hyphens; safe as-is.
+      batch.set(collection.doc(offer.accession_number), offer, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── FEC candidates query + save ──────────────────────────────────────────
+
+export async function queryFecCandidates(
+  query: FecCandidateQuery,
+): Promise<QueryResult<FecCandidate>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("fec_candidates");
+
+  // Direct candidate_id lookup is the fastest path.
+  if (query.candidate_id) {
+    const docSnap = await db
+      .collection("fec_candidates")
+      .doc(query.candidate_id)
+      .get();
+    if (!docSnap.exists) return { results: [], has_more: false };
+    return { results: [docSnap.data() as FecCandidate], has_more: false };
+  }
+
+  if (query.office) q = q.where("office", "==", query.office);
+  if (query.state) q = q.where("state", "==", query.state);
+  if (query.district) q = q.where("district", "==", query.district);
+  if (query.party) q = q.where("party", "==", query.party);
+  if (query.cycle !== undefined) {
+    q = q.where("cycles", "array-contains", query.cycle);
+  }
+  if (query.active_only) {
+    q = q.where("candidate_inactive", "==", false);
+  }
+
+  // Sort and substring-filter client-side. The combinations of equality
+  // filters (office × state × party × district × cycle × active_only) blow
+  // up the composite-index space if we also orderBy server-side; for a
+  // ~10K-row collection a client-side sort on a bounded fetch window is
+  // fast and avoids the composite-index combinatorics. Same pattern as
+  // queryLegislators.
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.candidate_name ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as FecCandidate);
+
+  if (query.candidate_name) {
+    const needle = query.candidate_name.toLowerCase();
+    docs = docs.filter((c) => (c.name ?? "").toLowerCase().includes(needle));
+  }
+
+  const sortField = query.sort_by ?? "last_file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, string | number | null>)[sortField] ?? "";
+    const bv = (b as unknown as Record<string, string | number | null>)[sortField] ?? "";
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+/**
+ * Save scraped FEC candidates to Firestore. Idempotent — candidate_id is
+ * the immutable FEC-assigned key, so re-runs upsert cleanly with merge:true.
+ */
+export async function saveFecCandidates(
+  candidates: FecCandidate[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "fec_candidates";
+  if (candidates.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = candidates.slice(i, i + BATCH_SIZE);
+    for (const candidate of chunk) {
+      batch.set(collection.doc(candidate.candidate_id), candidate, {
+        merge: true,
+      });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── FEC committees query + save ──────────────────────────────────────────
+
+export async function queryFecCommittees(
+  query: FecCommitteeQuery,
+): Promise<QueryResult<FecCommittee>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("fec_committees");
+
+  // Direct committee_id lookup is the fastest path.
+  if (query.committee_id) {
+    const docSnap = await db
+      .collection("fec_committees")
+      .doc(query.committee_id)
+      .get();
+    if (!docSnap.exists) return { results: [], has_more: false };
+    return { results: [docSnap.data() as FecCommittee], has_more: false };
+  }
+
+  if (query.committee_type) {
+    q = q.where("committee_type", "==", query.committee_type);
+  }
+  if (query.designation) q = q.where("designation", "==", query.designation);
+  if (query.state) q = q.where("state", "==", query.state);
+  if (query.party) q = q.where("party", "==", query.party);
+  if (query.cycle !== undefined) {
+    q = q.where("cycles", "array-contains", query.cycle);
+  }
+  if (query.candidate_id) {
+    q = q.where("candidate_ids", "array-contains", query.candidate_id);
+  }
+
+  // Client-side sort + substring filter — same rationale as queryFecCandidates.
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.committee_name ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as FecCommittee);
+
+  if (query.committee_name) {
+    const needle = query.committee_name.toLowerCase();
+    docs = docs.filter((c) => (c.name ?? "").toLowerCase().includes(needle));
+  }
+
+  const sortField = query.sort_by ?? "last_file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, string | number | null>)[sortField] ?? "";
+    const bv = (b as unknown as Record<string, string | number | null>)[sortField] ?? "";
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveFecCommittees(
+  committees: FecCommittee[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "fec_committees";
+  if (committees.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < committees.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = committees.slice(i, i + BATCH_SIZE);
+    for (const committee of chunk) {
+      batch.set(collection.doc(committee.committee_id), committee, {
+        merge: true,
+      });
     }
     await batch.commit();
     saved += chunk.length;

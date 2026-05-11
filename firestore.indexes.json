@@ -306,6 +306,78 @@
         { "fieldPath": "report_type", "order": "ASCENDING" },
         { "fieldPath": "filing_date", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "fec_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "office", "order": "ASCENDING" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "party", "order": "ASCENDING" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cycles", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_committees",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "committee_type", "order": "ASCENDING" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_committees",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "designation", "order": "ASCENDING" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_committees",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_committees",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_ids", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_committees",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cycles", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

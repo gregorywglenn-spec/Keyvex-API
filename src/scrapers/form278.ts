@@ -92,14 +92,12 @@ interface ListEntry {
   dateFiled: string;
 }
 
-/** Fetch all matching Form 278 filings within the lookback window. */
+/** Fetch all matching Form 278 filings within the given date window. */
 async function fetchForm278List(
   session: { fetch: typeof fetch; csrfToken: string },
-  lookbackDays: number,
+  window: { start: Date; end: Date },
 ): Promise<ListEntry[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
+  const { start, end } = window;
 
   const formatDate = (d: Date): string => {
     const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -171,10 +169,11 @@ async function fetchForm278List(
     if (rows.length < CONFIG.PAGE_SIZE) break;
     pageStart += rows.length;
     if (pageStart >= recordsTotal) break;
-    // Hard stop at 1000 rows for safety; real lookback windows shouldn't
-    // exceed this. If they do, narrow the window.
-    if (pageStart > 1000) {
-      console.error("[form278] stopping pagination at 1000 rows for safety");
+    // Safety cap. Weekly cron windows return well under 1k rows; long
+    // historical backfills (year-by-year) can run into the low thousands.
+    // 50k is the ceiling — narrow the window if you hit it.
+    if (pageStart > 50000) {
+      console.error("[form278] stopping pagination at 50000 rows for safety");
       break;
     }
   }
@@ -247,22 +246,62 @@ function parseOffice(office: string): { state: string; district: string } {
 }
 
 export interface ScrapeOptions {
+  /** Rolling lookback in days from now. Ignored if startDate+endDate set. */
   lookbackDays?: number;
+  /** Explicit window start (YYYY-MM-DD). Pairs with endDate. */
+  startDate?: string;
+  /** Explicit window end (YYYY-MM-DD, inclusive). Pairs with startDate. */
+  endDate?: string;
+}
+
+/** Parse YYYY-MM-DD to a UTC Date at midnight. Throws on bad format. */
+function parseIsoDateStrict(s: string, label: string): Date {
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    throw new Error(`${label} must be YYYY-MM-DD, got: ${s}`);
+  }
+  const d = new Date(`${s}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`${label} is not a valid date: ${s}`);
+  }
+  return d;
 }
 
 export async function scrapeSenateForm278(
   options: ScrapeOptions = {},
 ): Promise<Form278Filing[]> {
-  const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+  let start: Date;
+  let end: Date;
+  let windowLabel: string;
+  if (options.startDate && options.endDate) {
+    start = parseIsoDateStrict(options.startDate, "startDate");
+    end = parseIsoDateStrict(options.endDate, "endDate");
+    if (end < start) {
+      throw new Error(
+        `endDate (${options.endDate}) must be on or after startDate (${options.startDate})`,
+      );
+    }
+    windowLabel = `${options.startDate} → ${options.endDate}`;
+  } else if (options.startDate || options.endDate) {
+    throw new Error(
+      "startDate and endDate must be provided together (or use lookbackDays)",
+    );
+  } else {
+    const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+    end = new Date();
+    start = new Date();
+    start.setDate(start.getDate() - lookbackDays);
+    windowLabel = `last ${lookbackDays} days`;
+  }
   console.error(
-    `[form278] Starting Senate Form 278 live-feed (last ${lookbackDays} days)...`,
+    `[form278] Starting Senate Form 278 live-feed (${windowLabel})...`,
   );
 
   console.error("[form278] Establishing Senate eFD session...");
   const session = await createSession();
   console.error("[form278]   session ready");
 
-  const entries = await fetchForm278List(session, lookbackDays);
+  const entries = await fetchForm278List(session, { start, end });
   console.error(
     `[form278] Discovered ${entries.length} Form 278 filing(s) in the window`,
   );

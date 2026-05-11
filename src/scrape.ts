@@ -76,9 +76,12 @@ import {
   pingFirestore,
   saveActivistOwnership,
   saveCongressionalTrades,
+  saveFecCandidates,
+  saveFecCommittees,
   saveFederalContractAwards,
   saveForm144Filings,
   saveForm278Filings,
+  saveTenderOffers,
   saveForm3Holdings,
   saveInsiderTransactions,
   saveInstitutionalHoldings,
@@ -114,6 +117,14 @@ import {
   scrapeContractsByRecipient,
   scrapeContractsLiveFeed,
 } from "./scrapers/usaspending.js";
+import {
+  scrapeFecCandidates,
+  scrapeFecCommittees,
+} from "./scrapers/fec.js";
+import {
+  scrapeTenderOffersByTicker,
+  scrapeTenderOffersLiveFeed,
+} from "./scrapers/tender-offers.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -660,14 +671,28 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   form278: {
     description:
-      "Scrape Senate eFD Form 278 (Annual Financial Disclosure) filings for the last N days (default 30). Captures filing metadata + URL to the actual report PDF/HTML — agents follow the URL to read asset / liability / income detail (PDF parsing for net-worth roll-up is v1.1). Add --save to write to Firestore.",
+      "Scrape Senate eFD Form 278 (Annual Financial Disclosure) filings. Default: last N days (positional integer, default 30). For historical backfill: --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD covers an explicit window. Captures filing metadata + URL to the actual report PDF/HTML — agents follow the URL to read asset / liability / income detail (PDF parsing for net-worth roll-up is v1.1). Add --save to write to Firestore.",
     run: async (args) => {
-      const positional = args.find((a) => !a.startsWith("--"));
-      const days = positional ? parseInt(positional, 10) : 30;
-      if (Number.isNaN(days) || days < 1) {
-        throw new Error("Days must be a positive integer");
+      const startFlag = args.find((a) => a.startsWith("--start-date="));
+      const endFlag = args.find((a) => a.startsWith("--end-date="));
+      const startDate = startFlag ? startFlag.slice("--start-date=".length) : undefined;
+      const endDate = endFlag ? endFlag.slice("--end-date=".length) : undefined;
+      if ((startDate && !endDate) || (endDate && !startDate)) {
+        throw new Error(
+          "--start-date and --end-date must be provided together (or omit both for lookback mode)",
+        );
       }
-      const filings = await scrapeSenateForm278({ lookbackDays: days });
+      let filings;
+      if (startDate && endDate) {
+        filings = await scrapeSenateForm278({ startDate, endDate });
+      } else {
+        const positional = args.find((a) => !a.startsWith("--"));
+        const days = positional ? parseInt(positional, 10) : 30;
+        if (Number.isNaN(days) || days < 1) {
+          throw new Error("Days must be a positive integer");
+        }
+        filings = await scrapeSenateForm278({ lookbackDays: days });
+      }
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${filings.length} Form 278 filings to Firestore...`,
@@ -678,6 +703,116 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return filings;
+    },
+  },
+  "fec-candidates": {
+    description:
+      "Scrape FEC-registered candidates (House / Senate / President) from api.open.fec.gov. Default: all candidates active in cycles 2022 / 2024 / 2026. Optional: --cycle=YYYY (single cycle), --office=H|S|P, --state=AA, --active-only (filter to candidate_status=C). Add --save to write to fec_candidates Firestore collection. Requires FEC_API_KEY env var for >30 req/hr; falls back to DEMO_KEY otherwise.",
+    run: async (args) => {
+      const cycleFlag = args.find((a) => a.startsWith("--cycle="));
+      const officeFlag = args.find((a) => a.startsWith("--office="));
+      const stateFlag = args.find((a) => a.startsWith("--state="));
+      const cycle = cycleFlag
+        ? parseInt(cycleFlag.slice("--cycle=".length), 10)
+        : undefined;
+      const office = officeFlag ? officeFlag.slice("--office=".length) : undefined;
+      const state = stateFlag ? stateFlag.slice("--state=".length) : undefined;
+      const activeOnly = args.includes("--active-only");
+      if (cycle !== undefined && (Number.isNaN(cycle) || cycle < 1976)) {
+        throw new Error("--cycle must be a year >= 1976");
+      }
+      const candidates = await scrapeFecCandidates({
+        ...(cycle !== undefined && { cycle }),
+        ...(office !== undefined && { office }),
+        ...(state !== undefined && { state }),
+        activeOnly,
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${candidates.length} FEC candidates to Firestore...`,
+        );
+        const result = await saveFecCandidates(candidates);
+        console.error(
+          `[save] Saved ${result.saved} candidates to ${result.collection}`,
+        );
+      }
+      return candidates;
+    },
+  },
+  "fec-committees": {
+    description:
+      "Scrape FEC-registered committees (campaign committees, PACs, Super PACs, party committees) from api.open.fec.gov. Default: all committees active in cycles 2022 / 2024 / 2026. Optional: --cycle=YYYY, --committee-type=H|S|P|Q|N|O|X|Y|Z, --designation=P|A|B|D|J|U, --state=AA. Add --save to write to fec_committees Firestore collection. Requires FEC_API_KEY env var for >30 req/hr.",
+    run: async (args) => {
+      const cycleFlag = args.find((a) => a.startsWith("--cycle="));
+      const typeFlag = args.find((a) => a.startsWith("--committee-type="));
+      const desFlag = args.find((a) => a.startsWith("--designation="));
+      const stateFlag = args.find((a) => a.startsWith("--state="));
+      const cycle = cycleFlag
+        ? parseInt(cycleFlag.slice("--cycle=".length), 10)
+        : undefined;
+      const committeeType = typeFlag
+        ? typeFlag.slice("--committee-type=".length)
+        : undefined;
+      const designation = desFlag
+        ? desFlag.slice("--designation=".length)
+        : undefined;
+      const state = stateFlag ? stateFlag.slice("--state=".length) : undefined;
+      if (cycle !== undefined && (Number.isNaN(cycle) || cycle < 1976)) {
+        throw new Error("--cycle must be a year >= 1976");
+      }
+      const committees = await scrapeFecCommittees({
+        ...(cycle !== undefined && { cycle }),
+        ...(committeeType !== undefined && { committeeType }),
+        ...(designation !== undefined && { designation }),
+        ...(state !== undefined && { state }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${committees.length} FEC committees to Firestore...`,
+        );
+        const result = await saveFecCommittees(committees);
+        console.error(
+          `[save] Saved ${result.saved} committees to ${result.collection}`,
+        );
+      }
+      return committees;
+    },
+  },
+  "tender-offers": {
+    description:
+      "Scrape SEC Schedule TO (tender offer) filings from EDGAR. Forms covered: SC TO-T (third-party offers), SC TO-I (issuer buybacks), and amendments. Default: last 30 days, all forms. Optional: <ticker> as first positional arg to filter by target company ticker. Add --save to write to tender_offers Firestore collection. Pairs naturally with 13D activist stake data for the 'stake → bid' M&A cross-source story.",
+    run: async (args) => {
+      const positional = args.filter((a) => !a.startsWith("--"));
+      const first = positional[0];
+      // If the first positional looks like a ticker (uppercase letters,
+      // length 1-5), treat it as a target-ticker query; otherwise treat
+      // it as a lookback-days integer.
+      const isTicker = first && /^[A-Z][A-Z0-9.]{0,4}$/.test(first.toUpperCase());
+      let offers;
+      if (isTicker) {
+        const daysArg = positional[1];
+        const days = daysArg ? parseInt(daysArg, 10) : 365;
+        if (Number.isNaN(days) || days < 1) {
+          throw new Error("Days (second positional) must be a positive integer");
+        }
+        offers = await scrapeTenderOffersByTicker(first!, days);
+      } else {
+        const days = first ? parseInt(first, 10) : 30;
+        if (Number.isNaN(days) || days < 1) {
+          throw new Error("Days must be a positive integer");
+        }
+        offers = await scrapeTenderOffersLiveFeed(days);
+      }
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${offers.length} tender offers to Firestore...`,
+        );
+        const result = await saveTenderOffers(offers);
+        console.error(
+          `[save] Saved ${result.saved} offers to ${result.collection}`,
+        );
+      }
+      return offers;
     },
   },
   "house-index": {

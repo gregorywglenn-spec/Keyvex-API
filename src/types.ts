@@ -990,3 +990,247 @@ export interface Form278FilingsQuery {
   sort_order?: "desc" | "asc";
   limit?: number;
 }
+
+/**
+ * FEC (Federal Election Commission) candidate record. One row per FEC-registered
+ * candidate (House, Senate, President). Sourced from api.open.fec.gov/v1/candidates/.
+ *
+ * FEC candidate IDs follow the pattern <OFFICE><CYCLE_LAST_DIGIT><STATE><SEQUENCE>:
+ *   - H6PA00091 = House, first-cycle 2026, Pennsylvania, sequence 91
+ *   - S6PA00091 = Senate, first-cycle 2026, Pennsylvania, sequence 91
+ *   - P80003338 = President, first-cycle 2008, no state, sequence 3338
+ * The ID never changes once assigned — same person across cycles keeps their ID.
+ */
+export interface FecCandidate {
+  /** FEC-assigned ID (immutable across cycles). Primary key. */
+  candidate_id: string;
+  /** Candidate's name as filed with the FEC, often LAST, FIRST format. */
+  name: string;
+  /** Three-letter party code: DEM / REP / LIB / GRE / IND / OTH / etc. */
+  party: string;
+  /** Full party name: "Democratic Party" / "Republican Party" / etc. */
+  party_full: string;
+  /** Office code: H (House) / S (Senate) / P (President). */
+  office: string;
+  /** Human-readable office: "House" / "Senate" / "President". */
+  office_full: string;
+  /** Two-letter state code; empty for President. */
+  state: string;
+  /** House district number as string ("01"-"53", "AL" for at-large); empty for Senate/President. */
+  district: string;
+  /** Numeric district when available; null otherwise. */
+  district_number: number | null;
+  /** Challenger status: I (Incumbent) / C (Challenger) / O (Open seat). */
+  incumbent_challenge: string;
+  /** Filing status: C (current/active) / F / N / P. */
+  candidate_status: string;
+  /** True if FEC has marked the candidate as inactive. */
+  candidate_inactive: boolean;
+  /** Election cycles the candidate has filed for, e.g., [2020, 2022, 2024, 2026]. */
+  cycles: number[];
+  /** All election years the candidate is/was running in. */
+  election_years: number[];
+  /** Last cycle through which the candidate is considered active. */
+  active_through: number | null;
+  /** ISO date of first FEC filing. */
+  first_file_date: string;
+  /** ISO date of most recent FEC filing. */
+  last_file_date: string;
+  /** ISO date FEC last loaded this record into their database. */
+  load_date: string;
+  /** When KeyVex scraped this record (ISO 8601). */
+  scraped_at: string;
+}
+
+export interface FecCandidateQuery {
+  /** Exact FEC candidate ID lookup (fastest path). */
+  candidate_id?: string;
+  /** Substring match against the candidate's name (case-insensitive). */
+  candidate_name?: string;
+  /** Office filter: H / S / P. */
+  office?: string;
+  /** Two-letter state code. */
+  state?: string;
+  /** House district ("01"-"53"). */
+  district?: string;
+  /** Party code: DEM / REP / etc. */
+  party?: string;
+  /** Election cycle (e.g., 2026). When set, only candidates whose cycles[] includes this value. */
+  cycle?: number;
+  /** When true, filter to candidate_inactive=false AND candidate_status='C'. */
+  active_only?: boolean;
+  sort_by?: "name" | "last_file_date" | "active_through";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+/**
+ * FEC committee record. Includes campaign committees, leadership PACs,
+ * party committees, Super PACs (independent expenditure-only), and 527s.
+ * Sourced from api.open.fec.gov/v1/committees/.
+ *
+ * Committee types (most useful for political-alpha):
+ *   H = House campaign committee
+ *   S = Senate campaign committee
+ *   P = Presidential campaign committee
+ *   Q = PAC (qualified, can give to multiple candidates)
+ *   N = PAC (non-qualified)
+ *   O = Super PAC (independent expenditure-only)
+ *   I = Independent expenditure (non-PAC)
+ *   X = Party committee (Republican)
+ *   Y = Party committee (Democratic)
+ *   Z = National party committee
+ *   V / W = Carey/hybrid PAC
+ *   D = Delegate committee
+ *   E = Electioneering communication
+ *   U = Single-candidate independent expenditure
+ */
+export interface FecCommittee {
+  /** FEC-assigned committee ID (immutable). Primary key. */
+  committee_id: string;
+  /** Committee's filed name. */
+  name: string;
+  /** Treasurer-of-record's name. */
+  treasurer_name: string;
+  /** Committee type code (H/S/P/Q/N/O/X/Y/Z/etc. — see interface comment). */
+  committee_type: string;
+  /** Human-readable committee type. */
+  committee_type_full: string;
+  /** Designation: P (Principal campaign) / A (Authorized) / B (Lobbyist) / U (Unauthorized) / J (Joint fundraiser) / D (Leadership PAC). */
+  designation: string;
+  /** Human-readable designation. */
+  designation_full: string;
+  /** Organization type: C (Corporation) / L (Labor) / M (Membership) / T (Trade) / V (Cooperative) / W (Without capital stock). Often empty. */
+  organization_type: string;
+  organization_type_full: string;
+  /** Party affiliation code. */
+  party: string;
+  party_full: string;
+  /** Two-letter state code (for state-tied committees). */
+  state: string;
+  /** Filing frequency: Q (Quarterly) / M (Monthly) / A (Annual) / etc. */
+  filing_frequency: string;
+  /** FEC candidate IDs this committee is associated with (may be empty for PACs). */
+  candidate_ids: string[];
+  /** For Super PACs and similar: candidate IDs the committee primarily sponsors. */
+  sponsor_candidate_ids: string[];
+  /** Election cycles the committee has filed in. */
+  cycles: number[];
+  /** ISO date of first Form 1 (Statement of Organization) filing. */
+  first_file_date: string;
+  /** ISO date of most recent filing. */
+  last_file_date: string;
+  /** When KeyVex scraped this record (ISO 8601). */
+  scraped_at: string;
+}
+
+/**
+ * SEC Schedule TO filing — a tender offer disclosure. Pairs naturally with
+ * 13D activist stake disclosures: "they took a 5% stake, then bid for the
+ * rest." v1A scope is metadata only — bidder, target, form type, filing
+ * date, URL. Offer price / shares sought / expiration date live inside
+ * the HTML attachment and require parsing (v1.1).
+ *
+ * Form codes covered:
+ *   SC TO-T — third-party tender offer (acquirer bidding for target's shares)
+ *   SC TO-I — issuer tender offer (company buying back its own shares)
+ *   SC TO-T/A, SC TO-I/A — amendments (revised terms, extension, results)
+ *
+ * Not covered in v1A: SC TO-C (pre-commencement communication / PR before
+ * formal filing) and SC 14D9 (target company response & recommendation).
+ * Both are companion filings whose informational value is in the prose.
+ */
+export interface TenderOffer {
+  /** EDGAR accession number, the immutable filing identifier. Primary key. */
+  accession_number: string;
+  /** SC TO-T | SC TO-I | SC TO-T/A | SC TO-I/A */
+  form_type: string;
+  /** True for amendment filings (form_type ends in /A). */
+  is_amendment: boolean;
+  /** True for issuer self-tender (SC TO-I); false for third-party (SC TO-T). */
+  is_issuer_tender: boolean;
+  /** Filing date (ISO YYYY-MM-DD). */
+  filing_date: string;
+  /** Target company's name as filed. For SC TO-I this == bidder_name. */
+  target_name: string;
+  /** Target's CIK (zero-padded 10-digit). */
+  target_cik: string;
+  /** Target's ticker if surfaced by EDGAR's display_names; empty otherwise. */
+  target_ticker: string;
+  /** Bidder name (acquirer for SC TO-T; same as target for SC TO-I). */
+  bidder_name: string;
+  /** Bidder's CIK. */
+  bidder_cik: string;
+  /** Bidder's ticker if available; usually empty (bidders are often private SPVs). */
+  bidder_ticker: string;
+  /** All CIKs on the filing (target + bidder + any joint filers). */
+  all_ciks: string[];
+  /** File number assigned by EDGAR (used for amendment chains). */
+  file_number: string;
+  /** Direct URL to the filing index on EDGAR. */
+  filing_url: string;
+  /** Direct URL to the primary HTML/PDF attachment (offer terms prose). */
+  primary_document_url: string;
+  /** State(s) of incorporation of the parties (best-effort from EDGAR metadata). */
+  inc_states: string[];
+  /** SIC code(s) of the parties (industry classification). */
+  sic_codes: string[];
+  /** When KeyVex scraped this record (ISO 8601). */
+  scraped_at: string;
+}
+
+export interface TenderOffersQuery {
+  /** Direct accession lookup (fastest path). */
+  accession_number?: string;
+  /** Target company ticker (e.g., 'KZR'). */
+  target_ticker?: string;
+  /** Target's CIK (10-digit zero-padded). */
+  target_cik?: string;
+  /** Substring match against target_name (case-insensitive). */
+  target_name?: string;
+  /** Bidder's CIK. */
+  bidder_cik?: string;
+  /** Substring match against bidder_name (case-insensitive). */
+  bidder_name?: string;
+  /** Filter to specific form_type. */
+  form_type?: string;
+  /** When true, only third-party offers (SC TO-T family). */
+  third_party_only?: boolean;
+  /** When true, only issuer buybacks (SC TO-I family). */
+  issuer_only?: boolean;
+  /** When true, exclude amendments. Default false (include them). */
+  exclude_amendments?: boolean;
+  /** Filing date lower bound (ISO YYYY-MM-DD inclusive). */
+  since?: string;
+  /** Filing date upper bound (ISO YYYY-MM-DD inclusive). */
+  until?: string;
+  sort_by?: "filing_date";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+/**
+ * Candidate profile enriched with their associated committees. Returned by
+ * `get_fec_candidate_profile` when include_committees=true (default).
+ * Lets agents read the full "candidate → committees" structure in one tool
+ * call without a follow-up committee lookup.
+ */
+export interface FecCandidateProfile extends FecCandidate {
+  /** Committees this candidate is linked to, ordered with principal first.
+   *  Populated when include_committees=true; omitted otherwise. */
+  committees?: FecCommittee[];
+}
+
+export interface FecCommitteeQuery {
+  committee_id?: string;
+  committee_name?: string;
+  candidate_id?: string;
+  committee_type?: string;
+  designation?: string;
+  state?: string;
+  party?: string;
+  cycle?: number;
+  sort_by?: "name" | "last_file_date";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
