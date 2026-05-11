@@ -210,21 +210,69 @@ async function fetchAllPages<TRaw>(
     }
 
     await sleep(CONFIG.RATE_LIMIT_MS);
-    const res = await fetch(url.toString(), {
-      headers: { "User-Agent": CONFIG.USER_AGENT, Accept: "application/json" },
-    });
 
-    if (res.status === 429) {
-      const retryAfter = parseInt(res.headers.get("retry-after") ?? "60", 10);
-      console.error(
-        `[fec]   page ${page}: 429 rate-limited, waiting ${retryAfter}s...`,
-      );
-      await sleep(retryAfter * 1000);
-      continue; // retry the same page
+    // Retry loop for transient errors. FEC's gateway returns 502/503/504
+    // a few times an hour during a backfill — they're transient, not
+    // permanent. Plus standard 429 handling. Exponential backoff capped
+    // at 5 retries; on the final failure we surface the error.
+    let res: Response | null = null;
+    let attempt = 0;
+    const MAX_RETRIES = 5;
+    while (attempt <= MAX_RETRIES) {
+      try {
+        res = await fetch(url.toString(), {
+          headers: {
+            "User-Agent": CONFIG.USER_AGENT,
+            Accept: "application/json",
+          },
+        });
+      } catch (err) {
+        // Network-level failure (DNS, socket reset, etc.). Retry like a 5xx.
+        const msg = err instanceof Error ? err.message : String(err);
+        if (attempt < MAX_RETRIES) {
+          const backoffSec = Math.pow(2, attempt); // 1s, 2s, 4s, 8s, 16s
+          console.error(
+            `[fec]   page ${page}: network error (${msg}), retry ${attempt + 1}/${MAX_RETRIES} in ${backoffSec}s`,
+          );
+          await sleep(backoffSec * 1000);
+          attempt++;
+          continue;
+        }
+        throw err;
+      }
+
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get("retry-after") ?? "60", 10);
+        console.error(
+          `[fec]   page ${page}: 429 rate-limited, waiting ${retryAfter}s...`,
+        );
+        await sleep(retryAfter * 1000);
+        // 429 doesn't count against attempt budget; we keep going.
+        continue;
+      }
+      // 5xx: transient gateway / server error. Backoff and retry.
+      if (res.status >= 500 && res.status < 600) {
+        if (attempt < MAX_RETRIES) {
+          const backoffSec = Math.pow(2, attempt);
+          console.error(
+            `[fec]   page ${page}: HTTP ${res.status} ${res.statusText}, retry ${attempt + 1}/${MAX_RETRIES} in ${backoffSec}s`,
+          );
+          await sleep(backoffSec * 1000);
+          attempt++;
+          continue;
+        }
+        // Out of retries — surface a clear error.
+        throw new Error(
+          `FEC ${endpoint} HTTP ${res.status} on page ${page} after ${MAX_RETRIES} retries`,
+        );
+      }
+      // Any other status (incl. 200) breaks out of the retry loop.
+      break;
     }
-    if (!res.ok) {
+
+    if (!res || !res.ok) {
       throw new Error(
-        `FEC ${endpoint} HTTP ${res.status} ${res.statusText} on page ${page}`,
+        `FEC ${endpoint} HTTP ${res?.status ?? "(no response)"} ${res?.statusText ?? ""} on page ${page}`,
       );
     }
 
