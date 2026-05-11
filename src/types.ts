@@ -1125,6 +1125,139 @@ export interface FecCommittee {
 }
 
 /**
+ * SEC Form D — exempt private placement / Reg D offering notice.
+ * One row per accession. Sourced from EDGAR FTS + per-filing
+ * primary_doc.xml fetch.
+ *
+ * Form D is filed within 15 days of the first sale in a private offering
+ * conducted under Reg D (Rules 504, 506(b), 506(c)) or Section 4(a) of
+ * the Securities Act. The data captured is the canonical view of who's
+ * raising private capital, when, in which industry, under which
+ * exemption, and how much.
+ *
+ * Use cases:
+ *   - VC / PE / startup tracking ("who's raising right now")
+ *   - Detect new fund formations (LP / LLC vehicle creation)
+ *   - Investor counts + minimum investment thresholds
+ *   - Identify executive officers + directors of new entities
+ *
+ * Pure-publisher posture: returns data as filed. KeyVex doesn't compute
+ * derived "deal quality" or "round velocity" signals — agents do.
+ */
+export interface PrivatePlacement {
+  /** EDGAR accession number, primary key. */
+  filing_id: string;
+  /** "D" (new filing) | "D/A" (amendment). */
+  filing_type: string;
+  /** True when filing_type ends in /A. */
+  is_amendment: boolean;
+  /** ISO date filed with SEC (YYYY-MM-DD). */
+  file_date: string;
+  /** Filing's primary issuer's SEC CIK (10-digit zero-padded). */
+  issuer_cik: string;
+  /** Legal entity name of the issuer. */
+  issuer_name: string;
+  /** Issuer's street1 + street2 (concatenated). */
+  issuer_street: string;
+  /** Issuer's city. */
+  issuer_city: string;
+  /** Issuer's state or country (2-letter code if US). */
+  issuer_state: string;
+  /** Issuer's ZIP. */
+  issuer_zip: string;
+  /** Issuer's phone (if disclosed). */
+  issuer_phone: string;
+  /** Jurisdiction of incorporation (e.g., "DELAWARE", "CALIFORNIA"). */
+  jurisdiction_of_inc: string;
+  /** Entity type (e.g., "Limited Liability Company", "Limited Partnership"). */
+  entity_type: string;
+  /** Year of incorporation (as filed; empty if "Decline to Disclose"). */
+  year_of_inc: string;
+  /** True if issuer was incorporated within the 5 years prior to filing. */
+  year_of_inc_within_five_years: boolean;
+  /** Industry group at the top level (e.g., "Pooled Investment Fund",
+   *  "Technology", "Real Estate", "Health Care"). */
+  industry_group_type: string;
+  /** For Pooled Investment Funds: subtype (e.g., "Venture Capital Fund",
+   *  "Private Equity Fund", "Hedge Fund"). Empty for other industries. */
+  investment_fund_type: string;
+  /** True if registered under the Investment Company Act of 1940. */
+  is_40_act: boolean;
+  /** Disclosed annual revenue bucket ("$1M-$5M", "Decline to Disclose", etc.). */
+  revenue_range: string;
+  /** Reg D exemption claims (e.g., "06b" for Rule 506(b), "06c" for 506(c),
+   *  "3C" / "3C.1" / "3C.7" for Investment Company Act exclusions). */
+  federal_exemptions: string[];
+  /** ISO date of first sale. */
+  date_of_first_sale: string;
+  /** True if offering expected to last more than one year. */
+  duration_more_than_one_year: boolean;
+  /** Total offering amount (string — can be "Indefinite" or a dollar amount). */
+  total_offering_amount: string;
+  /** Total amount sold to date (dollars). */
+  total_amount_sold: number;
+  /** Total remaining (string — same shape as total_offering_amount). */
+  total_remaining: string;
+  /** Minimum accepted investment (dollars; 0 if not specified). */
+  min_investment_accepted: number;
+  /** Number of investors who have already invested. */
+  total_number_already_invested: number;
+  /** Sales commissions paid (dollars). */
+  sales_commissions: number;
+  /** Finder fees paid (dollars). */
+  finder_fees: number;
+  /** Related persons (directors, executive officers, promoters, etc.). */
+  related_persons: PrivatePlacementRelatedPerson[];
+  /** Direct URL to the primary_doc.xml. */
+  primary_document_url: string;
+  /** Direct URL to the filing index on EDGAR. */
+  filing_url: string;
+  scraped_at: string;
+}
+
+export interface PrivatePlacementRelatedPerson {
+  first_name: string;
+  middle_name: string;
+  last_name: string;
+  city: string;
+  state: string;
+  /** Director / Executive Officer / Promoter / etc. */
+  relationships: string[];
+  /** Free-text clarification when filer disclosed one. */
+  clarification: string;
+}
+
+export interface PrivatePlacementsQuery {
+  /** Direct accession lookup. */
+  filing_id?: string;
+  /** Issuer CIK (10-digit zero-padded). */
+  issuer_cik?: string;
+  /** Substring match against issuer_name (case-insensitive). */
+  issuer_name?: string;
+  /** Filter to issuers in a specific state (2-letter code). */
+  issuer_state?: string;
+  /** Substring match against jurisdiction_of_inc. */
+  jurisdiction_of_inc?: string;
+  /** Substring match against industry_group_type ("technology", "real estate", etc.). */
+  industry_group_type?: string;
+  /** Substring match against investment_fund_type ("venture capital", "private equity"). */
+  investment_fund_type?: string;
+  /** Filter by federal exemption (array-contains, e.g., "06b" for Rule 506(b)). */
+  federal_exemption?: string;
+  /** When true, only D filings. When false, only D/A amendments. Default: both. */
+  is_amendment?: boolean;
+  /** Minimum total_amount_sold (filter for material raises). */
+  min_amount_sold?: number;
+  /** date_of_first_sale lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** date_of_first_sale upper bound (YYYY-MM-DD inclusive). */
+  until?: string;
+  sort_by?: "file_date" | "date_of_first_sale" | "total_amount_sold";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * FINRA OTC Transparency weekly summary — one row per (week, ticker, ATS/OTC venue).
  * Sourced from api.finra.org/data/group/otcMarket/name/weeklySummary.
  *

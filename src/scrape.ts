@@ -83,6 +83,7 @@ import {
   saveForm144Filings,
   saveForm278Filings,
   saveOtcMarketWeekly,
+  savePrivatePlacements,
   saveRollCallVotes,
   saveTenderOffers,
   saveForm3Holdings,
@@ -133,6 +134,7 @@ import {
   scrapeRollCallVotes,
 } from "./scrapers/congress-legislation.js";
 import { scrapeFinraOtcWeek } from "./scrapers/finra-otc.js";
+import { scrapeFormDLiveFeed } from "./scrapers/form-d.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -784,6 +786,28 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  "form-d": {
+    description:
+      "Scrape SEC Form D (Reg D private placement / exempt offering) filings from EDGAR. Default: last 2 days. Optional: <days> as first positional arg for a longer lookback (be aware ~150 filings/day). Add --save to write to private_placements Firestore collection. Pairs naturally with get_member_profile + congressional_trades for 'who's raising private capital' analysis.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 2;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const filings = await scrapeFormDLiveFeed({ lookbackDays: days });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${filings.length} Form D filings to Firestore...`,
+        );
+        const result = await savePrivatePlacements(filings);
+        console.error(
+          `[save] Saved ${result.saved} filings to ${result.collection}`,
+        );
+      }
+      return filings;
     },
   },
   "finra-otc": {

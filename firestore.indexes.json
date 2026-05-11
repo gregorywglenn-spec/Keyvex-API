@@ -450,6 +450,38 @@
         { "fieldPath": "target_ticker", "order": "ASCENDING" },
         { "fieldPath": "filing_date", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "private_placements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "issuer_cik", "order": "ASCENDING" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "private_placements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "issuer_state", "order": "ASCENDING" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "private_placements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "federal_exemptions", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "private_placements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_amendment", "order": "ASCENDING" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

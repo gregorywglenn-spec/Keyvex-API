@@ -51,6 +51,7 @@ import {
   saveLobbyingFilings,
   saveMaterialEvents,
   saveOtcMarketWeekly,
+  savePrivatePlacements,
   saveRollCallVotes,
   saveTenderOffers,
   writeJobMeta,
@@ -86,6 +87,7 @@ import {
   scrapeRollCallVotes,
 } from "../../src/scrapers/congress-legislation.js";
 import { scrapeFinraOtcWeek } from "../../src/scrapers/finra-otc.js";
+import { scrapeFormDLiveFeed } from "../../src/scrapers/form-d.js";
 
 // ─── Common config ──────────────────────────────────────────────────────────
 
@@ -688,6 +690,45 @@ export const scrapeCongressLegislationDaily = onSchedule(
 );
 
 /**
+ * SEC Form D private placements. Daily 6:30 AM ET.
+ *
+ * Cadence: daily. Form D must be filed within 15 days of first sale, so
+ * the universe of "new private raises this week" turns over fast. Volume
+ * is ~150-175 filings per business day across all Reg D variants —
+ * comfortable within a 9 min Cloud Functions timeout with the SEC's
+ * 10 req/sec rate limit.
+ *
+ * Daily 6:30 AM ET aligns with the existing daily 6-7 AM scraper cluster
+ * (Senate / House / USAspending / LDA) for operational simplicity.
+ *
+ * No secret needed — SEC EDGAR is unauthenticated. Memory + timeout
+ * sized for the per-filing XML fetch pace.
+ */
+export const scrapeFormDDaily = onSchedule(
+  {
+    schedule: "30 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "1GiB",
+    timeoutSeconds: 1800,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[form-d] starting daily refresh (2-day lookback)");
+    const filings = await scrapeFormDLiveFeed({ lookbackDays: 2 });
+    logger.info(`[form-d] scraper returned ${filings.length} filings`);
+    let docsWritten = 0;
+    if (filings.length > 0) {
+      const r = await savePrivatePlacements(filings);
+      logger.info(`[form-d] saved ${r.saved} filings to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("privatePlacementsSync", { started, docsWritten });
+  },
+);
+
+/**
  * FINRA OTC Transparency weekly summary. Weekly Sunday 8 AM ET.
  *
  * Cadence: weekly. FINRA publishes weekly aggregated data with a ~2-week
@@ -790,7 +831,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.21.0";
+const SERVER_VERSION = "0.22.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

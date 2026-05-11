@@ -49,6 +49,8 @@ import type {
   MaterialEventsQuery,
   OtcMarketWeekly,
   OtcMarketWeeklyQuery,
+  PrivatePlacement,
+  PrivatePlacementsQuery,
   RollCallVote,
   RollCallVotesQuery,
   TenderOffer,
@@ -1605,6 +1607,136 @@ export async function saveForm278Filings(
   if (filings.length === 0) {
     return { saved: 0, collection: COLLECTION };
   }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = filings.slice(i, i + BATCH_SIZE);
+    for (const filing of chunk) {
+      batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Form D (private placements) query + save ────────────────────────────
+
+export async function queryPrivatePlacements(
+  query: PrivatePlacementsQuery,
+): Promise<QueryResult<PrivatePlacement>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.filing_id) {
+    const doc = await db
+      .collection("private_placements")
+      .doc(query.filing_id)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as PrivatePlacement], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("private_placements");
+
+  if (query.issuer_cik) {
+    q = q.where("issuer_cik", "==", query.issuer_cik.padStart(10, "0"));
+  }
+  if (query.issuer_state) {
+    q = q.where("issuer_state", "==", query.issuer_state.toUpperCase());
+  }
+  if (query.is_amendment !== undefined) {
+    q = q.where("is_amendment", "==", query.is_amendment);
+  }
+  if (query.federal_exemption) {
+    q = q.where(
+      "federal_exemptions",
+      "array-contains",
+      query.federal_exemption,
+    );
+  }
+
+  // Client-side sort + substring/range filters.
+  const userLimit = query.limit ?? 50;
+  const needsClient =
+    query.issuer_name ||
+    query.industry_group_type ||
+    query.investment_fund_type ||
+    query.jurisdiction_of_inc;
+  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as PrivatePlacement);
+
+  if (query.issuer_name) {
+    const needle = query.issuer_name.toLowerCase();
+    docs = docs.filter((p) =>
+      (p.issuer_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.industry_group_type) {
+    const needle = query.industry_group_type.toLowerCase();
+    docs = docs.filter((p) =>
+      (p.industry_group_type ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.investment_fund_type) {
+    const needle = query.investment_fund_type.toLowerCase();
+    docs = docs.filter((p) =>
+      (p.investment_fund_type ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.jurisdiction_of_inc) {
+    const needle = query.jurisdiction_of_inc.toLowerCase();
+    docs = docs.filter((p) =>
+      (p.jurisdiction_of_inc ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.min_amount_sold !== undefined) {
+    docs = docs.filter((p) => p.total_amount_sold >= query.min_amount_sold!);
+  }
+  if (query.since) {
+    docs = docs.filter((p) => p.date_of_first_sale >= query.since!);
+  }
+  if (query.until) {
+    docs = docs.filter((p) => p.date_of_first_sale <= query.until!);
+  }
+
+  const sortField = query.sort_by ?? "file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, string | number>)[sortField] ?? 0;
+    const bv = (b as unknown as Record<string, string | number>)[sortField] ?? 0;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function savePrivatePlacements(
+  filings: PrivatePlacement[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "private_placements";
+  if (filings.length === 0) return { saved: 0, collection: COLLECTION };
 
   const db = await getLiveDb();
   const collection = db.collection(COLLECTION);
