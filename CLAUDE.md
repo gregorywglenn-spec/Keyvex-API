@@ -93,6 +93,12 @@ References below to "Capital Edge" generally point to the dashboard project unle
 - **Big-cap 13G coverage gap solved via issuer-CIK-targeted FTS, not pagination expansion.** Day 9: `get_activist_stakes(ticker:"AAPL")` returned 0 records. Hypothesis 1: HTML-only filings (turned out wrong). Hypothesis 2: cross-issuer FTS feed has a `maxFilingsPerForm: 100` cap that buries big-cap filings (Vanguard's once-a-year 13G/A on AAPL lands at hit position #500+). **Hypothesis 2 was right.** Fix is a new function `scrapeActivistByIssuerCIKs(ciks, dateRange)` that queries EDGAR FTS with `&ciks=<cik>` filter for each (CIK × form code) pair — returns ~5-20 hits per query, well under the page cap. CLI exposed as `13d-13g-issuers --big-caps --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD --save`. Built-in `BIG_CAP_TICKERS` covers ~60 S&P names. Day 9 backfill 2024-01-01 → 2026-12-31 added 1,387 records, took activist coverage from 0/15 → 20/29 big-caps. Vanguard's 9.47% 2025-07-29 13G/A on AAPL ($1.4B shares) landed correctly. **Lesson: when a coverage gap exists despite full pagination, look for a downstream parse cap before assuming source format issues. Same surgical-by-CIK pattern will work for any cross-issuer SEC scraper that hits per-form parse caps.**
 - **EDGAR FTS `&ciks=<cik>` returns filings where the CIK appears as either filer OR subject.** Day 9: querying `&ciks=<JPM_CIK>` for 13G/A returns both (a) filings about JPM stock filed by external 5%+ holders, AND (b) 13G/A filings JPM ITSELF filed about its holdings in other companies. Both directions land in our `activist_ownership` collection — the (b) records are correctly keyed to the OTHER tickers (whatever company JPM holds 5%+ of), not to JPM. So `where(ticker == "JPM")` after a JPM-CIK backfill can return 0 even though JPM-related filings populated the collection. Big financial firms (JPM, GS, BLK, MS, BAC) are heavy filers, light subjects.
 - **ScheduleWakeup is for /loop dynamic mode, not one-shot polling.** Day 9: I used ScheduleWakeup repeatedly as a "check back in N seconds" timer for backfill progress. The tool is actually designed for self-paced /loop iterations and leaves stale "Continue:" prompts queued that fire later as synthetic user messages — confusing both user and future-me. **Lesson: for "wait until X is done," use `Bash run_in_background` with an `until <check>; do sleep N; done` loop that exits when the condition is true. One completion notification, no stale prompts. ScheduleWakeup is for genuinely needing to revisit later in a paced loop.**
+- **Firebase Hosting serves static files for ALL HTTP methods, not just GET.** Day 10: when restructuring mcp.keyvex.com to serve an HTML product-landing page AT the bare URL (and the MCP API somewhere else), I assumed static-file priority only applied to GETs (which is what Firebase docs imply by talking about "fetching a resource"). It does not — POST mcp.keyvex.com/ also served the index.html, breaking the MCP API entirely. Per Firebase priority order: reserved namespaces → redirects → exact-match static content → configured rewrites → 404. Static wins over rewrites regardless of HTTP method. **Lesson: when an MCP API or any other POST endpoint needs to coexist with a static HTML page at the same hostname, the API MUST live at a path that has NO matching static file (e.g. /api). Firebase routes the POST to Cloud Run only because /api.html doesn't exist in public/.** Same applies to any future product-page-plus-API layout.
+- **ImprovMX free tier doesn't support outbound SMTP — only forwarding.** Day 10: tried to configure Gmail Send-mail-as with `contact@keyvex.com` as the FROM address. Gmail's setup wizard asked for SMTP server credentials. ImprovMX free shows "Upgrade to Premium for $9/m — Send Emails via SMTP" — they don't issue SMTP credentials at the free tier. The "Send through Gmail" workaround (which uses Google's SMTP and just labels the FROM as your alias) was historically available in Gmail but appears to be gone for non-Workspace aliases as an anti-phishing measure. **Lesson: for branded outbound email from a custom domain, the practical paths are (a) Google Workspace (~$6/user/month, requires LLC + bank account), (b) ImprovMX Premium ($9/mo, unlocks SMTP relay), or (c) third-party SMTP relay (Resend free 3K/mo, Postmark, SendGrid). For pre-LLC founder operations, sending personal-Gmail with a "Greg / KeyVex" sign-off is the path of least friction. Branded outbound becomes a Day-1-post-LLC priority via Workspace.**
+- **Designed brand assets beat CSS/SVG hacks every time.** Day 10: spent multiple iterations trying to recreate the KEYVEX wordmark's stylized E (asymmetric — top bar, short middle bar lower than center, bottom bar) using CSS text + a custom inline SVG. First attempt used stroke-based geometric letters via SVG `<line>` elements — looked skeletal and stark, didn't match a real bold sans-serif. Second attempt was plain text with one SVG overlay just for the second E — vertical-align math drifted, weight inconsistent with surrounding letters. Third attempt loaded Russo One from Google Fonts as the closest geometric match — fonts at body weight read way thinner than the lizard-shirt rendering. Each attempt looked worse than the previous. **Lesson: when a designed brand asset matters (logos, wordmarks, mascots), get the actual designed PNG/SVG from a tool with proper letter-design capability (Figma, Illustrator, the AI image generator that made the original). Don't fake it with CSS — every approximation will be visibly wrong against the canonical design. The fix in this case was Greg providing keyvex-wordmark.png; one `<img>` tag and we were done.**
+- **Anti-rebroadcast fingerprint pattern for pure-publisher APIs: `_keyvex` metadata block in every response.** Day 10: every successful and error MCP response now includes a top-level `_keyvex` field: `{request_id: "kx_<16 hex chars>", served_at: ISO timestamp, server_version: "0.18.0"}`. The request_id is unique per call (UUID-derived) and we already log every request server-side keyed to API key + timestamp; the response's request_id is the same value. If a competitor's product surfaces our request_id format in their data, we trace it back through logs to the leaking customer + call. **Lesson: this is the right anti-rebroadcast pattern for a pure-publisher API where the underlying data is itself public (we don't have exclusive access to SEC filings — they're free; what we sell is normalized aggregation + agent-native design). The fingerprint catches the lazy rebrander; it doesn't pretend to stop a determined competitor (who would just scrape original sources themselves). Pair the fingerprint with a ToS clause prohibiting stripping the `_keyvex` block — that gives it legal teeth. Don't waste engineering time on statistical fingerprinting / decoy records — those would corrupt the data and break our pure-publisher promise.**
+- **Persistent free tier + 10-day unlimited trial: the right pricing structure for developer-API products with bottom-up funnel.** Day 10: locked the pricing tier ladder after a competitive survey (EODHD, Quiver Quantitative, Unusual Whales, Polygon, FMP, Alpha Vantage). Pricing is `Free $0 (2,500 calls/mo + 10-day unlimited trial on signup capped at 50K calls in window)` / `Pro $29 (100K calls/mo)` / `Team $99 (500K calls/mo)` / `Enterprise $499+ (custom + SSO + SLA)`. Annual prepay = 2 months free industry standard. **The trial-then-drop-to-free structure (industry-uncommon — pure SaaS dashboards do trial cliffs but developer APIs are almost universally persistent-free-only) is right for KeyVex's specific case: indie devs need to BUILD something during eval to convert, 2,500/mo is enough to evaluate but not enough to ship; the 10-day window of unlimited access lets them prototype a real political-alpha agent before deciding. After the trial they drop to persistent free — never cliff-cut, never lose their account — preserving the bottom-up funnel CLAUDE.md locked Day 3 evening. Lesson: pricing is a strategic decision shaped by your specific funnel mechanics, not "what does everyone in the space charge." Don't reflexively copy SaaS-dashboard trial models OR REST-API persistent-free-only models. Pick the structure that matches how your customer evaluates and converts.**
+- **Brand architecture: keyvex.com = umbrella, mcp.keyvex.com = MCP product page, /api = MCP API endpoint.** Day 10 brand architecture decision locked: KeyVex (the company) plans multiple products beyond the MCP server — investing app + lead-gen product are coming behind the scenes. Per Greg's vision, `keyvex.com` becomes the umbrella company page (Derek is building it on his timeline); `mcp.keyvex.com` is the MCP server's product-specific landing page. Future products land at their own subdomains. This matches the Stripe / OpenAI / Anthropic brand-architecture pattern. **Concrete URL layout (locked Day 10): `https://keyvex.com` = umbrella page (currently still serving MCP landing as a placeholder until Derek replaces it); `https://keyvex.com/privacy` = canonical Privacy Policy; `https://mcp.keyvex.com` = MCP product landing page (HTML, browser-friendly); `https://mcp.keyvex.com/api` = MCP JSON-RPC API endpoint (POST, Bearer auth); `https://mcp.keyvex.com/health` = JSON status (no auth). The mcp-site/ directory in marketing/ holds the MCP-product-specific HTML; Firebase Hosting serves it via the keyvex-mcp Hosting site.**
 
 ## What This Project Is
 
@@ -914,3 +920,135 @@ Round 4 — `feat(round 5): targeted 13D/13G scraper by issuer CIK + big-cap bac
 **Last Updated**
 
 May 9, 2026 — Day 9. **12 MCP tools live at v0.18.0, 13 autonomous scrapers in production, `activist_ownership` 4,443 records (+45% today), big-cap coverage 20/29 of S&P top-60 verified, brand domain `keyvex.com` + `www.keyvex.com` + `mcp.keyvex.com` ALL LIVE with auto-managed TLS.** Battle-tested across 8 randomized runs at 84% data hit / 0 failures / sub-1s avg latency. The MCP server is commercial-ready — agent-native query patterns return substantive data on real-world questions across all tools. 5 commits pushed: rounds 1-5. Worktree clean.
+
+### Day 10 (2026-05-10) — Sunday launch-prep marathon: Privacy live + brand assets + URL restructure + fingerprint + pricing locked
+
+Twelve-hour Sunday session covering brand architecture, content drafts, infrastructure restructure, and anti-rebroadcast hardening. Greg + Derek partnership crystallized: KeyVex is the umbrella; MCP is the first product; Derek will build the company-level keyvex.com page on his timeline; Greg owns the MCP product side.
+
+**Brand + infrastructure shipped:**
+
+- **Privacy Policy LIVE at https://keyvex.com/privacy** — full 12-section policy covering data collection, third-party sharing, retention, user rights, GDPR/CCPA, children, security, contact. Banner-stripped after Derek's review. Public-deploy-ready and ready to submit as the Privacy URL in registry submissions (Anthropic requires this).
+- **Email forwarding LIVE via ImprovMX** — `*@keyvex.com` (wildcard) forwards to `claude1986aaa@gmail.com`. Free tier, no SMTP send (use Gmail's Send-mail-as for outbound, or wait for Workspace post-LLC). MX records + SPF TXT at GoDaddy.
+- **`@keyvex_` X account created** (bare `@keyvex` was taken; underscore variant grabbed). Locked into launch-posts.md.
+- **`u/KeyVex_` Reddit account created** (brand-protective only — launch posts go from Greg's personal Reddit account because brand-new accounts get auto-removed by spam filters).
+- **Lizard mascot embedded in landing-page hero** — Greg's actual porch lizard photographed wearing a KEYVEX t-shirt (white KEY + green VEX wordmark). 320px-wide framed photo. Brand origin story captured.
+- **Designed wordmark deployed** — `keyvex-wordmark.png` (148KB) replaces all CSS-text wordmark attempts. White KEY + green VEX with asymmetric stylized E in both halves. Same image renders in topbars of both landing page and privacy page.
+- **Anti-rebroadcast `_keyvex` fingerprint** — every API response includes `{request_id: "kx_<16 hex chars>", served_at: ISO, server_version: "0.18.0"}`. ToS will prohibit stripping. Catches lazy rebranders.
+- **URL restructure** — `mcp.keyvex.com/` now serves HTML product landing page; MCP API moves to `/api` (POST); JSON health at `/health` (GET). Required because Firebase Hosting serves static index.html for ALL HTTP methods, not just GET. New `marketing/mcp-site/` directory holds the MCP-specific HTML + brand images (lizard + wordmark + privacy mirror).
+
+**Pricing tiers locked:**
+
+```
+Free       $0      2,500 calls/mo (after trial)
+                   + 10-day unlimited trial on signup (Pro-tier
+                     access, capped at 50,000 calls in window)
+Pro        $29/mo  100,000 calls/mo
+Team       $99/mo  500,000 calls/mo  (matches EODHD ALL-IN-ONE $100)
+Enterprise $499+   Custom + SSO + SLA
+```
+
+Trial-then-persistent-free structure (uncommon for developer APIs but right for our case) gives indie devs a real "build something" window pre-conversion while preserving bottom-up funnel. 2,500 ongoing free is enough to evaluate, not enough to ship — natural upgrade trigger. Annual prepay = 2 months free, industry standard.
+
+**Comparison section added to landing page** — KeyVex vs Quiver Quantitative vs EODHD vs raw public sources. 13 rows of structural differences. Honest about what we DON'T have (stock prices / fundamentals row shows our dash). Footer: "as of May 2026, consult their pricing pages."
+
+**Content drafts staged** (all in `marketing/` directory, all with review banners until Derek + Greg sign off):
+
+- `marketing/launch-posts.md` — Show HN, Reddit r/MCP, Reddit r/aiagents, X thread, DM target seed list, 1-week warm-up tweet. ~2,500 words. Builder-honest tone.
+- `marketing/loom-script.md` — 3-5 min political-alpha walkthrough script with recording checklist, curl spot-checks, posting destinations.
+- `marketing/registry-submissions.md` — 4 registry drafts (Anthropic, Smithery, Awesome-MCP, PulseMCP) with canonical 1-sentence/1-paragraph/tag-list locked in an appendix so all submissions use identical metadata.
+- `README.md` — polished for Anthropic registry submission, updated tool count 10 → 12, new endpoint table (HTML/API/Health URLs), removed inside-baseball references to Derek's project.
+
+**Derek review email sent** from Greg's personal Gmail (`claude1986aaa@gmail.com` with "Greg / KeyVex" sign-off) because branded outbound from `contact@keyvex.com` requires either ImprovMX Premium ($9/mo) or Workspace post-LLC — neither pursued today. Email outlines the brand architecture, URL layout, fingerprint, comparison, pricing, and asks 7 specific review questions.
+
+**Quality verified:** 3 randomized agentic tests post-restructure returned 85% / 91% / 94% data hit, 0 failures across 158 queries, sub-2s avg latency. URL restructure broke nothing.
+
+**Commits today** (7 total, all pushed to `claude/tender-hertz-255404`):
+
+- `91721f4` — full launch-prep batch (Privacy + designed wordmark + lizard hero + 4 marketing files)
+- `bc2920c` — strip Privacy review banner, public-deploy ready
+- `3ee6f0f` — comparison section + pricing tiers $0/$29/$99/$499
+- `fa1b5ee` — `_keyvex` fingerprint in every API response
+- `6c1d717` — URL restructure (/ → HTML, /api → MCP, /health → JSON)
+- `8f4525e` — pricing revision (free tier 5K → 2.5K + 10-day trial)
+- *(plus this CLAUDE.md update — last commit of Day 10)*
+
+### Wave 1 scraper roadmap (Day 11+ — what's queued to build next)
+
+Strategic frame per CLAUDE.md discipline: stay vertical (US public-disclosure only), pure-publisher posture (no derived signals), bottom-up funnel (indie dev → fintech → institutional). Within that frame, three highest-impact scrapers to ship next, ranked by cost-adjusted strategic value:
+
+**1. FEC Campaign Finance** (~1.5-2 days) ⭐ HIGHEST MOAT
+
+- What: individual + PAC contributions, candidate disbursements, independent expenditures
+- Why: closes the "follow the money" arc. Currently we have congressional trades + member profile + lobbying + federal contracts. Adding "who gave them money" lets an agent compose: *"Senator X traded LMT, sits on Armed Services, voted for the defense bill, AND Lockheed Martin Employees PAC gave $50K to her campaign. Triangulated."* No competitor combines this.
+- Source: FEC.gov has a clean REST API (api.open.fec.gov) + bulk downloads. Free. No SEC-XML pain.
+- Effort: ~1.5-2 days (clean API ingestion, well-documented schema).
+- Tool surface: `get_campaign_contributions` (filter by candidate, donor, PAC, election cycle, amount, date range), `get_campaign_expenditures` (filter by candidate, payee, purpose, amount, date range).
+- Calibration confirmed: clean-API ingestion fits the "1-1.5 hrs per Hard Lesson" bucket, not the 2-3 hr SEC-XML bucket.
+
+**2. Congressional Roll Call Votes + Bill Tracking** (~2-3 days)
+
+- What: how each member voted on each bill, with bill text, sponsorship, committee referrals.
+- Why: closes the "what did they DO with their seat" loop. Combined with FEC + congressional trades, agents can find "members who voted Y on bill Z within N days of trading X." Currently unanswerable.
+- Source: House Clerk + Senate official XML roll-call feeds. Free. ProPublica's Congress API was historically the easy path but has gotten unreliable; build our own from primary sources.
+- Effort: ~2-3 days. Schema discovery on two different XML feeds (House vs Senate use different formats). Bill tracking is a separate but related ingest from congress.gov.
+- Tool surface: `get_roll_call_votes` (filter by member, chamber, bill, date range), `get_bills` (filter by sponsor, committee, status, date range).
+
+**3. Dark Pool / FINRA OTC Transparency** (~2-3 days)
+
+- What: weekly per-ATS (Alternative Trading System) volume per ticker, plus quarterly ATS market-share statistics. Off-exchange trading flow.
+- Why: removes the "everyone has dark pool" launch objection. Quiver + Unusual Whales both expose this; we'd match the market on a table-stakes fintech-API feature. Different from EODHD's licensed exchange-tape data — FINRA OTC is free regulatory disclosure.
+- Source: FINRA OTC Transparency (CSV downloads, public, free). Three feeds: ATS weekly, Non-ATS weekly, ATS quarterly.
+- Effort: ~2-3 days (CSV download + parse + Firestore write — easier than SEC-XML).
+- Tool surface: `get_dark_pool_volume` (filter by ticker, ATS, week, sector).
+
+**Cumulative coverage after Wave 1:** 15 MCP tools (was 12), 16 disclosure sources (was 13). Adds the political-alpha killer combo + market-flow story complete. Launch story becomes "the only MCP server that combines public-record disclosures, political-alpha cross-source query, AND market-flow data."
+
+### Wave 2-4 scraper backlog (catalogued; build post-Wave 1)
+
+Wave 2 (~1 week total) — broader SEC coverage:
+4. SEC Schedule TO (tender offers, M&A signal) — 1-1.5 days
+5. SEC Form 13H (large trader registrations) — 1.5 days
+6. SEC Form D (private placements / VC funding) — 1.5 days
+7. SEC + DOJ Enforcement Actions — 2 days
+
+Wave 3 (1-2 weeks each):
+8. EDGAR XBRL Fundamentals (income statement / balance sheet / cash flow extraction) — 1 week+. Directly competes with EODHD's $60/mo Fundamentals tier. Replaces "you also need EODHD" objection.
+9. SEC Form NPORT (monthly mutual fund holdings) — 1.5 days
+10. SEC Form S-1 / S-3 (IPO + secondary registrations) — 2 days
+
+Wave 4 (opportunistic when customer demand surfaces):
+11. OFAC Sanctions List (compliance use case) — 1 day
+12. OSHA + EPA Enforcement (ESG/safety signal) — 2-3 days
+13. Federal Register (proposed rules) — 2 days
+
+**Wave 4 is NOT prioritized** — these are catalogued for when specific customer demand surfaces, not pre-emptively built.
+
+### Open items for Greg + Derek as of end-of-Day-10
+
+| Item | Owner | Blocking? |
+|---|---|---|
+| Upload lizard image as Reddit `u/KeyVex_` avatar | Greg | not blocking |
+| GitHub repo public/private decision before Anthropic submission | Greg | yes (Anthropic favors public) |
+| Loom demo recording (~30-45 min, script ready) | Greg | yes for launch |
+| Submit to Anthropic MCP directory (PR) | Greg | yes for registry coverage |
+| Submit to Smithery + Awesome-MCP + PulseMCP | Greg | yes for registry coverage |
+| LLC formation paperwork | Greg + Derek | yes for branded outbound + Stripe |
+| Stripe + per-customer API key issuance + usage tracking | Me (post-LLC) | yes for paid tier (free can launch first) |
+| Branded outbound email via Workspace | Greg (post-LLC) | yes for clean comms |
+
+### Bookmark for Day 11+ fresh session
+
+The conversation that produced this Day 10 update was very long (~12 hours of work spanning brand, infrastructure, content, and architecture decisions). When picking this up for Wave 1 scraper builds, **start a fresh Claude conversation** that opens cold, reads this CLAUDE.md, and dives directly into FEC Campaign Finance (or whichever Wave 1 scraper Greg picks first). The fresh session has:
+
+- All today's commits pushed and accessible via `git log`
+- This CLAUDE.md updated through Day 10 + Wave 1 roadmap
+- Three Wave 1 scrapers fully scoped with effort, source, tool surface
+- No conversation-history bloat from the Sunday brand/marketing sprint
+
+**Day 11 starting prompt suggestion (use in fresh session):**
+
+> Read CLAUDE.md, then start building the FEC Campaign Finance scraper per the Wave 1 roadmap. Use the proven scraper template (src/scrapers/<name>.ts with normalized output type in src/types.ts, query handler in src/firestore.ts, MCP tool definition in src/tools/<name>.ts, CLI command in src/scrape.ts, Firestore composite indexes in firestore.indexes.json). Build CLI + types + scraper + saver first; test with a small live pull; add MCP tool definition; commit + deploy. Expect 1.5-2 hours of focused work.
+
+**Last Updated**
+
+May 11, 2026 — Day 11 morning kickoff. **Day 10 marathon Sunday session shipped 7 commits covering Privacy Policy live + brand asset library + URL restructure (mcp.keyvex.com/ HTML, /api MCP, /health JSON) + `_keyvex` anti-rebroadcast fingerprint + locked pricing tiers ($0 trial → $29 → $99 → $499) + comparison section + 4 marketing-content drafts ready for Derek review.** 12 MCP tools at v0.18.0 still live + production-quality. **Wave 1 scraper roadmap (FEC + Roll Call Votes + Dark Pool / FINRA OTC) queued as the next build priority** — ~1 week of focused engineering to add 3 new tools and close the political-alpha + market-flow coverage gaps. Fresh-conversation handoff recommended for Wave 1 builds (this CLAUDE.md update is the bookmark).
