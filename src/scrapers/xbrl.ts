@@ -195,6 +195,9 @@ async function loadCaches(): Promise<void> {
       cikRaw: String(entry.cik_str),
       name: entry.title,
     };
+    // Reverse-lookup cache: last-write wins. For deterministic ticker
+    // selection (e.g., preferring common stock over preferred-share
+    // series), callers should pass `tickerOverride` to scrapeXbrlByCik.
     cikToTicker[cikPadded] = ticker;
     cikToName[cikPadded] = entry.title;
   }
@@ -202,7 +205,24 @@ async function loadCaches(): Promise<void> {
 
 export async function getTickerInfo(ticker: string): Promise<TickerInfo | null> {
   await loadCaches();
-  return tickerCache![ticker.toUpperCase()] ?? null;
+  const upper = ticker.toUpperCase();
+  // Direct lookup first.
+  const direct = tickerCache![upper];
+  if (direct) return direct;
+  // SEC's company_tickers.json uses no dots for class-share tickers
+  // (BRK.B → BRKB, BF.B → BFB). Strip dots and retry.
+  const noDots = upper.replace(/\./g, "");
+  if (noDots !== upper) {
+    const fallback = tickerCache![noDots];
+    if (fallback) return fallback;
+  }
+  // Some tickers in 13F filings use slash for class (BRK/B); also try.
+  const noSlashes = upper.replace(/\//g, "");
+  if (noSlashes !== upper && noSlashes !== noDots) {
+    const fallback = tickerCache![noSlashes];
+    if (fallback) return fallback;
+  }
+  return null;
 }
 
 async function getTickerFromCik(cik: string): Promise<string> {
@@ -309,9 +329,16 @@ function buildRecord(args: BuildArgs, scrapedAt: string): XbrlFundamental | null
  * Pull every observation of every curated concept for one CIK. Returns
  * a flat list — typically 1500-3000 records per company across all
  * concepts × all units × all periods.
+ *
+ * Optional `tickerOverride` — when set, uses the caller-supplied ticker
+ * on every record rather than reverse-looking-up from CIK. Used by
+ * `scrapeXbrlByTicker` to preserve the original input ticker (avoids
+ * the preferred-share-class reverse-lookup ambiguity, e.g., JPM CIK
+ * 19617 having multiple ticker entries including "JPM-PM" preferred).
  */
 export async function scrapeXbrlByCik(
   cikPadded: string,
+  tickerOverride?: string,
 ): Promise<XbrlFundamental[]> {
   const scrapedAt = new Date().toISOString();
   const padded = cikPadded.replace(/^0+/, "").padStart(10, "0");
@@ -321,7 +348,7 @@ export async function scrapeXbrlByCik(
   const data = (await fetchJson(url)) as CompanyFactsResponse;
   const cikRaw = String(data.cik ?? "").replace(/^0+/, "") || padded.replace(/^0+/, "");
 
-  const ticker = await getTickerFromCik(padded);
+  const ticker = tickerOverride ?? (await getTickerFromCik(padded));
   const companyName = data.entityName ?? (await getNameFromCik(padded));
 
   const out: XbrlFundamental[] = [];
@@ -360,7 +387,10 @@ export async function scrapeXbrlByCik(
 }
 
 /**
- * Convenience wrapper: resolve ticker -> CIK then call scrapeXbrlByCik.
+ * Convenience wrapper: resolve ticker -> CIK then call scrapeXbrlByCik
+ * with the original input ticker as the override. Ensures records get
+ * stored with the agent's expected ticker rather than whatever the SEC
+ * reverse-lookup returned (which can be a preferred-share series).
  */
 export async function scrapeXbrlByTicker(
   ticker: string,
@@ -369,13 +399,15 @@ export async function scrapeXbrlByTicker(
   if (!info) {
     throw new Error(`No CIK found for ticker: ${ticker}`);
   }
-  return scrapeXbrlByCik(info.cik);
+  return scrapeXbrlByCik(info.cik, ticker.toUpperCase());
 }
 
 /**
  * Bulk scraper: iterate a list of tickers and concatenate. Skips on per-
  * company errors with a log warning rather than failing the whole batch.
- * Used for S&P 500 / Russell 1000 backfills.
+ * Suitable for small batches (≤20 tickers). For the full universe use
+ * `scrapeAndSaveXbrlStreaming` instead — it saves per-company instead of
+ * holding all records in memory.
  */
 export async function scrapeXbrlForTickers(
   tickers: string[],
@@ -394,4 +426,77 @@ export async function scrapeXbrlForTickers(
     `[xbrl] BATCH TOTAL: ${out.length} observations across ${tickers.length} tickers`,
   );
   return out;
+}
+
+/**
+ * Streaming bulk scraper for large universes. Calls the provided saver
+ * callback per-company instead of accumulating in memory. Returns
+ * summary stats. Use for S&P 500 / Russell 1000 backfills.
+ *
+ * The saver is typically `saveXbrlFundamentals` from firestore.ts.
+ * Per-company saving means peak memory is ~10K records (one company)
+ * instead of ~700K records (full universe).
+ *
+ * Errors on individual companies are logged + skipped — the batch
+ * continues. Returns at the end with counts of successes / failures.
+ */
+export async function scrapeAndSaveXbrlStreaming(
+  tickers: ReadonlyArray<string>,
+  saver: (
+    records: XbrlFundamental[],
+  ) => Promise<{ saved: number; collection: string }>,
+): Promise<{
+  tickers_processed: number;
+  tickers_skipped: number;
+  total_observations: number;
+  total_saved: number;
+  skipped_tickers: string[];
+}> {
+  let processed = 0;
+  let skipped = 0;
+  let totalObs = 0;
+  let totalSaved = 0;
+  const skippedTickers: string[] = [];
+
+  console.error(
+    `[xbrl-stream] Starting streaming backfill for ${tickers.length} tickers...`,
+  );
+
+  for (const t of tickers) {
+    try {
+      const recs = await scrapeXbrlByTicker(t);
+      if (recs.length === 0) {
+        console.error(`[xbrl-stream] ${t}: no observations`);
+        skipped++;
+        skippedTickers.push(t);
+        continue;
+      }
+      const r = await saver(recs);
+      console.error(
+        `[xbrl-stream] ${t}: scraped ${recs.length}, saved ${r.saved} ` +
+          `(running ${processed + 1}/${tickers.length} tickers, ${totalSaved + r.saved} obs)`,
+      );
+      processed++;
+      totalObs += recs.length;
+      totalSaved += r.saved;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[xbrl-stream] ${t}: SKIP — ${msg}`);
+      skipped++;
+      skippedTickers.push(t);
+    }
+  }
+
+  console.error(
+    `[xbrl-stream] DONE — ${processed} ok / ${skipped} skipped, ` +
+      `${totalObs} obs scraped, ${totalSaved} obs saved`,
+  );
+
+  return {
+    tickers_processed: processed,
+    tickers_skipped: skipped,
+    total_observations: totalObs,
+    total_saved: totalSaved,
+    skipped_tickers: skippedTickers,
+  };
 }

@@ -119,9 +119,11 @@ import { scrapeBlsIndicators } from "./scrapers/bls.js";
 import { scrapeOigExclusions } from "./scrapers/oig-exclusions.js";
 import { scrapeCfpbComplaints } from "./scrapers/cfpb-complaints.js";
 import {
+  scrapeAndSaveXbrlStreaming,
   scrapeXbrlByTicker,
   scrapeXbrlForTickers,
 } from "./scrapers/xbrl.js";
+import { XBRL_UNIVERSE } from "./data/xbrl-universe.js";
 import {
   scrapeLobbyingByClient,
   scrapeLobbyingByPeriod,
@@ -438,7 +440,7 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   "xbrl-batch": {
     description:
-      "Scrape XBRL fundamentals for a comma-separated list of tickers (e.g. AAPL,MSFT,GOOGL). Add --save to write to Firestore. Used for incremental backfills; full S&P 500 takes ~10-15 min.",
+      "Scrape XBRL fundamentals for a comma-separated list of tickers (e.g. AAPL,MSFT,GOOGL). Add --save to write to Firestore. Used for small incremental batches (≤20 tickers).",
     run: async (args) => {
       const positional = args.find((a) => !a.startsWith("--"));
       if (!positional) {
@@ -458,6 +460,21 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return records;
+    },
+  },
+  "xbrl-universe": {
+    description:
+      `Stream-scrape XBRL fundamentals for the curated universe (${XBRL_UNIVERSE.length} tickers). Saves per-company to keep memory bounded. --save is implied (otherwise this command does nothing).`,
+    run: async (_args) => {
+      console.error(
+        `[xbrl-universe] Backfilling ${XBRL_UNIVERSE.length} tickers (saves per-company)...`,
+      );
+      const summary = await scrapeAndSaveXbrlStreaming(
+        XBRL_UNIVERSE,
+        saveXbrlFundamentals,
+      );
+      console.error(`[xbrl-universe] SUMMARY: ${JSON.stringify(summary, null, 2)}`);
+      return summary;
     },
   },
   "lobbying-registrant": {
