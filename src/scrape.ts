@@ -97,6 +97,7 @@ import {
   saveLegislators,
   saveLegislatorsHistorical,
   saveLobbyingFilings,
+  saveEconomicIndicators,
   saveMaterialEvents,
   saveProxyFilings,
   saveTreasuryAuctions,
@@ -111,6 +112,7 @@ import {
   scrapeProxyLiveFeed,
 } from "./scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "./scrapers/treasury-auctions.js";
+import { scrapeBlsIndicators } from "./scrapers/bls.js";
 import {
   scrapeLobbyingByClient,
   scrapeLobbyingByPeriod,
@@ -351,6 +353,23 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return auctions;
+    },
+  },
+  bls: {
+    description:
+      "Scrape BLS economic indicators (curated 20-series watchlist covering employment, wages, inflation, productivity). Default 2-year window; --save to write to Firestore.",
+    run: async (args) => {
+      const indicators = await scrapeBlsIndicators({});
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${indicators.length} BLS observations to Firestore...`,
+        );
+        const result = await saveEconomicIndicators(indicators);
+        console.error(
+          `[save] Saved ${result.saved} observations to ${result.collection}`,
+        );
+      }
+      return indicators;
     },
   },
   "lobbying-registrant": {

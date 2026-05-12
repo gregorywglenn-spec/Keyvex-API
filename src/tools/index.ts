@@ -10,6 +10,7 @@ import * as activistStakes from "./activist-stakes.js";
 import * as annualFinancialDisclosures from "./annual-financial-disclosures.js";
 import * as bills from "./bills.js";
 import * as congressionalTrades from "./congressional-trades.js";
+import * as economicIndicators from "./economic-indicators.js";
 import * as enforcementActions from "./enforcement-actions.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
 import * as federalRegister from "./federal-register.js";
@@ -60,6 +61,7 @@ export const TOOLS: ToolModule[] = [
   federalRegister,
   proxyFilings,
   treasuryAuctions,
+  economicIndicators,
   unifiedSearch,
 ];
 

@@ -59,6 +59,8 @@ import type {
   OtcMarketWeeklyQuery,
   PrivatePlacement,
   PrivatePlacementsQuery,
+  EconomicIndicator,
+  EconomicIndicatorsQuery,
   ProxyFiling,
   ProxyFilingsQuery,
   TreasuryAuction,
@@ -1520,6 +1522,92 @@ export async function saveProxyFilings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Economic Indicators (BLS) query + save ─────────────────────────────────
+
+export async function queryEconomicIndicators(
+  query: EconomicIndicatorsQuery,
+): Promise<QueryResult<EconomicIndicator>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("economic_indicators");
+
+  if (query.series_id) q = q.where("series_id", "==", query.series_id);
+  if (query.category) q = q.where("category", "==", query.category);
+  if (query.period_type) q = q.where("period_type", "==", query.period_type);
+  if (query.since_year !== undefined) {
+    q = q.where("year", ">=", query.since_year);
+  }
+  if (query.until_year !== undefined) {
+    q = q.where("year", "<=", query.until_year);
+  }
+
+  // sort_by default = period (the BLS composite "YYYYMxx" sorts lexicographically
+  // = chronologically, since both year and month parts are fixed-width).
+  const sortField = query.sort_by ?? "period";
+  const sortOrder = query.sort_order ?? "desc";
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  // latest_only is a client-side post-filter — Firestore can't natively
+  // dedup-by-series_id in a single query. Pull a wider window when set.
+  const fetchLimit = query.latest_only ? 500 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as EconomicIndicator);
+
+  if (query.latest_only) {
+    const latestBySeries = new Map<string, EconomicIndicator>();
+    for (const d of docs) {
+      const existing = latestBySeries.get(d.series_id);
+      if (!existing || d.period > existing.period) {
+        latestBySeries.set(d.series_id, d);
+      }
+    }
+    docs = Array.from(latestBySeries.values()).sort((a, b) =>
+      a.series_name.localeCompare(b.series_name),
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveEconomicIndicators(
+  indicators: EconomicIndicator[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "economic_indicators";
+  if (indicators.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < indicators.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = indicators.slice(i, i + BATCH_SIZE);
+    for (const ind of chunk) {
+      batch.set(collection.doc(ind.id), ind, { merge: true });
     }
     await batch.commit();
     saved += chunk.length;

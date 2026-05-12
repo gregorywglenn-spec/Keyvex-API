@@ -55,6 +55,7 @@ import {
   saveNportFilings,
   saveOfacSdn,
   saveOtcMarketWeekly,
+  saveEconomicIndicators,
   savePrivatePlacements,
   saveProxyFilings,
   saveRegistrationStatements,
@@ -78,6 +79,7 @@ import { scrape13FLiveFeed } from "../../src/scrapers/13f.js";
 import { scrape8kLiveFeed } from "../../src/scrapers/form8k.js";
 import { scrapeProxyLiveFeed } from "../../src/scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "../../src/scrapers/treasury-auctions.js";
+import { scrapeBlsIndicators } from "../../src/scrapers/bls.js";
 import { scrapeForm144LiveFeed } from "../../src/scrapers/form144.js";
 import { scrapeForm3LiveFeed } from "../../src/scrapers/form3.js";
 import { scrapeForm4LiveFeed } from "../../src/scrapers/form4.js";
@@ -203,6 +205,36 @@ export const scrapeTreasuryAuctionsDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("treasuryAuctionsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * BLS economic indicators. Curated 20-series watchlist (unemployment, payrolls,
+ * CPI, PPI, wages, productivity). Fires daily at 8:45 AM ET. BLS major series
+ * release on different days of the month; daily run captures whichever
+ * series updated since yesterday. Idempotent on (series_id, period).
+ */
+export const scrapeBlsDaily = onSchedule(
+  {
+    schedule: "45 8 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[bls-daily] starting (2-year lookback, curated watchlist)");
+    const indicators = await scrapeBlsIndicators({});
+    logger.info(`[bls-daily] scraper returned ${indicators.length} observations`);
+    let docsWritten = 0;
+    if (indicators.length > 0) {
+      const r = await saveEconomicIndicators(indicators);
+      logger.info(`[bls-daily] saved ${r.saved} observations to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("blsIndicatorsSync", { started, docsWritten });
   },
 );
 
@@ -1083,7 +1115,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.32.0";
+const SERVER_VERSION = "0.33.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

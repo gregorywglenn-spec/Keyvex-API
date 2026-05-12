@@ -746,6 +746,30 @@
         { "fieldPath": "reopening", "order": "ASCENDING" },
         { "fieldPath": "auction_date", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "economic_indicators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "series_id", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "economic_indicators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "economic_indicators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period_type", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

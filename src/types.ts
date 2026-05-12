@@ -1992,6 +1992,59 @@ export interface ProxyFilingsQuery {
   limit?: number;
 }
 
+// ─── Economic Indicators (BLS, v1A) ────────────────────────────────────────
+
+/**
+ * One observation of one economic series. Pulled from BLS public API
+ * (api.bls.gov/publicAPI/v2). Schema is generic enough to extend to FRED
+ * and BEA later — same shape, different source.
+ *
+ * v1A scope: BLS monthly + quarterly series, curated watchlist of ~20
+ * high-signal indicators (unemployment, payrolls, CPI, PPI, wages,
+ * productivity). Each (series_id, period) is one record.
+ */
+export interface EconomicIndicator {
+  /** Composite key: "{series_id}-{period}" (e.g., "LNS14000000-2026M04"). */
+  id: string;
+  /** Issuing agency. v1A: "bls" only. */
+  source: "bls";
+  series_id: string;
+  series_name: string;
+  /** Coarse bucket: "employment" | "wages" | "inflation" | "productivity" | "hours" | "labor-force". */
+  category: string;
+  /** Period label in BLS's native shape: "2026M04" (monthly), "2026Q01" (quarterly), "2026A01" (annual). */
+  period: string;
+  /** "monthly" | "quarterly" | "semiannual" | "annual". */
+  period_type: string;
+  /** Calendar year, integer. */
+  year: number;
+  /** Numeric value of the observation. Null when BLS reports "-" (unavailable). */
+  value: number | null;
+  /** Unit string ("percent" | "thousands" | "index 1982-84=100" | "dollars" | "ratio"). */
+  unit: string;
+  /** Series description text from BLS metadata. */
+  series_description: string;
+  /** Joined BLS footnote codes + text (e.g., "P=preliminary; 9=data unavailable due to..."). */
+  notes: string;
+  /** Public BLS series page. */
+  bls_source_url: string;
+  /** When KeyVex scraped this. */
+  scraped_at: string;
+}
+
+export interface EconomicIndicatorsQuery {
+  series_id?: string;
+  category?: string;
+  period_type?: "monthly" | "quarterly" | "semiannual" | "annual";
+  since_year?: number;
+  until_year?: number;
+  /** When true, only return the most-recent observation per series. */
+  latest_only?: boolean;
+  sort_by?: "period" | "value" | "year";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
 // ─── Treasury Auctions (api.fiscaldata.treasury.gov) ──────────────────────
 
 /**
