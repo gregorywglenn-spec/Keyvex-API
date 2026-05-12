@@ -1939,3 +1939,49 @@ export interface FecCommitteeQuery {
   sort_order?: "desc" | "asc";
   limit?: number;
 }
+
+// ─── Unified search ────────────────────────────────────────────────────────
+
+/**
+ * Identifier-driven cross-collection fan-out search. The agent passes a
+ * single entity identifier (ticker, bioguide_id, company_cik, or
+ * recipient_uei) and the tool queries every collection where that field
+ * is indexed, returning results grouped by source. Replaces 6-10 tool
+ * calls for the "tell me everything about X" question.
+ *
+ * Per-source results are capped via `per_source_limit` (default 5).
+ * One slow collection doesn't block the rest — fan-out uses Promise.allSettled
+ * so failures or timeouts on one source degrade gracefully.
+ */
+export interface UnifiedSearchQuery {
+  ticker?: string;
+  bioguide_id?: string;
+  company_cik?: string;
+  recipient_uei?: string;
+  since?: string;
+  until?: string;
+  per_source_limit?: number;
+  /** Optional whitelist of source names. Default: all collections that
+   *  index the provided identifier(s). */
+  sources?: string[];
+}
+
+/**
+ * Per-source result block in a UnifiedSearchEnvelope. `error` is set
+ * when a collection's query threw or timed out — agents can decide
+ * whether to retry that source directly or proceed with what landed.
+ */
+export interface UnifiedSearchSourceBlock {
+  count: number;
+  has_more: boolean;
+  results: unknown[];
+  error?: string;
+}
+
+export interface UnifiedSearchEnvelope {
+  query: UnifiedSearchQuery;
+  results_by_source: Record<string, UnifiedSearchSourceBlock>;
+  total_count: number;
+  sources_queried: string[];
+  sources_with_results: string[];
+}

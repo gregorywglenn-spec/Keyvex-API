@@ -62,7 +62,7 @@ Six separate disclosure sources joined by `ticker` + `bioguide_id` + `recipient_
 | `get_ofac_sdn` | US Treasury OFAC sanctions list | Daily |
 | `get_federal_register_documents` | Federal Register (rules, proposed rules, notices, presidential documents) | Daily |
 
-**21 tools, 22+ distinct disclosure sources.** All refresh autonomously on cron — no human in the loop.
+**22 tools, 22+ distinct disclosure sources.** All refresh autonomously on cron — no human in the loop.
 
 ### Notable tool extensions
 
@@ -177,7 +177,7 @@ npx tsx src/scrape.ts 8k-feed 1 --save
 npx tsx src/scrape.ts ofac-sdn --save
 npx tsx src/scrape.ts federal-register 3 --save
 
-# Run a battle test across all 21 MCP tools:
+# Run a battle test across all 22 MCP tools:
 npx tsx scripts/battle-test.ts
 
 # Run the stdio MCP server (for Claude Desktop wiring):
@@ -192,7 +192,7 @@ For Firestore connectivity locally, drop a service account JSON at `secrets/serv
 
 ```
 src/
-├── tools/                 — one file per MCP tool (21 tools — definition + handler)
+├── tools/                 — one file per MCP tool (22 tools — definition + handler)
 ├── scrapers/              — one file per data source (SEC EDGAR forms, congress.gov, FEC, FINRA, OFAC, Federal Register, ...)
 ├── server-setup.ts        — shared MCP-server tool-registration logic (used by both stdio and HTTP entries)
 ├── firestore.ts           — data layer with stub/live mode auto-detection
@@ -210,7 +210,7 @@ functions/
 └── tsconfig.json          — extends parent, includes ../src
 
 scripts/
-├── battle-test.ts         — 59-query battle test across all 21 MCP tools (re-runnable QA harness)
+├── battle-test.ts         — 59-query battle test across all 22 MCP tools (re-runnable QA harness)
 ├── smoke-*.ts             — per-tool smoke tests using real-data IDs
 ├── count-*.ts             — per-collection Firestore counters
 └── inspect-*.ts           — diagnostic scripts for data-state debugging
@@ -228,9 +228,9 @@ The Firebase project ID `capitaledge-api` is permanent infrastructure (Google do
 
 ## Status
 
-Production. **21 MCP tools, 20+ autonomous scrapers** running on cron. MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
+Production. **22 MCP tools, 20+ autonomous scrapers** running on cron. MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
 
-A 59-query battle test across all 21 tools currently passes 0-error, 0-empty. Re-runnable via `npx tsx scripts/battle-test.ts`.
+A 59-query battle test across all 22 tools currently passes 0-error, 0-empty. Re-runnable via `npx tsx scripts/battle-test.ts`.
 
 Custom domain (`mcp.keyvex.com`), public registry submissions (Anthropic / Smithery / Awesome-MCP / PulseMCP), and self-serve API key issuance are the next milestones. SEC Form 13H (large trader registration) is intentionally NOT covered — it's filed confidentially under SEA Rule 13h-1 with FOIA-exempt status and is not publicly indexed by EDGAR.
 

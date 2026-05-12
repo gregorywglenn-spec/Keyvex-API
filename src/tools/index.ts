@@ -27,6 +27,7 @@ import * as privatePlacements from "./private-placements.js";
 import * as registrationStatements from "./registration-statements.js";
 import * as rollCallVotes from "./roll-call-votes.js";
 import * as tenderOffers from "./tender-offers.js";
+import * as unifiedSearch from "./unified-search.js";
 
 export interface ToolModule {
   definition: Tool;
@@ -55,6 +56,7 @@ export const TOOLS: ToolModule[] = [
   registrationStatements,
   ofacSdn,
   federalRegister,
+  unifiedSearch,
 ];
 
 export function findTool(name: string): ToolModule | undefined {

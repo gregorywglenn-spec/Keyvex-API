@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KeyVex — MCP server for US public financial disclosures</title>
-  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 21 tools across 22+ government sources — congressional trades, insider transactions, institutional holdings, lobbying, federal contracts, material events, FEC campaign finance, bills, roll-call votes, dark-pool volume, OFAC sanctions, Federal Register, and more — all queryable by AI agents through one endpoint." />
+  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 22 tools across 22+ government sources — congressional trades, insider transactions, institutional holdings, lobbying, federal contracts, material events, FEC campaign finance, bills, roll-call votes, dark-pool volume, OFAC sanctions, Federal Register, and more — all queryable by AI agents through one endpoint." />
   <meta property="og:title" content="KeyVex — MCP server for US public financial disclosures" />
-  <meta property="og:description" content="21 MCP tools across 22+ US public-disclosure sources, one Bearer-authenticated endpoint. Designed for AI agents from the ground up." />
+  <meta property="og:description" content="22 MCP tools across 22+ US public-disclosure sources, one Bearer-authenticated endpoint. Designed for AI agents from the ground up." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://keyvex.com" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1117'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='32' fill='%234dff20'%3EK%3C/text%3E%3C/svg%3E" />
@@ -271,7 +271,7 @@
       <div class="status-badge">Pre-launch · Preview access</div>
       <h1>The MCP server for US public financial disclosures.</h1>
       <p class="sub">
-        21 tools across 22+ government sources — congressional trades, insider
+        22 tools across 22+ government sources — congressional trades, insider
         transactions, institutional + mutual-fund holdings, dark-pool volume,
         lobbying spend, FEC campaign finance, federal contracts, bills,
         roll-call votes, OFAC sanctions, Federal Register rules, M&amp;A tender
@@ -290,7 +290,7 @@
       <h2>One queryable surface for every public US financial disclosure that matters.</h2>
       <p class="lead">
         KeyVex normalizes 22+ distinct US public-record sources into a clean
-        Model Context Protocol (MCP) server with 21 agent-native tools. Connect
+        Model Context Protocol (MCP) server with 22 agent-native tools. Connect
         it to Claude, Cursor, your custom agent, or any MCP-compatible client.
         No scraping, no parsing, no schema-wrangling on your end.
       </p>
@@ -352,9 +352,18 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
         Six separate disclosure sources, joined by <code>ticker</code> +
         <code>bioguide_id</code> + <code>recipient_name</code> + name. Triangulation
         that takes a Bloomberg terminal and an analyst now takes a single AI agent
-        and a few seconds. With 21 tools in total, this is one chain of many that
+        and a few seconds. With 22 tools in total, this is one chain of many that
         agents can compose on the fly.
       </p>
+      <p>
+        Or in one tool call:
+      </p>
+      <pre><code>Agent: unified_search(ticker:"LMT", per_source_limit:5)
+→ fans out to 10 collections in parallel
+→ returns one envelope grouped by source —
+   insider_trades, congressional_trades, planned_insider_sales,
+   activist_ownership, material_events, otc_market_weekly, ...
+→ sub-second response across the full disclosure surface</code></pre>
       <p class="muted small">No other MCP server exposes this combined surface today.</p>
     </section>
 
@@ -372,7 +381,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
       <h3 style="margin-top: 24px;">Health check (no auth required)</h3>
       <pre><code>curl https://mcp.keyvex.com</code></pre>
 
-      <h3 style="margin-top: 24px;">List the 21 tools (auth required)</h3>
+      <h3 style="margin-top: 24px;">List the 22 tools (auth required)</h3>
       <pre><code>curl -X POST https://mcp.keyvex.com \
   -H "Authorization: Bearer &lt;your-key&gt;" \
   -H "Content-Type: application/json" \
@@ -433,7 +442,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
             <td>Unlimited</td>
           </tr>
           <tr>
-            <td class="tier-name">All 21 tools</td>
+            <td class="tier-name">All 22 tools</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
