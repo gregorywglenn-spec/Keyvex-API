@@ -705,7 +705,9 @@ Built + shipped in commit `1335a95`:
 
 **Last Updated**
 
-May 7, 2026 — Day 7 LATER (~9 PM ET). **10 MCP tools live, server v0.17.0, KeyVex rebrand complete, landing page shipped live at `capitaledge-api.web.app`, `https://mcp.keyvex.com` LIVE with auto-managed TLS, GitHub repo renamed to `Keyvex-API`, multi-site Firebase Hosting set up, service-key REST CLI built, Form 278 v1A scraper + MCP tool shipped (10th tool), 13 autonomous scrapers in production (9 in this codebase + 4 in shelved-but-still-running dashboard project).** Remaining launch path: v1.1 Form 278 (House + PDF parsing) → map `keyvex.com` apex → logo wire-in → Privacy Policy + Loom + registry submissions → LLC + billing.
+May 11, 2026 — Day 8 EVENING (~10 PM ET). **21 MCP tools live, server v0.27.0**, 22+ autonomous scrapers running on cron, MCP endpoint at `https://mcp.keyvex.com` and landing page at `https://keyvex.com` + `https://www.keyvex.com` (all three domains with auto-renewing Let's Encrypt TLS), `contact@keyvex.com` is the canonical inbox (forwards to founders' Gmail), `@capitaledge.app` email retired across all surfaces. Battle-test suite green (59 queries, 0 errors). Remaining: 13H discussion (deferred to next session), XBRL Fundamentals (Wave 3 #8, multi-session), OSHA + EPA Enforcement (Wave 4 #12, separate investigation), logo PNGs drop-in, Privacy Policy + Loom + registry submissions, LLC + billing.
+
+**Earlier "Last Updated" snapshot (kept for history):** May 7, 2026 — Day 7 LATER (~9 PM ET). 10 MCP tools live, server v0.17.0, KeyVex rebrand complete, landing page shipped live at `capitaledge-api.web.app`, `https://mcp.keyvex.com` LIVE with auto-managed TLS, GitHub repo renamed to `Keyvex-API`, multi-site Firebase Hosting set up, service-key REST CLI built, Form 278 v1A scraper + MCP tool shipped (10th tool), 13 autonomous scrapers in production.
 
 ### 🌅 Day 8 morning kickoff note (2026-05-08)
 
@@ -721,3 +723,77 @@ After the backfill is done and verified, then proceed down the queued list (logo
 - `feedback_verify_inbound_specs.md` — verify-before-acting on inbound specs that contradict established state
 - `project_brand_keyvex.md` — brand is KeyVex, Firebase project ID `capitaledge-api` is permanent infra
 - `project_canonical_google_account.md` — `claude1986aaa@gmail.com` is canonical for KeyVex
+
+### 🌙 Day 8 EVENING closeout (2026-05-11)
+
+Day 8 was a marathon shipping session — 16 commits, 11 new MCP tools, 12 new scheduled Cloud Functions, full-scale battle-test cycle, two brand-cleanup sweeps.
+
+**Final live state:**
+- **21 MCP tools** at `mcp.keyvex.com` v0.27.0 (was 10 at Day 7 close)
+- **22+ autonomous scrapers** on cron (was 13)
+- **Three live custom domains** (mcp / apex / www, all auto-TLS)
+- **Battle test:** 59 queries across all 21 tools, 0 errors, 0 empty results
+- **Branch + main both at `29bf33f`** on GitHub (`gregorywglenn-spec/Keyvex-API`)
+
+**What shipped today (in commit order):**
+
+| Version | What |
+|---|---|
+| 0.19.0 | FEC v1A foundation (candidates + committees + `get_fec_candidate_profile`) + SEC Schedule TO (`get_tender_offers`) + Form 278 backfill enable (start-date/end-date flags, 1k→50k pagination cap). Form 278 backfill executed: **1,813 docs** covering 2016-2025 |
+| 0.19.1 | FEC scraper 5xx retry-with-backoff + diagnostic scripts (`inspect-fec-committees`, `show-mccormick-committees`). Real 502 caught during the 2022 committees pull |
+| 0.20.0 | Bills + Roll-Call Votes (`get_bills`, `get_roll_call_votes`). 15,671 bills + 517 House votes ingested. Senate roll-call votes flagged v1.1 (api.congress.gov doesn't expose them — they live on senate.gov XML directly) |
+| 0.21.0 | FINRA OTC Transparency dark-pool data (`get_otc_market_weekly`). **184,241 records** for week 2026-03-30 across T1/T2/OTCE tiers. Memory rule saved: scraper + scheduler ship together |
+| 0.22.0 | SEC Form D private placements (`get_private_placements`). 281 filings ingested. Form 13H confirmed unbuildable (FOIA-exempt under SEA Rule 13h-1) and saved to memory |
+| 0.23.0 | SEC + DOJ enforcement actions (`get_enforcement_actions`). 125 actions ingested. Caught + fixed DOJ JSON API default sort being oldest-first |
+| 0.24.0 | SEC Form N-PORT (`get_nport_filings`). 86 fund-month filings |
+| 0.25.0 | SEC Form S-1 / S-3 (`get_registration_statements`). 60 IPO + shelf records |
+| 0.26.0 | OFAC SDN sanctions list (`get_ofac_sdn`). **18,959 sanctioned entities** |
+| 0.27.0 | Federal Register (`get_federal_register_documents`). 656 recent rules/notices/presidential docs |
+| 0.27.1 | Battle-test cycle: 59 queries, found + fixed 3 production bugs (federal_contracts composite-index conflict, congressional_trades missing 2-field index, lobbying 5K→20K fetch window for substring queries). Battle-test script re-runnable via `npx tsx scripts/battle-test.ts` |
+| docs | README + landing page refreshed for 21-tool state. Hero, sources grid (13→24 items), demo, pricing, FAQ all updated |
+| chore | `contact@capitaledge.app` retired — swept to `contact@keyvex.com` across 13 scrapers' User-Agent strings + landing page + README + marketing copy. All 22 Cloud Functions redeployed with new User-Agent. Memory rule saved |
+| docs | apex DNS landed — `keyvex.com` + `www.keyvex.com` flipped from "pending" to "LIVE" in docs |
+
+**Form 13H verdict (was Wave 2 #5):** **Unbuildable from public sources.** Filed confidentially under SEA Rule 13h-1 with FOIA-exempt status. EDGAR FTS returns total=0 across all variants (13H / 13H-Q / 13H-A). The substitute value (large-trader identity disclosure) leaks via 13F / 13D-G / Form 4 — all of which KeyVex already exposes. Captured in `project_form_13h_unbuildable.md`. Off the roadmap permanently. Greg deferred a discussion to next session but the technical answer is clear.
+
+**Memory rules saved today (read these on session start):**
+- `feedback_dont_re_ask_for_directives_already_given.md` — multi-step directives authorize the whole sequence; don't pause to ask permission for already-authorized work
+- `feedback_scraper_plus_scheduler_ship_together.md` — every new scraper must land with its Cloud Function scheduler in the same commit; design the cron cadence BEFORE writing the scraper
+- `project_form_13h_unbuildable.md` — Form 13H is FOIA-exempt and not in EDGAR; off the roadmap permanently
+- `project_keyvex_mcp_hosting_rewrite_gotcha.md` — if `mcp.keyvex.com` returns HTML instead of JSON, re-deploy `hosting:keyvex-mcp` to clear stale static files
+- `project_email_retired_capitaledge_app.md` — `contact@capitaledge.app` is dead; new scrapers default USER_AGENT to `"KeyVexMCP/0.1 contact@keyvex.com"`
+- `project_keyvex_email_forwards_to_gmail.md` — `contact@keyvex.com` is real, forwards to founders' Gmail; don't hedge with "coming soon"
+
+**Open items rolling to Day 9:**
+1. **Form 13H discussion** (Greg deferred — the technical answer is "unbuildable from public sources" per the memory note)
+2. **Wave 3 #8 — EDGAR XBRL Fundamentals** (1 week+ multi-session, the biggest single build on the roadmap). Income statement / balance sheet / cash flow extraction. Competes with EODHD $60/mo tier
+3. **Wave 4 #12 — OSHA + EPA Enforcement** (separate investigations needed; OSHA needs DOL API key signup or CSV bulk model, EPA ECHO has a working REST API but obscure parameter naming)
+4. **Logo PNG drop-in** (`marketing/site/keyvex-mark.png` + `keyvex-wordmark.png`) — wire into landing topbar + favicon when Greg drops them
+5. **Pre-launch commercial work** — Privacy Policy (~20 min boilerplate), Loom demo video (3-5 min), launch posts (Twitter / Show HN / Reddit drafts), DM target list, MCP registry submissions (Anthropic / Smithery / Awesome-MCP / PulseMCP)
+6. **Node.js 20 → 22 upgrade** before 2026-10-30 decommission (~6 months out)
+7. **Optional v1.1 polish** — slow substring queries on big collections (lobbying 51K, federal_contracts 5K window) need a normalized-name field + array-contains indexing for sub-second matching
+
+**Cross-source play (the full agent walk, now 21-tool wide):**
+
+```
+get_congressional_trades(ticker:"LMT")           → who traded LMT
+  → bioguide_id of each trader
+get_member_profile(bioguide_id:"…")              → party, state, committees
+get_roll_call_votes(legislation_type:"HR")       → defense-bill voting history
+get_fec_candidate_profile(candidate_name:"…")    → FEC candidate + principal committee
+get_lobbying_filings(client_name:"Lockheed")     → LMT's lobbying spend
+get_federal_contracts(recipient_name:"Lockheed") → contracts LMT received
+get_otc_market_weekly(issue_symbol:"LMT")        → dark-pool activity in LMT shares
+get_insider_transactions(ticker:"LMT")           → LMT insider buys/sells
+get_material_events(ticker:"LMT")                → LMT 8-K corporate events
+get_enforcement_actions(text:"Lockheed")         → SEC/DOJ actions involving LMT
+```
+
+That's 10 of 21 tools chained in a single conversation, joined by `ticker` + `bioguide_id` + `recipient_name` + `client_name` + name. No other MCP server combines these.
+
+**Day 8 strategic clarity that holds:**
+- KeyVex is launch-ready on the surface area front. The 21 tools cover all of Wave 1, Wave 2 (minus the unbuildable 13H), most of Wave 3 (NPORT + S-1/S-3 done, XBRL deferred), and 2 of 3 Wave 4 items (OFAC + Federal Register done, OSHA+EPA deferred). What's left is XBRL (deep) and OSHA+EPA (separate-investigation).
+- Pure-publisher posture intact across every new tool. No derived signals anywhere.
+- Customer funnel bottom-up still holds (indie devs → small fintechs → midsize → institutional). The 21-tool surface + the cross-source moat is the indie-dev hook.
+
+**Greg's standing rules + memory feedback all still apply** — see "Standing Rules from Greg" earlier in this file, plus the memory entries listed above.
