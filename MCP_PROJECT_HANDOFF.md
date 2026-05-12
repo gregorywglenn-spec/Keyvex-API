@@ -47,7 +47,7 @@ Greg picked Option 2 (MCP first, REST as same-data second surface 2-3 months lat
 **What got ruled out along the way:**
 - Running MCP and REST as two separate companies (Greg explored this; it's worse — same focus problem with double the legal/ops/infra overhead).
 - Selling the convergence score via this product (kept exclusive to Capital Edge dashboard — removes legal complexity here, preserves dashboard differentiation).
-- Selling raw data with any signal/advice language (this product sells facts; "due diligence alert" framing belongs to the Capital Edge app, not here).
+- Selling normalized data with any signal/advice language layered on top (this product sells facts; "due diligence alert" framing belongs to the Capital Edge app, not here).
 - Including Canada SEDI and UK RNS scrapers (Canada SEDI ToS prohibits commercial scraping; UK RNS is behind LSEG paywall; both need licensing deals or skip entirely).
 - "10-20x undercut FMP" pricing framing (FMP is already near floor at $22; competing on price loses to incumbents with 5+ year head start; competing on MCP-native design wins).
 
@@ -151,7 +151,7 @@ Financial data MCPs are not in the top 50 most-searched MCPs as of March 2026 (t
 
 Field names stay clean and factual: `transaction_amount`, `filing_date`, `member_name`. No interpretation, no derived signals, no advice-adjacent language anywhere in the API/MCP surface.
 
-This is **deliberately different from the Capital Edge dashboard app**, which sells the convergence score and uses "due diligence alert" framing under the publisher's exemption (Lowe v. SEC, 1985). That legal complexity belongs to the dashboard. This product avoids it entirely by selling raw data.
+This is **deliberately different from the Capital Edge dashboard app**, which sells the convergence score and uses "due diligence alert" framing under the publisher's exemption (Lowe v. SEC, 1985). That legal complexity belongs to the dashboard. This product avoids it entirely by selling normalized data without any derived signals layered on top.
 
 Two products, two legal postures:
 

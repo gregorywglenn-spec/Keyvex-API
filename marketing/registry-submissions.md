@@ -334,7 +334,7 @@ Candidate avenues to investigate later:
 - **Direct enterprise sales** — once Snowflake / AWS Data Exchange surface inbound leads, offer custom enterprise tiers with SLAs, dedicated support, custom data slicing.
 - **Vertical-AI training data licensing** — repackage subsets of our data (e.g., "10 years of congressional trades + matched bill votes") as one-time licensed datasets for AI labs training political-economy or regulatory-compliance models.
 - **White-label data feeds** — companies that want our data piped into their own products without the KeyVex brand attached.
-- **Newsletter / report subscriptions** — a separate brand layer that publishes derived insights from KeyVex's raw data (would live with the dashboard product, not KeyVex, per pure-publisher posture).
+- **Newsletter / report subscriptions** — a separate brand layer that publishes derived insights from KeyVex's underlying data (would live with the dashboard product, not KeyVex, per pure-publisher posture).
 - **Academic + research partnerships** — universities studying market structure, political economy, regulatory behavior often want our exact data. Free/discounted access in exchange for citation/co-publication.
 - **API-as-a-product for non-MCP consumers** — a REST wrapper on top of the MCP endpoint for traditional API buyers who don't speak MCP. Same data, different envelope.
 

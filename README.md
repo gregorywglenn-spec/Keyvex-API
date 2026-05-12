@@ -220,7 +220,7 @@ scripts/
 
 ## Pure-publisher posture
 
-KeyVex returns raw, normalized public-record data. **No derived signals, no convergence scores, no "buy"/"sell" language, no investment advice.** That keeps the product cleanly outside investment-advisor territory under the publisher's exemption (Lowe v. SEC, 1985). Agent consumers can layer their own analysis on top.
+KeyVex returns clean, normalized, query-ready data — parsed, ticker-resolved, schema-unified, shaped for direct use by your agent. **What we don't add: derived signals, convergence scores, "buy"/"sell" language, investment advice.** That keeps the product cleanly outside investment-advisor territory under the publisher's exemption (Lowe v. SEC, 1985). Agent consumers can layer their own analysis on top.
 
 The Firebase project ID `capitaledge-api` is permanent infrastructure (Google does not allow renaming project IDs). The KeyVex brand is independent of that internal identifier; everything customer-facing reads as KeyVex.
 

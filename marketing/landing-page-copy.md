@@ -160,14 +160,14 @@ KeyVex isn't a dashboard. It isn't a stock-picker. It isn't an investing newslet
 
 **Heading:** *Pure-publisher posture. Public-record data only. No opinions.*
 
-KeyVex returns raw, normalized public-record data from official US government sources. We do not:
+KeyVex returns clean, normalized, query-ready data from official US government sources — parsed, ticker-resolved, schema-unified, and shaped for direct use by your agent. What we don't do is add derived signals on top:
 
 - Generate trading signals, buy/sell recommendations, or "alpha scores"
 - Provide investment advice of any kind
 - Aggregate, score, or rank securities by inferred attractiveness
 - Make claims about future performance
 
-This isn't a marketing distinction — it's a deliberate legal posture (Lowe v. SEC, 1985) that keeps KeyVex cleanly outside investment-advisor territory. We provide the data; what you build on top of it is yours.
+This isn't a marketing distinction — it's a deliberate legal posture (Lowe v. SEC, 1985) that keeps KeyVex cleanly outside investment-advisor territory. We do the data work; what you build on top of it is yours.
 
 If you need derived intelligence (convergence scores, signal weights, ranked lists), our sister product *(coming)* layers analytics on top of the same data. KeyVex's API stays clean.
 

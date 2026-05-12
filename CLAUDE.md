@@ -85,7 +85,7 @@ References below to "Capital Edge" generally point to the dashboard project unle
 
 A Model Context Protocol (MCP) server that exposes US public financial disclosures — congressional trades, executive insider transactions (Form 4), institutional holdings (13F), federal contracts, lobbying, 8-K material events, and member profiles — as agent-native tools. **Brand: KeyVex.** Public domain: `keyvex.com` (mapping to the Cloud Function endpoint pending). Package name: `keyvex`.
 
-Sibling product to the Capital Edge dashboard at `C:\CapitalEdge`. Dashboard sells derived intelligence (convergence score + tax engine) to retail investors. This project sells raw, normalized public-record data to developers and AI agents. Different audience, different legal posture, different product entirely.
+Sibling product to the Capital Edge dashboard at `C:\CapitalEdge`. Dashboard sells derived intelligence (convergence score + tax engine) to retail investors. This project sells clean, normalized public-record data to developers and AI agents — the cleanup work (parsing, ticker resolution, schema unification, idempotent doc IDs) is done; what we deliberately don't ship is derived signals or opinions on top. Different audience, different legal posture, different product entirely.
 
 **The wedge:** every existing financial-data MCP (Unusual Whales, FMP, Alpha Vantage) bolted MCP onto a pre-existing REST API and ended up with 100–250 tools that overwhelm agent context windows. This project is designed for the agent as the customer from the ground up: fewer tools, smarter parameters, descriptions that help the agent decide when to use each one. See `TOOL_DESIGN.md` for the full design rationale.
 
