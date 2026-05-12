@@ -83,6 +83,7 @@ import {
   saveForm144Filings,
   saveForm278Filings,
   saveEnforcementActions,
+  saveFederalRegisterDocuments,
   saveNportFilings,
   saveOfacSdn,
   saveOtcMarketWeekly,
@@ -143,6 +144,7 @@ import { scrapeEnforcementActions } from "./scrapers/enforcement-actions.js";
 import { scrapeNportLiveFeed } from "./scrapers/nport.js";
 import { scrapeRegistrationStatementsLiveFeed } from "./scrapers/registration-statements.js";
 import { scrapeOfacSdn } from "./scrapers/ofac-sdn.js";
+import { scrapeFederalRegister } from "./scrapers/federal-register.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -794,6 +796,28 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  "federal-register": {
+    description:
+      "Scrape Federal Register documents (Rules / Proposed Rules / Notices / Presidential Documents) from federalregister.gov API. Default 3-day lookback. Optional <days> positional. Add --save to write to federal_register_documents Firestore collection.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 3;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const docs = await scrapeFederalRegister({ lookbackDays: days });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${docs.length} Federal Register documents to Firestore...`,
+        );
+        const result = await saveFederalRegisterDocuments(docs);
+        console.error(
+          `[save] Saved ${result.saved} documents to ${result.collection}`,
+        );
+      }
+      return docs;
     },
   },
   "ofac-sdn": {

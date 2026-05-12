@@ -1125,6 +1125,70 @@ export interface FecCommittee {
 }
 
 /**
+ * Federal Register document — a published item from the daily Federal
+ * Register (executive orders, proposed rules, final rules, notices,
+ * presidential proclamations). Sourced from federalregister.gov/api/v1.
+ *
+ * Document types ("type" field):
+ *   "Rule"               — final regulation
+ *   "Proposed Rule"      — agency rule open for public comment
+ *   "Notice"             — formal notice (sunshine acts, hearings, etc.)
+ *   "Presidential Document" — executive orders, proclamations, memos
+ *
+ * Use cases: regulatory tracking (what's the SEC / EPA / FDA proposing
+ * this week?), lobbying tie-in (cross-reference with LDA filings to
+ * spot lobbyists commenting on proposed rules), compliance forward-look
+ * (proposed rules likely to affect business).
+ */
+export interface FederalRegisterDocument {
+  /** Unique document number assigned by GPO (e.g., "2026-09385"). Primary key. */
+  document_number: string;
+  /** Document title / heading. */
+  title: string;
+  /** Type: "Rule" | "Proposed Rule" | "Notice" | "Presidential Document". */
+  document_type: string;
+  /** Abstract / summary; often null for short notices. */
+  abstract: string;
+  /** Publication date (ISO YYYY-MM-DD). */
+  publication_date: string;
+  /** HTML URL on federalregister.gov. */
+  html_url: string;
+  /** PDF URL (govinfo.gov). */
+  pdf_url: string;
+  /** Public-inspection PDF (pre-publication preview). */
+  public_inspection_pdf_url: string;
+  /** Issuing agency names (raw, as filed). */
+  agency_names: string[];
+  /** Agency slugs (URL-safe identifiers, e.g., "securities-and-exchange-commission"). */
+  agency_slugs: string[];
+  /** Excerpt(s) — sometimes a short preview of the document text. */
+  excerpts: string;
+  /** When KeyVex scraped this record. */
+  scraped_at: string;
+}
+
+export interface FederalRegisterDocumentsQuery {
+  /** Direct lookup by document_number. */
+  document_number?: string;
+  /** Substring match against title (case-insensitive). */
+  title?: string;
+  /** Filter to a document type. */
+  document_type?: "Rule" | "Proposed Rule" | "Notice" | "Presidential Document";
+  /** Filter by agency slug (e.g., "securities-and-exchange-commission"). Uses array-contains. */
+  agency_slug?: string;
+  /** Substring against agency names (catches partial-name matches). */
+  agency_name?: string;
+  /** Substring against abstract + title + excerpts combined. */
+  text?: string;
+  /** Publication-date lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** Publication-date upper bound. */
+  until?: string;
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * OFAC Specially Designated National (SDN) entry — a person, entity,
  * vessel, or aircraft sanctioned by the US Treasury OFAC under one or
  * more sanctions programs (Cuba, Iran, Russia/SDGT, NK, etc.).

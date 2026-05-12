@@ -12,6 +12,7 @@ import * as bills from "./bills.js";
 import * as congressionalTrades from "./congressional-trades.js";
 import * as enforcementActions from "./enforcement-actions.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
+import * as federalRegister from "./federal-register.js";
 import * as federalContracts from "./federal-contracts.js";
 import * as insiderTransactions from "./insider-transactions.js";
 import * as institutionalHoldings from "./institutional-holdings.js";
@@ -53,6 +54,7 @@ export const TOOLS: ToolModule[] = [
   nportFilings,
   registrationStatements,
   ofacSdn,
+  federalRegister,
 ];
 
 export function findTool(name: string): ToolModule | undefined {

@@ -51,6 +51,7 @@ import {
   saveLobbyingFilings,
   saveMaterialEvents,
   saveEnforcementActions,
+  saveFederalRegisterDocuments,
   saveNportFilings,
   saveOfacSdn,
   saveOtcMarketWeekly,
@@ -96,6 +97,7 @@ import { scrapeEnforcementActions } from "../../src/scrapers/enforcement-actions
 import { scrapeNportLiveFeed } from "../../src/scrapers/nport.js";
 import { scrapeRegistrationStatementsLiveFeed } from "../../src/scrapers/registration-statements.js";
 import { scrapeOfacSdn } from "../../src/scrapers/ofac-sdn.js";
+import { scrapeFederalRegister } from "../../src/scrapers/federal-register.js";
 
 // ─── Common config ──────────────────────────────────────────────────────────
 
@@ -698,6 +700,38 @@ export const scrapeCongressLegislationDaily = onSchedule(
 );
 
 /**
+ * Federal Register documents (Rules / Proposed Rules / Notices /
+ * Presidential Documents). Daily 6:55 AM ET.
+ *
+ * Cadence: daily. The Federal Register publishes business-days only;
+ * a 3-day lookback covers Friday + weekend coverage plus daily overlap.
+ * Volume ~100-200 documents/day; metadata-only ingest fits in 9 min.
+ */
+export const scrapeFederalRegisterDaily = onSchedule(
+  {
+    schedule: "55 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[fedreg] starting daily refresh (3-day lookback)");
+    const docs = await scrapeFederalRegister({ lookbackDays: 3 });
+    logger.info(`[fedreg] scraper returned ${docs.length} documents`);
+    let docsWritten = 0;
+    if (docs.length > 0) {
+      const r = await saveFederalRegisterDocuments(docs);
+      logger.info(`[fedreg] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("federalRegisterSync", { started, docsWritten });
+  },
+);
+
+/**
  * OFAC SDN sanctions list. Daily 6:50 AM ET.
  *
  * Cadence: daily. OFAC updates the SDN list when new sanctions are
@@ -978,7 +1012,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.26.0";
+const SERVER_VERSION = "0.27.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

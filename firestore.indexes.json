@@ -562,6 +562,22 @@
         { "fieldPath": "entity_type", "order": "ASCENDING" },
         { "fieldPath": "ent_num", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "federal_register_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "document_type", "order": "ASCENDING" },
+        { "fieldPath": "publication_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "federal_register_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "agency_slugs", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "publication_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

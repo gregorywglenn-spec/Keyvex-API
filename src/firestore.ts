@@ -32,6 +32,8 @@ import type {
   FecCommitteeQuery,
   FederalContractAward,
   FederalContractAwardsQuery,
+  FederalRegisterDocument,
+  FederalRegisterDocumentsQuery,
   Form144Filing,
   Form144FilingsQuery,
   Form278Filing,
@@ -1626,6 +1628,110 @@ export async function saveForm278Filings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Federal Register documents query + save ─────────────────────────────
+
+export async function queryFederalRegisterDocuments(
+  query: FederalRegisterDocumentsQuery,
+): Promise<QueryResult<FederalRegisterDocument>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.document_number) {
+    const doc = await db
+      .collection("federal_register_documents")
+      .doc(query.document_number)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as FederalRegisterDocument], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("federal_register_documents");
+
+  if (query.document_type) {
+    q = q.where("document_type", "==", query.document_type);
+  }
+  if (query.agency_slug) {
+    q = q.where("agency_slugs", "array-contains", query.agency_slug);
+  }
+
+  const userLimit = query.limit ?? 50;
+  const needsClient = query.title || query.text || query.agency_name;
+  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as FederalRegisterDocument);
+
+  if (query.title) {
+    const needle = query.title.toLowerCase();
+    docs = docs.filter((d) => (d.title ?? "").toLowerCase().includes(needle));
+  }
+  if (query.text) {
+    const needle = query.text.toLowerCase();
+    docs = docs.filter(
+      (d) =>
+        (d.title ?? "").toLowerCase().includes(needle) ||
+        (d.abstract ?? "").toLowerCase().includes(needle) ||
+        (d.excerpts ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.agency_name) {
+    const needle = query.agency_name.toLowerCase();
+    docs = docs.filter((d) =>
+      (d.agency_names ?? []).some((n) => n.toLowerCase().includes(needle)),
+    );
+  }
+  if (query.since) {
+    docs = docs.filter((d) => d.publication_date >= query.since!);
+  }
+  if (query.until) {
+    docs = docs.filter((d) => d.publication_date <= query.until!);
+  }
+
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    if (a.publication_date === b.publication_date) return 0;
+    const cmp = a.publication_date < b.publication_date ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveFederalRegisterDocuments(
+  documents: FederalRegisterDocument[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "federal_register_documents";
+  if (documents.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = documents.slice(i, i + BATCH_SIZE);
+    for (const doc of chunk) {
+      batch.set(collection.doc(doc.document_number), doc, { merge: true });
     }
     await batch.commit();
     saved += chunk.length;
