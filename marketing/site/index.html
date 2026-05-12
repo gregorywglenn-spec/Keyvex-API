@@ -173,6 +173,40 @@
     .audience-cols ul { padding-left: 20px; margin: 0 0 0; color: var(--muted); }
     .audience-cols ul li { margin-bottom: 8px; }
 
+    /* Infra / feature cards (3-up) */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+    @media (max-width: 720px) { .features { grid-template-columns: 1fr; } }
+    .features .card {
+      padding: 20px 18px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--row-alt);
+    }
+    .features .card h3 {
+      font-size: 15px;
+      color: var(--accent);
+      margin-bottom: 10px;
+      letter-spacing: 0.02em;
+    }
+    .features .card p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin: 0;
+    }
+    .features .card code {
+      background: var(--code-bg);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12.5px;
+      color: var(--fg);
+    }
+
     /* Footer */
     footer {
       max-width: 920px; margin: 0 auto; padding: 48px 24px 64px;
@@ -468,6 +502,50 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
             <li>Trading signals or buy/sell recommendations</li>
             <li>Pre-built backtests (we're the data layer; you build on top)</li>
           </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5b — Production infrastructure (enterprise-relevant) -->
+    <section id="infra">
+      <h2>Built for production agents, not prototypes.</h2>
+      <p class="lead">
+        The plumbing behind the response is what separates infrastructure from an
+        experiment. KeyVex runs autonomously, returns audit-grade provenance on
+        every record, and is indexed for the cross-source queries agents actually
+        compose — not just the easy single-collection ones.
+      </p>
+      <div class="features">
+        <div class="card">
+          <h3>Indexed for real queries</h3>
+          <p>
+            Cross-cutting filters — <code>(politician × ticker × date)</code>,
+            <code>(ticker × buy/sell × date)</code>, <code>(filer × concentration)</code>,
+            <code>(agency × NAICS × date)</code> — each have dedicated composite
+            indexes. The political-alpha query ("did senator X trade ticker Y
+            before bill Z?") returns sub-second on a single MCP call. No fan-out
+            to multiple endpoints. No client-side join.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Audit-grade provenance</h3>
+          <p>
+            Every record carries a <code>source_url</code> (or analogous field)
+            pointing back to the canonical filing on EDGAR, eFD, House Clerk,
+            USAspending, OFAC, FEC, Federal Register, or wherever it originated.
+            No black-box transformations. Every claim your agent makes is one
+            link from the primary source — exactly what compliance review needs.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Idempotent &amp; autonomous</h3>
+          <p>
+            22+ scheduled scrapers run on cron — Form 4 every 30 min, 8-K hourly,
+            congressional PTRs daily, full bioguide catalog weekly. Writes use
+            <code>merge:true</code> semantics, so re-runs don't duplicate.
+            Network blips trigger bounded retries. The warehouse fills itself in
+            continuously without human intervention.
+          </p>
         </div>
       </div>
     </section>
