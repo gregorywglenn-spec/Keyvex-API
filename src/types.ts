@@ -1992,6 +1992,74 @@ export interface ProxyFilingsQuery {
   limit?: number;
 }
 
+// ─── HHS-OIG Exclusions (federal healthcare excluded entities) ────────────
+
+/**
+ * One entry on the HHS Office of Inspector General "List of Excluded
+ * Individuals/Entities" (LEIE). Anyone on this list is barred from billing
+ * Medicare, Medicaid, or any federal healthcare program. Updated monthly
+ * by OIG; we re-scrape monthly and overwrite.
+ *
+ * Pairs naturally with get_federal_contracts (don't trust a contractor on
+ * this list) and any healthcare-sector research.
+ *
+ * Pure-publisher posture: we surface the listing as-published. Agents
+ * decide whether a match is contextually meaningful (different person
+ * with same name, expired/reinstated, etc.).
+ */
+export interface OigExclusion {
+  id: string;
+  last_name: string;
+  first_name: string;
+  middle_name: string;
+  business_name: string;
+  /** Computed display name — business_name for entities, "First Middle Last" otherwise. */
+  full_name: string;
+  /** True when the row represents a business entity (business_name populated). */
+  is_business: boolean;
+  general_category: string;
+  specialty: string;
+  /** UPIN (legacy provider ID). May be "0000000000" / empty. */
+  upin: string;
+  /** NPI (National Provider Identifier). May be "0000000000" / empty. */
+  npi: string;
+  date_of_birth: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  /** Statutory exclusion code (e.g., "1128a1", "1128b5"). Each prefix maps
+   *  to a specific section of 42 USC § 1320a-7 / 7a / 7b. */
+  exclusion_type: string;
+  /** Date excluded. ISO YYYY-MM-DD. */
+  exclusion_date: string;
+  /** Date reinstated. Null when never reinstated (raw OIG sentinel "00000000"). */
+  reinstatement_date: string | null;
+  waiver_date: string | null;
+  waiver_state: string;
+  oig_source_url: string;
+  scraped_at: string;
+}
+
+export interface OigExclusionsQuery {
+  name?: string;
+  business_name?: string;
+  state?: string;
+  city?: string;
+  general_category?: string;
+  specialty?: string;
+  exclusion_type?: string;
+  npi?: string;
+  is_business?: boolean;
+  /** When true, filter to entries that have been reinstated. Default: all. */
+  is_reinstated?: boolean;
+  since?: string;
+  until?: string;
+  sort_by?: "exclusion_date" | "reinstatement_date";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
 // ─── Economic Indicators (BLS, v1A) ────────────────────────────────────────
 
 /**

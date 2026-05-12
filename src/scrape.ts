@@ -99,6 +99,7 @@ import {
   saveLobbyingFilings,
   saveEconomicIndicators,
   saveMaterialEvents,
+  saveOigExclusions,
   saveProxyFilings,
   saveTreasuryAuctions,
 } from "./firestore.js";
@@ -113,6 +114,7 @@ import {
 } from "./scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "./scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "./scrapers/bls.js";
+import { scrapeOigExclusions } from "./scrapers/oig-exclusions.js";
 import {
   scrapeLobbyingByClient,
   scrapeLobbyingByPeriod,
@@ -370,6 +372,23 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return indicators;
+    },
+  },
+  oig: {
+    description:
+      "Scrape HHS-OIG exclusions list (~15 MB monthly CSV from oig.hhs.gov). Add --save to write to Firestore.",
+    run: async (args) => {
+      const exclusions = await scrapeOigExclusions();
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${exclusions.length} OIG exclusions to Firestore...`,
+        );
+        const result = await saveOigExclusions(exclusions);
+        console.error(
+          `[save] Saved ${result.saved} exclusions to ${result.collection}`,
+        );
+      }
+      return exclusions;
     },
   },
   "lobbying-registrant": {

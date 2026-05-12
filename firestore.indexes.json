@@ -770,6 +770,38 @@
         { "fieldPath": "period_type", "order": "ASCENDING" },
         { "fieldPath": "period", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "oig_exclusions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state", "order": "ASCENDING" },
+        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "oig_exclusions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "general_category", "order": "ASCENDING" },
+        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "oig_exclusions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "exclusion_type", "order": "ASCENDING" },
+        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "oig_exclusions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_business", "order": "ASCENDING" },
+        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

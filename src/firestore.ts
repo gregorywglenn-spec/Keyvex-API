@@ -61,6 +61,8 @@ import type {
   PrivatePlacementsQuery,
   EconomicIndicator,
   EconomicIndicatorsQuery,
+  OigExclusion,
+  OigExclusionsQuery,
   ProxyFiling,
   ProxyFilingsQuery,
   TreasuryAuction,
@@ -1522,6 +1524,118 @@ export async function saveProxyFilings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── HHS-OIG Exclusions query + save ──────────────────────────────────────
+
+export async function queryOigExclusions(
+  query: OigExclusionsQuery,
+): Promise<QueryResult<OigExclusion>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("oig_exclusions");
+
+  if (query.state) q = q.where("state", "==", query.state.toUpperCase());
+  if (query.general_category) {
+    q = q.where("general_category", "==", query.general_category);
+  }
+  if (query.exclusion_type) {
+    q = q.where("exclusion_type", "==", query.exclusion_type);
+  }
+  if (query.npi) q = q.where("npi", "==", query.npi);
+  if (query.is_business !== undefined) {
+    q = q.where("is_business", "==", query.is_business);
+  }
+
+  const sortField = query.sort_by ?? "exclusion_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+
+  // Substring filters (name, business_name, city, specialty, is_reinstated)
+  // need a wide window. OIG collection is ~90K records so we cap fetch at
+  // 20000 to balance memory vs coverage. Combine with state filter to
+  // narrow when possible.
+  const needsClientSideFilter =
+    query.name ||
+    query.business_name ||
+    query.city ||
+    query.specialty ||
+    query.is_reinstated !== undefined;
+  const fetchLimit = needsClientSideFilter ? 20000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as OigExclusion);
+
+  if (query.name) {
+    const needle = query.name.toLowerCase();
+    docs = docs.filter((e) => e.full_name.toLowerCase().includes(needle));
+  }
+  if (query.business_name) {
+    const needle = query.business_name.toLowerCase();
+    docs = docs.filter((e) =>
+      e.business_name.toLowerCase().includes(needle),
+    );
+  }
+  if (query.city) {
+    const needle = query.city.toLowerCase();
+    docs = docs.filter((e) => e.city.toLowerCase().includes(needle));
+  }
+  if (query.specialty) {
+    const needle = query.specialty.toLowerCase();
+    docs = docs.filter((e) => e.specialty.toLowerCase().includes(needle));
+  }
+  if (query.is_reinstated !== undefined) {
+    docs = docs.filter((e) =>
+      query.is_reinstated
+        ? e.reinstatement_date !== null
+        : e.reinstatement_date === null,
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveOigExclusions(
+  exclusions: OigExclusion[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "oig_exclusions";
+  if (exclusions.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < exclusions.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = exclusions.slice(i, i + BATCH_SIZE);
+    for (const ex of chunk) {
+      batch.set(collection.doc(ex.id), ex, { merge: true });
     }
     await batch.commit();
     saved += chunk.length;

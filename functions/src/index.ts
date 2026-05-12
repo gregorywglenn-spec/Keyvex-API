@@ -56,6 +56,7 @@ import {
   saveOfacSdn,
   saveOtcMarketWeekly,
   saveEconomicIndicators,
+  saveOigExclusions,
   savePrivatePlacements,
   saveProxyFilings,
   saveRegistrationStatements,
@@ -80,6 +81,7 @@ import { scrape8kLiveFeed } from "../../src/scrapers/form8k.js";
 import { scrapeProxyLiveFeed } from "../../src/scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "../../src/scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "../../src/scrapers/bls.js";
+import { scrapeOigExclusions } from "../../src/scrapers/oig-exclusions.js";
 import { scrapeForm144LiveFeed } from "../../src/scrapers/form144.js";
 import { scrapeForm3LiveFeed } from "../../src/scrapers/form3.js";
 import { scrapeForm4LiveFeed } from "../../src/scrapers/form4.js";
@@ -235,6 +237,36 @@ export const scrapeBlsDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("blsIndicatorsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * HHS-OIG Exclusions list. ~90K entries; OIG updates monthly.
+ * Fires monthly on the 5th at 7 AM ET (gives OIG time to publish the
+ * monthly update which typically lands in the first few days). Bumps
+ * up memory + timeout since we batch 90K + 400 = ~225 batched writes.
+ */
+export const scrapeOigExclusionsMonthly = onSchedule(
+  {
+    schedule: "0 7 5 * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "1GiB",
+    timeoutSeconds: 1800,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[oig-monthly] starting (full LEIE CSV download)");
+    const exclusions = await scrapeOigExclusions();
+    logger.info(`[oig-monthly] scraper returned ${exclusions.length} exclusions`);
+    let docsWritten = 0;
+    if (exclusions.length > 0) {
+      const r = await saveOigExclusions(exclusions);
+      logger.info(`[oig-monthly] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("oigExclusionsSync", { started, docsWritten });
   },
 );
 
@@ -1115,7 +1147,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.33.0";
+const SERVER_VERSION = "0.34.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.
