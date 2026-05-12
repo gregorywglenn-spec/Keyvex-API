@@ -224,6 +224,39 @@
       color: var(--fg);
     }
 
+    /* Hero pull-quote — the killer-query pitch */
+    .killer-query {
+      margin: 24px 0 28px;
+      padding: 22px 26px 22px 30px;
+      border-left: 3px solid var(--accent);
+      background: var(--row-alt);
+      border-radius: 0 8px 8px 0;
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--fg);
+    }
+    .killer-query .lead-in {
+      display: block;
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .killer-query .quote {
+      font-style: italic;
+      font-weight: 500;
+    }
+    .killer-query .quote em {
+      font-style: normal;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    @media (max-width: 600px) {
+      .killer-query { font-size: 16px; padding: 18px 20px 18px 24px; }
+    }
+
     /* Footer */
     footer {
       max-width: 920px; margin: 0 auto; padding: 48px 24px 64px;
@@ -287,13 +320,21 @@
       <span class="slogan">Plan. Execute. Elevate.</span>
       <div class="status-badge">Pre-launch · Preview access</div>
       <h1>The MCP server for US public financial disclosures.</h1>
+      <div class="killer-query">
+        <span class="lead-in">The query no other MCP server can answer</span>
+        <p class="quote">
+          “<em>Which members of Congress traded the company that just won the DoD contract</em> —
+          while they were <em>under SEC investigation</em>, after <em>lobbying spend spiked</em>,
+          and <em>insiders sold ahead of weak earnings</em>?”
+        </p>
+      </div>
       <p class="sub">
-        22 tools across 22+ government sources — congressional trades, insider
+        28 tools across 28+ government sources — congressional trades, insider
         transactions, institutional + mutual-fund holdings, dark-pool volume,
         lobbying spend, FEC campaign finance, federal contracts, bills,
         roll-call votes, OFAC sanctions, Federal Register rules, M&amp;A tender
-        offers, private placements, and more — all queryable by AI agents
-        through one Bearer-authenticated endpoint.
+        offers, private placements, XBRL fundamentals, and more — all queryable
+        by AI agents through one Bearer-authenticated endpoint.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="mailto:contact@keyvex.com?subject=KeyVex%20preview%20access">Get free preview access</a>
