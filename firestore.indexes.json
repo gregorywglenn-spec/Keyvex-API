@@ -748,6 +748,38 @@
       ]
     },
     {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bid_to_cover_ratio", "order": "ASCENDING" },
+        { "fieldPath": "auction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auction_date", "order": "DESCENDING" },
+        { "fieldPath": "bid_to_cover_ratio", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "offering_amount", "order": "ASCENDING" },
+        { "fieldPath": "auction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "auction_date", "order": "DESCENDING" },
+        { "fieldPath": "offering_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [

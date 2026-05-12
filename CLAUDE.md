@@ -706,9 +706,10 @@ Built + shipped in commit `1335a95`:
 
 **Last Updated**
 
-May 12, 2026 — Day 9 EVENING. **24 MCP tools live, server v0.30.0**, 24+ autonomous scrapers running on cron, MCP endpoint at `https://mcp.keyvex.com`, landing page at `https://keyvex.com` (apex + www both mapped, auto-TLS), `contact@keyvex.com` is the canonical inbox. Privacy Policy live at `keyvex.com/privacy`. Animated SVG demo of `unified_search` showcased on both landing and README. Posture / audience copy hardened to enterprise-readable. Derek's dashboard project active again, porting KeyVex scrapers into his side. ~2 weeks to launch per Greg.
+May 12, 2026 — Day 9 LATE EVENING. **27 MCP tools live, server v0.36.0**, 27+ autonomous scrapers running on cron, MCP endpoint at `https://mcp.keyvex.com`, landing page at `https://keyvex.com` (apex + www both mapped, auto-TLS), `contact@keyvex.com` is the canonical inbox. Privacy Policy live at `keyvex.com/privacy`. Animated SVG demo of `unified_search` showcased on both landing and README. Posture / audience copy hardened to enterprise-readable. Derek's dashboard project active again, porting KeyVex scrapers into his side. ~2 weeks to launch per Greg.
 
 **Earlier "Last Updated" snapshots (kept for history):**
+- May 12, 2026 — Day 9 EVENING. 24 MCP tools, server v0.30.0 (mid-Day-9 checkpoint before the 6-scraper marathon).
 - May 11, 2026 — Day 8 EVENING. 21 MCP tools, server v0.27.0, 22+ autonomous scrapers, three live custom domains, battle-test green (59 queries, 0 errors).
 - May 7, 2026 — Day 7 LATER. 10 MCP tools, server v0.17.0, KeyVex rebrand complete, landing page shipped, `mcp.keyvex.com` LIVE with auto-managed TLS, GitHub repo renamed to `Keyvex-API`, multi-site Firebase Hosting set up, service-key REST CLI built, Form 278 v1A scraper + MCP tool shipped (10th tool).
 
@@ -885,3 +886,79 @@ That's 12 of 24 tools chained in a single conversation. Plus `unified_search` co
 - New Day 9: `feedback_raw_input_clean_output.md`
 
 **For Future Claude starting fresh on Day 10+:** Read `CLAUDE.md` (this file) first. The priority queue at top of "What's Open / Next Up" + the Day 9 closeout above are the load-bearing context. Greg's standing rules + memory entries are unchanged. Don't re-litigate the strategic decisions logged here.
+
+### 🌌 Day 9 LATE EVENING addendum (2026-05-12, post-Day-9 closeout)
+
+After the Day 9 closeout commit landed, Greg said "go go go" and we ran a six-scraper marathon. 10 more commits, 3 new MCP tools, 3 new sources on `enforcement_actions`, and one audit-fix on `unified_search`. The Day 9 closeout above is now itself stale — this addendum is the true end-of-Day-9 state.
+
+**Final live state at session close:**
+- **27 MCP tools** at `mcp.keyvex.com` v0.36.0 (up from 24 at Day 9 mid-checkpoint)
+- **27+ autonomous scrapers** on cron — 4 new schedulers added today (scrapeProxyDaily, scrapeTreasuryAuctionsDaily, scrapeBlsDaily, scrapeOigExclusionsMonthly, scrapeCfpbDaily)
+- **enforcement_actions tool now spans 5 regulators**: SEC + DOJ + CFTC + OCC + FDIC (additive — same tool, wider source enum)
+- **Battle test green at v0.36.0**: 82 PASS / 0 EMPTY / 1 SLOW / 0 ERROR (84 queries total) — 1 SLOW is pre-existing lobbying substring perf item, no regressions
+- **Branch + main both at `3d90873`** on GitHub (this commit will push the 23rd of the day)
+
+**What shipped after the Day 9 closeout commit (in order):**
+
+| # | Commit | What |
+|---|---|---|
+| 13 | `5c25823` | **v0.31.0 — CFTC enforcement** added as 3rd source on existing `get_enforcement_actions` (no new tool — extends source enum). 37 CFTC press releases live |
+| 14 | `c4e8942` | **v0.32.0 — OCC + FDIC enforcement** added as 4th + 5th sources. 3 OCC + 20 FDIC records. 5 regulators in one tool |
+| 15 | `a8ec259` | **v0.33.0 — 25th MCP tool, `get_economic_indicators` (BLS)** — curated 20-series watchlist (unemployment, payrolls, CPI, PPI, wages, productivity). 473 observations ingested, latest_only:true returns a 19-series macro snapshot |
+| 16 | `fd6d847` | **v0.34.0 — 26th MCP tool, `get_oig_exclusions` (HHS-OIG LEIE)** — 83,256 excluded healthcare entities ingested. Pairs with federal_contracts for compliance flag |
+| 17 | `539fa25` | **v0.35.0 — 27th MCP tool, `get_consumer_complaints` (CFPB)** — 2000 recent complaints ingested. Rolling 2-day window, leading indicator for CFPB/OCC/FDIC enforcement |
+| 18 | `3d90873` | **v0.36.0 — audit-fix: wire `proxy_filings` into `unified_search`** — was the one real gap in the post-marathon provenance audit. `unified_search(ticker)` now fans out to 11 collections (was 10) |
+| 19 | this commit | Battle-test extended for 21 new test cases (covering all 5 enforcement sources + 4 new tools); 1 missing treasury_auctions index discovered + deployed; CLAUDE.md sweep |
+
+**Battle-test stats for v0.36.0** (re-run after extending to 84 test cases):
+
+```
+82 PASS · 0 EMPTY · 1 SLOW · 0 ERROR (total 84)
+```
+
+The 1 SLOW remains `get_lobbying_filings / Pfizer recent` — pre-existing substring-filter performance on the 51K-record lobbying collection. Same v1.1 polish item (normalized-name field + array-contains indexing). Not a regression, not a launch blocker.
+
+**Discovered + fixed during battle test:** missing composite index on `treasury_auctions(bid_to_cover_ratio + auction_date)` for the "strong demand auctions" query shape. Added both ascending-first and descending-first variants (Firestore's modern multi-range query requires the orderBy field first). Plus `offering_amount` variants for symmetry. All 4 deployed.
+
+**Audit summary (Provenance + Unified Search across all 6 new sources):**
+
+| Tool | Provenance | unified_search |
+|---|---|---|
+| `get_proxy_filings` | ✅ primary_document_url + sec_filing_url | ✅ fan-out (this commit) |
+| `get_treasury_auctions` | ✅ treasury_source_url + 3 PDF URLs | — CUSIP-keyed, doesn't fit ticker-driven fan-out |
+| `get_economic_indicators` | ✅ bls_source_url per series | — macro series, no per-entity identifier |
+| `get_oig_exclusions` | ✅ oig_source_url | — NPI-keyed (medical provider), not ticker |
+| `get_consumer_complaints` | ✅ cfpb_source_url per complaint | — company name match (no ticker in CFPB schema) |
+| `enforcement_actions` (CFTC/OCC/FDIC) | ✅ url to each press release | — text-search by design |
+
+**v1.1 enhancement deferred to a dedicated session:** extend `unified_search` identifier set to include `cusip` (would cover treasury_auctions + institutional_holdings cusip queries) and add **company-name fuzzy match** via a name→ticker resolver (would let CFPB / lobbying / enforcement_actions join the fan-out by issuer name). That's the unlock for "tell me everything about Wells Fargo" hitting 27 tools instead of the current ~14.
+
+**Strategic decisions confirmed this evening:**
+
+1. **OCC + FDIC + CFTC didn't get new MCP tools** — they were added as `source` enum values on the existing `get_enforcement_actions` rather than creating three new tools. Tool count stays lean (27 vs. would-have-been 30), agent's question-space still expanded. This is the right pattern for sister-regulator extensions.
+
+2. **PNG logo drop-in stays off the list** — confirmed by Greg again, the `Key**Vex**` text wordmark + inline-SVG `K` favicon are sufficient brand presence. Don't re-litigate.
+
+3. **GAO / NLRB / FERC / EPA ECHO / OSHA / NHTSA / FRED deferred to their own sessions.** Each hit a real wall today (WAF 403 / HTML scrape complexity / energy-niche / broken date filters / bulk-CSV model / auth-gated / API key provisioning). Worth dedicated investigation time, not end-of-day rushing.
+
+4. **EDGAR XBRL Fundamentals is the next major buildable.** Multi-session, ~1 week. The single biggest competitive lift left — completes the SEC research surface (income statement / balance sheet / cash flow per company per quarter), competes directly with FMP $22/mo + EODHD $60/mo tiers. Best started fresh in a dedicated session, not rushed.
+
+**Cross-source play with 27 tools is now a wide moat.** Example real agent question — "What's going on with Wells Fargo?":
+
+```
+get_consumer_complaints(company:"Wells Fargo")           → complaint patterns
+get_enforcement_actions(source:"occ", text:"Wells Fargo")→ regulator actions
+get_proxy_filings(ticker:"WFC")                          → exec comp + governance
+get_insider_transactions(ticker:"WFC")                   → insider activity
+get_lobbying_filings(client_name:"Wells Fargo")          → influence spend
+get_federal_contracts(recipient_name:"Wells Fargo")      → government business
+get_material_events(ticker:"WFC")                        → 8-K events
+get_activist_stakes(ticker:"WFC")                        → 13D/G filings
+get_otc_market_weekly(issue_symbol:"WFC")                → dark-pool activity
+get_economic_indicators(category:"inflation")            → macro context
+get_treasury_auctions(security_type:"Note")              → rate environment
+```
+
+11 tools, one conversation, every signal that matters about a major US bank. **No other MCP server combines these.**
+
+**For Future Claude starting fresh on Day 10:** the open queue is XBRL Fundamentals (the big one), v1.1 unified_search company-name fuzzy, and any of the deferred sources (each in its own session). Don't try to add scrapers in a hurry — the marathon today already shipped 6 + 3-source-additions in one go. Per session: pick ONE substantial piece and ship it cleanly. The 27-tool surface is launch-ready.

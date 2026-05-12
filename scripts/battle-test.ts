@@ -166,6 +166,39 @@ const TESTS: TestCase[] = [
   { tool: "unified_search", label: "company_cik=Apple fan-out", args: { company_cik: "0000320193", per_source_limit: 2 } },
   { tool: "unified_search", label: "bioguide=Collins fan-out", args: { bioguide_id: KNOWN_IDS.bioguide, per_source_limit: 3 } },
   { tool: "unified_search", label: "ticker+sources whitelist", args: { ticker: "NVDA", sources: ["insider_trades", "material_events", "congressional_trades"], per_source_limit: 2 } },
+
+  // ─── 23. get_proxy_filings (DEF 14A) ──────────────────────────────────
+  { tool: "get_proxy_filings", label: "AAPL proxy family", args: { ticker: "AAPL", limit: 5 } },
+  { tool: "get_proxy_filings", label: "merger proxies only", args: { is_merger_related: true, limit: 5 } },
+  { tool: "get_proxy_filings", label: "recent annual DEF 14A", args: { filing_type: "DEF 14A", limit: 5 } },
+
+  // ─── 24. get_treasury_auctions ────────────────────────────────────────
+  { tool: "get_treasury_auctions", label: "recent baseline", args: { limit: 5 } },
+  { tool: "get_treasury_auctions", label: "Notes only", args: { security_type: "Note", limit: 5 } },
+  { tool: "get_treasury_auctions", label: "strong demand >=2.5 BTC", args: { min_bid_to_cover: 2.5, limit: 5 } },
+
+  // ─── 25. get_economic_indicators (BLS) ────────────────────────────────
+  { tool: "get_economic_indicators", label: "current macro snapshot", args: { latest_only: true, limit: 20 } },
+  { tool: "get_economic_indicators", label: "U-3 unemployment series", args: { series_id: "LNS14000000", limit: 12 } },
+  { tool: "get_economic_indicators", label: "inflation category", args: { category: "inflation", limit: 10 } },
+  { tool: "get_economic_indicators", label: "quarterly only", args: { period_type: "quarterly", limit: 5 } },
+
+  // ─── 26. get_oig_exclusions (HHS-OIG LEIE) ────────────────────────────
+  { tool: "get_oig_exclusions", label: "NY exclusions", args: { state: "NY", limit: 5 } },
+  { tool: "get_oig_exclusions", label: "pharmacy category", args: { general_category: "PHARMACY", limit: 5 } },
+  { tool: "get_oig_exclusions", label: "businesses only", args: { is_business: true, limit: 5 } },
+  { tool: "get_oig_exclusions", label: "exclusion type 1128a1", args: { exclusion_type: "1128a1", limit: 5 } },
+
+  // ─── 27. get_consumer_complaints (CFPB) ───────────────────────────────
+  { tool: "get_consumer_complaints", label: "recent baseline", args: { limit: 5 } },
+  { tool: "get_consumer_complaints", label: "Experian complaints", args: { company: "Experian", limit: 5 } },
+  { tool: "get_consumer_complaints", label: "credit reporting issue", args: { product: "Credit reporting or other personal consumer reports", limit: 5 } },
+  { tool: "get_consumer_complaints", label: "CA state filter", args: { state: "CA", limit: 5 } },
+
+  // ─── enforcement_actions: NEW sources (CFTC / OCC / FDIC) ─────────────
+  { tool: "get_enforcement_actions", label: "CFTC actions", args: { source: "cftc", limit: 5 } },
+  { tool: "get_enforcement_actions", label: "OCC actions", args: { source: "occ", limit: 5 } },
+  { tool: "get_enforcement_actions", label: "FDIC actions", args: { source: "fdic", limit: 5 } },
 ];
 
 interface TestResult {
