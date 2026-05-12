@@ -54,6 +54,7 @@ import {
   saveNportFilings,
   saveOtcMarketWeekly,
   savePrivatePlacements,
+  saveRegistrationStatements,
   saveRollCallVotes,
   saveTenderOffers,
   writeJobMeta,
@@ -92,6 +93,7 @@ import { scrapeFinraOtcWeek } from "../../src/scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "../../src/scrapers/form-d.js";
 import { scrapeEnforcementActions } from "../../src/scrapers/enforcement-actions.js";
 import { scrapeNportLiveFeed } from "../../src/scrapers/nport.js";
+import { scrapeRegistrationStatementsLiveFeed } from "../../src/scrapers/registration-statements.js";
 
 // ─── Common config ──────────────────────────────────────────────────────────
 
@@ -694,6 +696,41 @@ export const scrapeCongressLegislationDaily = onSchedule(
 );
 
 /**
+ * SEC registration statements (S-1, S-1/A, S-3, S-3/A). Daily 6:45 AM ET.
+ *
+ * Cadence: daily. Volume ~30-100 filings/day across all four variants.
+ * 2-day lookback for late-filed weekend submissions. Metadata-only ingest
+ * fits within 9 min Cloud Functions timeout.
+ *
+ * Aligns with the daily 6-7 AM scraper cluster.
+ */
+export const scrapeRegStatementsDaily = onSchedule(
+  {
+    schedule: "45 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[reg-stmt] starting daily refresh (2-day lookback)");
+    const filings = await scrapeRegistrationStatementsLiveFeed({
+      lookbackDays: 2,
+    });
+    logger.info(`[reg-stmt] scraper returned ${filings.length} filings`);
+    let docsWritten = 0;
+    if (filings.length > 0) {
+      const r = await saveRegistrationStatements(filings);
+      logger.info(`[reg-stmt] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("registrationStatementsSync", { started, docsWritten });
+  },
+);
+
+/**
  * SEC Form N-PORT mutual fund / ETF / closed-end fund monthly portfolio
  * reports. Daily 6:40 AM ET.
  *
@@ -904,7 +941,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.24.0";
+const SERVER_VERSION = "0.25.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

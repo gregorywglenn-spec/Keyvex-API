@@ -55,6 +55,8 @@ import type {
   OtcMarketWeeklyQuery,
   PrivatePlacement,
   PrivatePlacementsQuery,
+  RegistrationStatement,
+  RegistrationStatementsQuery,
   RollCallVote,
   RollCallVotesQuery,
   TenderOffer,
@@ -1611,6 +1613,109 @@ export async function saveForm278Filings(
   if (filings.length === 0) {
     return { saved: 0, collection: COLLECTION };
   }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = filings.slice(i, i + BATCH_SIZE);
+    for (const filing of chunk) {
+      batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Registration statements (S-1, S-3) query + save ─────────────────────
+
+export async function queryRegistrationStatements(
+  query: RegistrationStatementsQuery,
+): Promise<QueryResult<RegistrationStatement>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.filing_id) {
+    const doc = await db
+      .collection("registration_statements")
+      .doc(query.filing_id)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as RegistrationStatement], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("registration_statements");
+
+  if (query.filer_cik) {
+    q = q.where("filer_cik", "==", query.filer_cik.padStart(10, "0"));
+  }
+  if (query.filer_ticker) {
+    q = q.where("filer_ticker", "==", query.filer_ticker.toUpperCase());
+  }
+  if (query.filing_type) {
+    q = q.where("filing_type", "==", query.filing_type);
+  }
+  if (query.sec_file_number) {
+    q = q.where("sec_file_number", "==", query.sec_file_number);
+  }
+  // Optional family filters
+  if (query.exclude_amendments) {
+    q = q.where("is_amendment", "==", false);
+  }
+
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.filer_name ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as RegistrationStatement);
+
+  if (query.filer_name) {
+    const needle = query.filer_name.toLowerCase();
+    docs = docs.filter((r) =>
+      (r.filer_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  // s1_only / s3_only filters are applied client-side to avoid composite index
+  if (query.s1_only) {
+    docs = docs.filter((r) => r.filing_type.startsWith("S-1"));
+  }
+  if (query.s3_only) {
+    docs = docs.filter((r) => r.filing_type.startsWith("S-3"));
+  }
+  if (query.since) docs = docs.filter((r) => r.file_date >= query.since!);
+  if (query.until) docs = docs.filter((r) => r.file_date <= query.until!);
+
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    if (a.file_date === b.file_date) return 0;
+    const cmp = a.file_date < b.file_date ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveRegistrationStatements(
+  filings: RegistrationStatement[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "registration_statements";
+  if (filings.length === 0) return { saved: 0, collection: COLLECTION };
 
   const db = await getLiveDb();
   const collection = db.collection(COLLECTION);

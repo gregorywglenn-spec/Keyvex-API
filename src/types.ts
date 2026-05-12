@@ -1125,6 +1125,83 @@ export interface FecCommittee {
 }
 
 /**
+ * SEC registration statement (Form S-1 / S-3 family) — securities offering
+ * registration. One record per filing. Filed when a company is registering
+ * new securities for public sale.
+ *
+ * Form S-1: Initial registration. Used by:
+ *   - Companies going public (IPO)
+ *   - Companies registering new securities for the first time
+ *   - Companies that don't qualify for Form S-3
+ *
+ * Form S-3: Shelf registration (simpler / shorter). Available to companies
+ * that meet reporting-history + market-cap criteria. Lets the issuer
+ * register securities to be sold over multiple offerings ("off the
+ * shelf") without re-registering each time.
+ *
+ * Amendments use the same names with /A suffix: S-1/A, S-3/A.
+ *
+ * v1A scope: metadata only. Filer (company name + CIK + ticker when
+ * surfaced + state), file_number (the SEC-assigned registration tracking
+ * number — useful for grouping amendment chains), filing type, URLs.
+ * Substantive prospectus content lives in the primary document HTML —
+ * agents follow primary_document_url for offering size, share counts,
+ * use of proceeds, etc.
+ */
+export interface RegistrationStatement {
+  /** EDGAR accession number, primary key. */
+  filing_id: string;
+  /** "S-1" | "S-1/A" | "S-3" | "S-3/A". */
+  filing_type: string;
+  /** True when filing_type ends in /A. */
+  is_amendment: boolean;
+  /** ISO date filed. */
+  file_date: string;
+  /** Company name as filed. */
+  filer_name: string;
+  /** Filer CIK (10-digit zero-padded). */
+  filer_cik: string;
+  /** Ticker symbol if surfaced by EDGAR's display_names; often empty for IPO-stage filers. */
+  filer_ticker: string;
+  /** SEC-assigned registration file number (e.g., "333-295535"). Stable across amendments. */
+  sec_file_number: string;
+  /** Business state. */
+  filer_state: string;
+  /** State of incorporation. */
+  inc_state: string;
+  /** SIC industry codes. */
+  sic_codes: string[];
+  /** Direct URL to the primary document (typically HTML prospectus). */
+  primary_document_url: string;
+  /** Direct URL to the EDGAR filing index. */
+  filing_url: string;
+  scraped_at: string;
+}
+
+export interface RegistrationStatementsQuery {
+  filing_id?: string;
+  /** Substring against filer_name (case-insensitive). */
+  filer_name?: string;
+  filer_cik?: string;
+  /** Ticker filter (e.g., 'KPTI'). */
+  filer_ticker?: string;
+  /** Filter to exact filing_type. */
+  filing_type?: "S-1" | "S-1/A" | "S-3" | "S-3/A";
+  /** When true, only S-1 family (IPO-style). When false, only S-3 family (shelf). */
+  s1_only?: boolean;
+  s3_only?: boolean;
+  /** When true, exclude amendments. Default false. */
+  exclude_amendments?: boolean;
+  /** SEC-assigned file number for amendment-chain grouping. */
+  sec_file_number?: string;
+  /** Filing-date lower bound. */
+  since?: string;
+  until?: string;
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * SEC Form N-PORT filing — registered-investment-company monthly portfolio
  * report. One record per (fund, reporting month, filing). Filed by mutual
  * funds, ETFs, and closed-end funds within 60 days of each month-end.

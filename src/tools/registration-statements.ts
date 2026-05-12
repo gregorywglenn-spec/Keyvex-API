@@ -1,0 +1,269 @@
+/**
+ * MCP tool: get_registration_statements
+ *
+ * Returns SEC Form S-1 / S-3 registration statements — securities offering
+ * registrations. The 19th MCP tool. Pairs with: get_tender_offers
+ * (post-bid registrations), get_private_placements (transition from
+ * private to public), get_insider_transactions (insider activity around
+ * registration filings).
+ *
+ * v1A scope: metadata. Agents follow primary_document_url for offering
+ * size, share counts, use of proceeds, risk factors, etc.
+ */
+
+import type { Tool } from "@modelcontextprotocol/sdk/types.js";
+import { queryRegistrationStatements } from "../firestore.js";
+import type {
+  RegistrationStatement,
+  RegistrationStatementsQuery,
+  ResultEnvelope,
+} from "../types.js";
+
+export const definition: Tool = {
+  name: "get_registration_statements",
+  description: [
+    "Returns SEC Form S-1 / S-3 registration statements — securities",
+    "offering registrations filed with the SEC. Use this when the user",
+    "asks about: which companies are going public (IPO pipeline via S-1),",
+    "shelf registrations (S-3 — company registers securities to sell over",
+    "multiple offerings without re-registering), recent secondary",
+    "offerings, registration amendments updating prior filings, or to",
+    "bridge from a company name / ticker to the prospectus prose.",
+    "",
+    "Forms covered:",
+    "  S-1   — Initial registration (IPO + first-time registrants)",
+    "  S-1/A — Amendment to an S-1",
+    "  S-3   — Shelf registration (issuers meeting reporting / market-cap",
+    "          criteria; lets them issue securities over time without",
+    "          re-registering each time)",
+    "  S-3/A — Amendment to an S-3",
+    "",
+    "Source: SEC EDGAR full-text search. Returns one record per filing,",
+    "deduped by accession. Exhibit attachments (EX-10, opinion letters,",
+    "fee tables, etc.) are filtered out — only the canonical form types",
+    "are returned.",
+    "",
+    "v1A is metadata only. Each record has filer name + CIK + optional",
+    "ticker + SEC file_number, state, SIC code(s), and URLs. Substantive",
+    "prospectus content (offering size, share counts, use of proceeds,",
+    "risk factors, financial statements) lives at primary_document_url —",
+    "agents follow for the prose.",
+    "",
+    "Amendment chains: all amendments share the same sec_file_number as",
+    "the original. Use sec_file_number filter to fetch an entire amendment",
+    "chain.",
+    "",
+    "Pure-publisher posture: KeyVex doesn't derive 'likely-to-IPO' or",
+    "'price-target' signals from registration filings.",
+  ].join(" "),
+  inputSchema: {
+    type: "object",
+    properties: {
+      filing_id: {
+        type: "string",
+        description: "EDGAR accession number. Direct doc lookup.",
+      },
+      filer_name: {
+        type: "string",
+        description:
+          "Case-insensitive substring against the filer's entity name (e.g., 'kraneshares', 'karyopharm').",
+      },
+      filer_cik: {
+        type: "string",
+        description: "Filer's SEC CIK (1-10 digits).",
+      },
+      filer_ticker: {
+        type: "string",
+        description:
+          "Ticker symbol (e.g., 'KPTI'). Often empty for IPO-stage S-1 filers (they don't have a ticker yet).",
+      },
+      filing_type: {
+        type: "string",
+        enum: ["S-1", "S-1/A", "S-3", "S-3/A"],
+        description: "Exact filing-type match.",
+      },
+      s1_only: {
+        type: "boolean",
+        description:
+          "When true, restricts to S-1 family (S-1 + S-1/A) — the IPO / first-time pool.",
+      },
+      s3_only: {
+        type: "boolean",
+        description:
+          "When true, restricts to S-3 family (S-3 + S-3/A) — the shelf pool.",
+      },
+      exclude_amendments: {
+        type: "boolean",
+        description: "When true, drops /A amendments. Default false.",
+      },
+      sec_file_number: {
+        type: "string",
+        description:
+          "SEC-assigned registration file number ('333-XXXXXX'). Stable across amendments — use to fetch a full amendment chain.",
+      },
+      since: {
+        type: "string",
+        description: "file_date lower bound (YYYY-MM-DD inclusive).",
+      },
+      until: {
+        type: "string",
+        description: "file_date upper bound (YYYY-MM-DD inclusive).",
+      },
+      sort_order: {
+        type: "string",
+        enum: ["asc", "desc"],
+        description: "Default: desc (most recently filed first).",
+      },
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 500,
+        description: "Maximum filings to return. Default 50, max 500.",
+      },
+    },
+    additionalProperties: false,
+  },
+};
+
+export async function handler(
+  args: unknown,
+): Promise<ResultEnvelope<RegistrationStatement>> {
+  const query = validateAndNormalize(args);
+  const { results, has_more } = await queryRegistrationStatements(query);
+  return {
+    results,
+    count: results.length,
+    has_more,
+    query: query as Record<string, unknown>,
+  };
+}
+
+function validateAndNormalize(raw: unknown): RegistrationStatementsQuery {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("Arguments must be an object");
+  }
+  const args = raw as Record<string, unknown>;
+  const out: RegistrationStatementsQuery = {};
+
+  if (args.filing_id !== undefined) {
+    if (typeof args.filing_id !== "string") {
+      throw new Error("filing_id must be a string");
+    }
+    out.filing_id = args.filing_id;
+  }
+
+  if (args.filer_name !== undefined) {
+    if (typeof args.filer_name !== "string") {
+      throw new Error("filer_name must be a string");
+    }
+    out.filer_name = args.filer_name;
+  }
+
+  if (args.filer_cik !== undefined) {
+    if (
+      typeof args.filer_cik !== "string" ||
+      !/^\d{1,10}$/.test(args.filer_cik)
+    ) {
+      throw new Error(
+        `INVALID_CIK: '${String(args.filer_cik)}' — expected 1-10 digit CIK`,
+      );
+    }
+    out.filer_cik = args.filer_cik;
+  }
+
+  if (args.filer_ticker !== undefined) {
+    if (
+      typeof args.filer_ticker !== "string" ||
+      !/^[A-Za-z][A-Za-z0-9./-]{0,9}$/.test(args.filer_ticker)
+    ) {
+      throw new Error(
+        `INVALID_TICKER: '${String(args.filer_ticker)}' — expected stock ticker`,
+      );
+    }
+    out.filer_ticker = args.filer_ticker.toUpperCase();
+  }
+
+  if (args.filing_type !== undefined) {
+    if (
+      typeof args.filing_type !== "string" ||
+      !["S-1", "S-1/A", "S-3", "S-3/A"].includes(args.filing_type)
+    ) {
+      throw new Error(`INVALID filing_type: '${String(args.filing_type)}'`);
+    }
+    out.filing_type = args.filing_type as RegistrationStatementsQuery["filing_type"];
+  }
+
+  if (args.s1_only !== undefined) {
+    if (typeof args.s1_only !== "boolean") {
+      throw new Error("s1_only must be a boolean");
+    }
+    out.s1_only = args.s1_only;
+  }
+  if (args.s3_only !== undefined) {
+    if (typeof args.s3_only !== "boolean") {
+      throw new Error("s3_only must be a boolean");
+    }
+    out.s3_only = args.s3_only;
+  }
+  if (out.s1_only && out.s3_only) {
+    throw new Error("s1_only and s3_only are mutually exclusive");
+  }
+  if (args.exclude_amendments !== undefined) {
+    if (typeof args.exclude_amendments !== "boolean") {
+      throw new Error("exclude_amendments must be a boolean");
+    }
+    out.exclude_amendments = args.exclude_amendments;
+  }
+
+  if (args.sec_file_number !== undefined) {
+    if (typeof args.sec_file_number !== "string") {
+      throw new Error("sec_file_number must be a string");
+    }
+    out.sec_file_number = args.sec_file_number;
+  }
+
+  if (args.since !== undefined) {
+    if (
+      typeof args.since !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(args.since)
+    ) {
+      throw new Error(`INVALID since: '${String(args.since)}' — expected YYYY-MM-DD`);
+    }
+    out.since = args.since;
+  }
+  if (args.until !== undefined) {
+    if (
+      typeof args.until !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(args.until)
+    ) {
+      throw new Error(`INVALID until: '${String(args.until)}' — expected YYYY-MM-DD`);
+    }
+    out.until = args.until;
+  }
+
+  if (args.sort_order !== undefined) {
+    if (
+      typeof args.sort_order !== "string" ||
+      !["asc", "desc"].includes(args.sort_order)
+    ) {
+      throw new Error(`INVALID sort_order: '${String(args.sort_order)}'`);
+    }
+    out.sort_order = args.sort_order as "asc" | "desc";
+  }
+
+  if (args.limit !== undefined) {
+    if (
+      typeof args.limit !== "number" ||
+      !Number.isInteger(args.limit) ||
+      args.limit < 1 ||
+      args.limit > 500
+    ) {
+      throw new Error(
+        `INVALID limit: '${String(args.limit)}' — expected integer 1..500`,
+      );
+    }
+    out.limit = args.limit;
+  }
+
+  return out;
+}

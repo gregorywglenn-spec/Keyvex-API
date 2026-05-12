@@ -86,6 +86,7 @@ import {
   saveNportFilings,
   saveOtcMarketWeekly,
   savePrivatePlacements,
+  saveRegistrationStatements,
   saveRollCallVotes,
   saveTenderOffers,
   saveForm3Holdings,
@@ -139,6 +140,7 @@ import { scrapeFinraOtcWeek } from "./scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "./scrapers/form-d.js";
 import { scrapeEnforcementActions } from "./scrapers/enforcement-actions.js";
 import { scrapeNportLiveFeed } from "./scrapers/nport.js";
+import { scrapeRegistrationStatementsLiveFeed } from "./scrapers/registration-statements.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -790,6 +792,30 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  "reg-stmts": {
+    description:
+      "Scrape SEC registration statements (Form S-1, S-1/A, S-3, S-3/A) from EDGAR FTS. Default 2-day lookback. Optional: <days> for longer window. Add --save to write to registration_statements Firestore collection. v1A is metadata-only — agents follow primary_document_url for offering size + use of proceeds prose.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 2;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const filings = await scrapeRegistrationStatementsLiveFeed({
+        lookbackDays: days,
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${filings.length} registration statements to Firestore...`,
+        );
+        const result = await saveRegistrationStatements(filings);
+        console.error(
+          `[save] Saved ${result.saved} filings to ${result.collection}`,
+        );
+      }
+      return filings;
     },
   },
   nport: {

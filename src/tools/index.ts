@@ -22,6 +22,7 @@ import * as nportFilings from "./nport-filings.js";
 import * as otcMarketWeekly from "./otc-market-weekly.js";
 import * as plannedInsiderSales from "./planned-insider-sales.js";
 import * as privatePlacements from "./private-placements.js";
+import * as registrationStatements from "./registration-statements.js";
 import * as rollCallVotes from "./roll-call-votes.js";
 import * as tenderOffers from "./tender-offers.js";
 
@@ -49,6 +50,7 @@ export const TOOLS: ToolModule[] = [
   privatePlacements,
   enforcementActions,
   nportFilings,
+  registrationStatements,
 ];
 
 export function findTool(name: string): ToolModule | undefined {
