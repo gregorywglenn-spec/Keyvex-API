@@ -50,6 +50,7 @@ import {
   saveLegislatorsHistorical,
   saveLobbyingFilings,
   saveMaterialEvents,
+  saveEnforcementActions,
   saveOtcMarketWeekly,
   savePrivatePlacements,
   saveRollCallVotes,
@@ -88,6 +89,7 @@ import {
 } from "../../src/scrapers/congress-legislation.js";
 import { scrapeFinraOtcWeek } from "../../src/scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "../../src/scrapers/form-d.js";
+import { scrapeEnforcementActions } from "../../src/scrapers/enforcement-actions.js";
 
 // ─── Common config ──────────────────────────────────────────────────────────
 
@@ -690,6 +692,41 @@ export const scrapeCongressLegislationDaily = onSchedule(
 );
 
 /**
+ * SEC + DOJ enforcement-related press releases. Daily 6:35 AM ET.
+ *
+ * Cadence: daily. SEC RSS is a rolling ~50-item window; DOJ JSON pulls
+ * the most-recent ~200 records per run. Both refresh quickly into the
+ * unified enforcement_actions collection. Daily catches anything
+ * announced over the past 24h.
+ *
+ * No secret needed — SEC RSS and DOJ JSON are unauthenticated public
+ * endpoints. Small dataset per run (~250 records combined), fast.
+ */
+export const scrapeEnforcementDaily = onSchedule(
+  {
+    schedule: "35 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[enforcement] starting daily SEC + DOJ refresh");
+    const actions = await scrapeEnforcementActions({});
+    logger.info(`[enforcement] scraper returned ${actions.length} actions`);
+    let docsWritten = 0;
+    if (actions.length > 0) {
+      const r = await saveEnforcementActions(actions);
+      logger.info(`[enforcement] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("enforcementActionsSync", { started, docsWritten });
+  },
+);
+
+/**
  * SEC Form D private placements. Daily 6:30 AM ET.
  *
  * Cadence: daily. Form D must be filed within 15 days of first sale, so
@@ -831,7 +868,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.22.0";
+const SERVER_VERSION = "0.23.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

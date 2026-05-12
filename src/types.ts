@@ -1125,6 +1125,73 @@ export interface FecCommittee {
 }
 
 /**
+ * Enforcement action — a public press release / litigation release from
+ * the SEC or DOJ announcing charges, settlements, indictments, or other
+ * enforcement activity. Unified schema for both sources via the `source`
+ * field. Captures metadata + a short teaser/description; full prose lives
+ * at `url` for agent follow-through.
+ *
+ * Sources:
+ *   "sec" — SEC press releases RSS at sec.gov/news/pressreleases.rss
+ *           (latest ~50-item rolling window; historical archive scrape
+ *           is v1.1 polish via sec.gov/news/pressreleases.htm pages)
+ *   "doj" — DOJ press release JSON API at
+ *           justice.gov/api/v1/press_releases.json (266K+ historical
+ *           records, paginated)
+ *
+ * v1A scope: metadata + teaser only. Agents read full prose at `url`.
+ * Pure-publisher posture: no derived "severity score" or "outcome
+ * prediction" signals — just the announcement as filed.
+ */
+export interface EnforcementAction {
+  /** Composite key. SEC: "sec-{guid}" or "sec-{slug}"; DOJ: "doj-{uuid}". */
+  action_id: string;
+  /** "sec" or "doj". */
+  source: "sec" | "doj";
+  /** Title / headline of the press release. */
+  title: string;
+  /** Short summary (DOJ teaser field, or first sentence of SEC description). */
+  teaser: string;
+  /** Body / description. SEC: full description from RSS. DOJ: HTML-stripped body excerpt. */
+  description: string;
+  /** ISO date the announcement was published. */
+  published_date: string;
+  /** Public URL of the full press release. */
+  url: string;
+  /** SEC: the issuing division (when surfaced; often empty in RSS).
+   *  DOJ: the issuing component (e.g., "Criminal Division", "Office of Public Affairs"). */
+  agency_component: string;
+  /** DOJ-specific release number (e.g., "26-489"). Empty for SEC. */
+  release_number: string;
+  /** DOJ-specific topic tags. Empty for SEC. */
+  topics: string[];
+  /** When KeyVex scraped this record. */
+  scraped_at: string;
+}
+
+export interface EnforcementActionsQuery {
+  /** Direct lookup by action_id. */
+  action_id?: string;
+  /** Filter to one source. */
+  source?: "sec" | "doj";
+  /** Substring against title (case-insensitive). */
+  title?: string;
+  /** Substring against description + teaser concatenated (case-insensitive). */
+  text?: string;
+  /** Substring against agency_component (e.g., "criminal division", "fraud section"). */
+  agency_component?: string;
+  /** DOJ: array-contains match against topics. */
+  topic?: string;
+  /** Published date lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** Published date upper bound (YYYY-MM-DD inclusive). */
+  until?: string;
+  sort_by?: "published_date";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * SEC Form D — exempt private placement / Reg D offering notice.
  * One row per accession. Sourced from EDGAR FTS + per-filing
  * primary_doc.xml fetch.

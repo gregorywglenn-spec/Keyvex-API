@@ -24,6 +24,8 @@ import type {
   BillsQuery,
   CongressionalTrade,
   CongressionalTradesQuery,
+  EnforcementAction,
+  EnforcementActionsQuery,
   FecCandidate,
   FecCandidateQuery,
   FecCommittee,
@@ -1618,6 +1620,105 @@ export async function saveForm278Filings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Enforcement actions (SEC + DOJ) query + save ────────────────────────
+
+export async function queryEnforcementActions(
+  query: EnforcementActionsQuery,
+): Promise<QueryResult<EnforcementAction>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.action_id) {
+    const doc = await db
+      .collection("enforcement_actions")
+      .doc(query.action_id)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as EnforcementAction], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("enforcement_actions");
+
+  if (query.source) q = q.where("source", "==", query.source);
+  if (query.topic) q = q.where("topics", "array-contains", query.topic);
+
+  const userLimit = query.limit ?? 50;
+  const needsClient =
+    query.title || query.text || query.agency_component;
+  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as EnforcementAction);
+
+  if (query.title) {
+    const needle = query.title.toLowerCase();
+    docs = docs.filter((a) => (a.title ?? "").toLowerCase().includes(needle));
+  }
+  if (query.text) {
+    const needle = query.text.toLowerCase();
+    docs = docs.filter(
+      (a) =>
+        (a.title ?? "").toLowerCase().includes(needle) ||
+        (a.teaser ?? "").toLowerCase().includes(needle) ||
+        (a.description ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.agency_component) {
+    const needle = query.agency_component.toLowerCase();
+    docs = docs.filter((a) =>
+      (a.agency_component ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.since) docs = docs.filter((a) => a.published_date >= query.since!);
+  if (query.until) docs = docs.filter((a) => a.published_date <= query.until!);
+
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    if (a.published_date === b.published_date) return 0;
+    const cmp = a.published_date < b.published_date ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveEnforcementActions(
+  actions: EnforcementAction[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "enforcement_actions";
+  if (actions.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < actions.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = actions.slice(i, i + BATCH_SIZE);
+    for (const action of chunk) {
+      // action_id may contain hyphens but no slashes; defense-in-depth sanitize.
+      const docId = action.action_id.replace(/[/\\#?]+/g, "-").slice(0, 1500);
+      batch.set(collection.doc(docId), action, { merge: true });
     }
     await batch.commit();
     saved += chunk.length;

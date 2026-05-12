@@ -82,6 +82,7 @@ import {
   saveFederalContractAwards,
   saveForm144Filings,
   saveForm278Filings,
+  saveEnforcementActions,
   saveOtcMarketWeekly,
   savePrivatePlacements,
   saveRollCallVotes,
@@ -135,6 +136,7 @@ import {
 } from "./scrapers/congress-legislation.js";
 import { scrapeFinraOtcWeek } from "./scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "./scrapers/form-d.js";
+import { scrapeEnforcementActions } from "./scrapers/enforcement-actions.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -786,6 +788,34 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  "enforcement-actions": {
+    description:
+      "Scrape SEC press releases (RSS) + DOJ press releases (JSON API) into unified enforcement_actions collection. Optional: --doj-pages=N (default 10 = ~200 DOJ records), --skip-sec or --skip-doj. Add --save to write to Firestore. v1A is metadata + teaser only; agents follow url for full prose.",
+    run: async (args) => {
+      const dojPagesFlag = args.find((a) => a.startsWith("--doj-pages="));
+      const dojMaxPages = dojPagesFlag
+        ? parseInt(dojPagesFlag.slice("--doj-pages=".length), 10)
+        : undefined;
+      if (dojMaxPages !== undefined && (Number.isNaN(dojMaxPages) || dojMaxPages < 1)) {
+        throw new Error("--doj-pages must be a positive integer");
+      }
+      const actions = await scrapeEnforcementActions({
+        ...(dojMaxPages !== undefined && { dojMaxPages }),
+        skipSec: args.includes("--skip-sec"),
+        skipDoj: args.includes("--skip-doj"),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${actions.length} enforcement actions to Firestore...`,
+        );
+        const result = await saveEnforcementActions(actions);
+        console.error(
+          `[save] Saved ${result.saved} actions to ${result.collection}`,
+        );
+      }
+      return actions;
     },
   },
   "form-d": {

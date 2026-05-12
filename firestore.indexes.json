@@ -482,6 +482,22 @@
         { "fieldPath": "is_amendment", "order": "ASCENDING" },
         { "fieldPath": "file_date", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "enforcement_actions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "published_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "enforcement_actions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "topics", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "published_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

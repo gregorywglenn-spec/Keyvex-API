@@ -10,6 +10,7 @@ import * as activistStakes from "./activist-stakes.js";
 import * as annualFinancialDisclosures from "./annual-financial-disclosures.js";
 import * as bills from "./bills.js";
 import * as congressionalTrades from "./congressional-trades.js";
+import * as enforcementActions from "./enforcement-actions.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
 import * as federalContracts from "./federal-contracts.js";
 import * as insiderTransactions from "./insider-transactions.js";
@@ -45,6 +46,7 @@ export const TOOLS: ToolModule[] = [
   rollCallVotes,
   otcMarketWeekly,
   privatePlacements,
+  enforcementActions,
 ];
 
 export function findTool(name: string): ToolModule | undefined {
