@@ -51,6 +51,7 @@ import {
   saveLobbyingFilings,
   saveMaterialEvents,
   saveEnforcementActions,
+  saveNportFilings,
   saveOtcMarketWeekly,
   savePrivatePlacements,
   saveRollCallVotes,
@@ -90,6 +91,7 @@ import {
 import { scrapeFinraOtcWeek } from "../../src/scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "../../src/scrapers/form-d.js";
 import { scrapeEnforcementActions } from "../../src/scrapers/enforcement-actions.js";
+import { scrapeNportLiveFeed } from "../../src/scrapers/nport.js";
 
 // ─── Common config ──────────────────────────────────────────────────────────
 
@@ -692,6 +694,40 @@ export const scrapeCongressLegislationDaily = onSchedule(
 );
 
 /**
+ * SEC Form N-PORT mutual fund / ETF / closed-end fund monthly portfolio
+ * reports. Daily 6:40 AM ET.
+ *
+ * Cadence: daily. Volume ~20-50 filings/day across all registered
+ * investment companies. 2-day lookback catches anything filed late or
+ * over weekends. Metadata-only ingest fits within 9 min comfortably.
+ *
+ * Aligns with the existing daily 6-7 AM scraper cluster.
+ */
+export const scrapeNportDaily = onSchedule(
+  {
+    schedule: "40 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[nport] starting daily refresh (2-day lookback)");
+    const filings = await scrapeNportLiveFeed({ lookbackDays: 2 });
+    logger.info(`[nport] scraper returned ${filings.length} filings`);
+    let docsWritten = 0;
+    if (filings.length > 0) {
+      const r = await saveNportFilings(filings);
+      logger.info(`[nport] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("nportFilingsSync", { started, docsWritten });
+  },
+);
+
+/**
  * SEC + DOJ enforcement-related press releases. Daily 6:35 AM ET.
  *
  * Cadence: daily. SEC RSS is a rolling ~50-item window; DOJ JSON pulls
@@ -868,7 +904,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.23.0";
+const SERVER_VERSION = "0.24.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

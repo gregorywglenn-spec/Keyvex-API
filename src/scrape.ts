@@ -83,6 +83,7 @@ import {
   saveForm144Filings,
   saveForm278Filings,
   saveEnforcementActions,
+  saveNportFilings,
   saveOtcMarketWeekly,
   savePrivatePlacements,
   saveRollCallVotes,
@@ -137,6 +138,7 @@ import {
 import { scrapeFinraOtcWeek } from "./scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "./scrapers/form-d.js";
 import { scrapeEnforcementActions } from "./scrapers/enforcement-actions.js";
+import { scrapeNportLiveFeed } from "./scrapers/nport.js";
 import {
   listTrackedFunds,
   scrape13FByFund,
@@ -788,6 +790,28 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  nport: {
+    description:
+      "Scrape SEC Form N-PORT (mutual fund / ETF / closed-end fund monthly portfolio reports) from EDGAR FTS. Default: last 2 days. Optional: <days> positional for longer lookback. Add --save to write to nport_filings Firestore collection. v1A is metadata-only — per-holding portfolio detail lives at primary_document_url (XML extraction is v1.1).",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 2;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const filings = await scrapeNportLiveFeed({ lookbackDays: days });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${filings.length} N-PORT filings to Firestore...`,
+        );
+        const result = await saveNportFilings(filings);
+        console.error(
+          `[save] Saved ${result.saved} filings to ${result.collection}`,
+        );
+      }
+      return filings;
     },
   },
   "enforcement-actions": {

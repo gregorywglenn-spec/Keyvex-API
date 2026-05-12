@@ -18,6 +18,7 @@ import * as institutionalHoldings from "./institutional-holdings.js";
 import * as lobbyingFilings from "./lobbying-filings.js";
 import * as materialEvents from "./material-events.js";
 import * as memberProfile from "./member-profile.js";
+import * as nportFilings from "./nport-filings.js";
 import * as otcMarketWeekly from "./otc-market-weekly.js";
 import * as plannedInsiderSales from "./planned-insider-sales.js";
 import * as privatePlacements from "./private-placements.js";
@@ -47,6 +48,7 @@ export const TOOLS: ToolModule[] = [
   otcMarketWeekly,
   privatePlacements,
   enforcementActions,
+  nportFilings,
 ];
 
 export function findTool(name: string): ToolModule | undefined {

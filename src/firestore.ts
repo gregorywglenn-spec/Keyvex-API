@@ -49,6 +49,8 @@ import type {
   LobbyingFilingsQuery,
   MaterialEvent,
   MaterialEventsQuery,
+  NportFiling,
+  NportFilingsQuery,
   OtcMarketWeekly,
   OtcMarketWeeklyQuery,
   PrivatePlacement,
@@ -1609,6 +1611,101 @@ export async function saveForm278Filings(
   if (filings.length === 0) {
     return { saved: 0, collection: COLLECTION };
   }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = filings.slice(i, i + BATCH_SIZE);
+    for (const filing of chunk) {
+      batch.set(collection.doc(filing.filing_id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── N-PORT (mutual fund holdings) query + save ──────────────────────────
+
+export async function queryNportFilings(
+  query: NportFilingsQuery,
+): Promise<QueryResult<NportFiling>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.filing_id) {
+    const doc = await db
+      .collection("nport_filings")
+      .doc(query.filing_id)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as NportFiling], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("nport_filings");
+
+  if (query.filer_cik) {
+    q = q.where("filer_cik", "==", query.filer_cik.padStart(10, "0"));
+  }
+  if (query.period_ending) {
+    q = q.where("period_ending", "==", query.period_ending);
+  }
+  if (query.sec_file_number) {
+    q = q.where("sec_file_number", "==", query.sec_file_number);
+  }
+  if (query.is_amendment !== undefined) {
+    q = q.where("is_amendment", "==", query.is_amendment);
+  }
+
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.filer_name ? 2000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as NportFiling);
+
+  if (query.filer_name) {
+    const needle = query.filer_name.toLowerCase();
+    docs = docs.filter((f) =>
+      (f.filer_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.since) docs = docs.filter((f) => f.file_date >= query.since!);
+  if (query.until) docs = docs.filter((f) => f.file_date <= query.until!);
+
+  const sortField = query.sort_by ?? "file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, string>)[sortField] ?? "";
+    const bv = (b as unknown as Record<string, string>)[sortField] ?? "";
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveNportFilings(
+  filings: NportFiling[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "nport_filings";
+  if (filings.length === 0) return { saved: 0, collection: COLLECTION };
 
   const db = await getLiveDb();
   const collection = db.collection(COLLECTION);

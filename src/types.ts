@@ -1125,6 +1125,71 @@ export interface FecCommittee {
 }
 
 /**
+ * SEC Form N-PORT filing — registered-investment-company monthly portfolio
+ * report. One record per (fund, reporting month, filing). Filed by mutual
+ * funds, ETFs, and closed-end funds within 60 days of each month-end.
+ *
+ * Pairs with `get_institutional_holdings` (13F): 13F is quarterly + tied
+ * to institutional investment managers; N-PORT is monthly + tied to the
+ * fund's own portfolio. Together they give fresher snapshots of who-owns-
+ * what across two complementary universes.
+ *
+ * v1A scope: metadata only — filer (fund trust name + CIK), reporting
+ * period, filing type, file number, URLs. Per-holding portfolio detail
+ * lives at primary_document_url; agents follow for security-level views.
+ * Full holdings extraction is v1.1 polish (XML schema is rich but heavy —
+ * a single S&P 500 ETF's NPORT can have 500+ holdings).
+ */
+export interface NportFiling {
+  /** EDGAR accession number, primary key. */
+  filing_id: string;
+  /** Form variant: "NPORT-P" (filed) or "NPORT-P/A" (amendment). */
+  filing_type: string;
+  /** True when filing_type ends in /A. */
+  is_amendment: boolean;
+  /** ISO date the filing was submitted to EDGAR. */
+  file_date: string;
+  /** Period ending — the month-end the report covers (ISO YYYY-MM-DD). */
+  period_ending: string;
+  /** Fund trust name (e.g., "WisdomTree Trust"). */
+  filer_name: string;
+  /** Filer CIK (10-digit zero-padded). */
+  filer_cik: string;
+  /** SEC Investment Company file number (e.g., "811-21864"). */
+  sec_file_number: string;
+  /** Business location (state). */
+  filer_state: string;
+  /** State of incorporation. */
+  inc_state: string;
+  /** Direct URL to the primary_doc.xml (full portfolio holdings). */
+  primary_document_url: string;
+  /** Direct URL to the EDGAR filing index. */
+  filing_url: string;
+  /** When KeyVex scraped this record. */
+  scraped_at: string;
+}
+
+export interface NportFilingsQuery {
+  filing_id?: string;
+  filer_cik?: string;
+  /** Case-insensitive substring against filer_name (fund trust name). */
+  filer_name?: string;
+  /** Filter to a specific reporting period (YYYY-MM-DD). */
+  period_ending?: string;
+  /** SEC investment company file number (e.g., "811-21864"). */
+  sec_file_number?: string;
+  /** When set, restricts to NPORT-P/A amendments (true) or original NPORT-P (false). */
+  is_amendment?: boolean;
+  /** file_date lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** file_date upper bound. */
+  until?: string;
+  sort_by?: "file_date" | "period_ending";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * Enforcement action — a public press release / litigation release from
  * the SEC or DOJ announcing charges, settlements, indictments, or other
  * enforcement activity. Unified schema for both sources via the `source`

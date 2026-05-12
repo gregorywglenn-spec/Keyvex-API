@@ -498,6 +498,30 @@
         { "fieldPath": "topics", "arrayConfig": "CONTAINS" },
         { "fieldPath": "published_date", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "nport_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filer_cik", "order": "ASCENDING" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "period_ending", "order": "ASCENDING" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sec_file_number", "order": "ASCENDING" },
+        { "fieldPath": "file_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
