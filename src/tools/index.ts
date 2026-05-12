@@ -28,6 +28,7 @@ import * as proxyFilings from "./proxy-filings.js";
 import * as registrationStatements from "./registration-statements.js";
 import * as rollCallVotes from "./roll-call-votes.js";
 import * as tenderOffers from "./tender-offers.js";
+import * as treasuryAuctions from "./treasury-auctions.js";
 import * as unifiedSearch from "./unified-search.js";
 
 export interface ToolModule {
@@ -58,6 +59,7 @@ export const TOOLS: ToolModule[] = [
   ofacSdn,
   federalRegister,
   proxyFilings,
+  treasuryAuctions,
   unifiedSearch,
 ];
 

@@ -722,6 +722,30 @@
         { "fieldPath": "is_merger_related", "order": "ASCENDING" },
         { "fieldPath": "filing_date", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "security_type", "order": "ASCENDING" },
+        { "fieldPath": "auction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cusip", "order": "ASCENDING" },
+        { "fieldPath": "auction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reopening", "order": "ASCENDING" },
+        { "fieldPath": "auction_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

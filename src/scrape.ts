@@ -99,6 +99,7 @@ import {
   saveLobbyingFilings,
   saveMaterialEvents,
   saveProxyFilings,
+  saveTreasuryAuctions,
 } from "./firestore.js";
 import {
   scrapeBioguideCatalog,
@@ -109,6 +110,7 @@ import {
   scrapeProxyByTicker,
   scrapeProxyLiveFeed,
 } from "./scrapers/proxy.js";
+import { scrapeTreasuryAuctions } from "./scrapers/treasury-auctions.js";
 import {
   scrapeLobbyingByClient,
   scrapeLobbyingByPeriod,
@@ -324,6 +326,31 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return filings;
+    },
+  },
+  "treasury-auctions": {
+    description:
+      "Scrape Treasury auction records for the last N days (default 30; add --save to write to Firestore). Captures Bills / Notes / Bonds / TIPS / FRNs with announcement metadata + post-auction results (bid-to-cover, yields, bidder breakdowns, SOMA allocation).",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 30;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      const sinceDate = since.toISOString().split("T")[0]!;
+      const auctions = await scrapeTreasuryAuctions({ sinceDate });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${auctions.length} treasury auctions to Firestore...`,
+        );
+        const result = await saveTreasuryAuctions(auctions);
+        console.error(
+          `[save] Saved ${result.saved} auctions to ${result.collection}`,
+        );
+      }
+      return auctions;
     },
   },
   "lobbying-registrant": {

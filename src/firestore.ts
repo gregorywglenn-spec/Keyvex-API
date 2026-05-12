@@ -61,6 +61,8 @@ import type {
   PrivatePlacementsQuery,
   ProxyFiling,
   ProxyFilingsQuery,
+  TreasuryAuction,
+  TreasuryAuctionsQuery,
   RegistrationStatement,
   RegistrationStatementsQuery,
   RollCallVote,
@@ -1518,6 +1520,82 @@ export async function saveProxyFilings(
     const chunk = filings.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.id), filing, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Treasury Auctions query + save ────────────────────────────────────────
+
+export async function queryTreasuryAuctions(
+  query: TreasuryAuctionsQuery,
+): Promise<QueryResult<TreasuryAuction>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("treasury_auctions");
+
+  if (query.cusip) q = q.where("cusip", "==", query.cusip);
+  if (query.security_type) {
+    q = q.where("security_type", "==", query.security_type);
+  }
+  if (query.reopening !== undefined) {
+    q = q.where("reopening", "==", query.reopening);
+  }
+  if (query.min_offering_amount !== undefined) {
+    q = q.where("offering_amount", ">=", query.min_offering_amount);
+  }
+  if (query.min_bid_to_cover !== undefined) {
+    q = q.where("bid_to_cover_ratio", ">=", query.min_bid_to_cover);
+  }
+
+  const sortField = query.sort_by ?? "auction_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  q = q.limit(userLimit + 1);
+
+  const snap = await q.get();
+  const docs = snap.docs.map((d) => d.data() as TreasuryAuction);
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveTreasuryAuctions(
+  auctions: TreasuryAuction[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "treasury_auctions";
+  if (auctions.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < auctions.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = auctions.slice(i, i + BATCH_SIZE);
+    for (const auction of chunk) {
+      batch.set(collection.doc(auction.id), auction, { merge: true });
     }
     await batch.commit();
     saved += chunk.length;

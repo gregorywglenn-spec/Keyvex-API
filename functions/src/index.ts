@@ -58,6 +58,7 @@ import {
   savePrivatePlacements,
   saveProxyFilings,
   saveRegistrationStatements,
+  saveTreasuryAuctions,
   saveRollCallVotes,
   saveTenderOffers,
   writeJobMeta,
@@ -76,6 +77,7 @@ import {
 import { scrape13FLiveFeed } from "../../src/scrapers/13f.js";
 import { scrape8kLiveFeed } from "../../src/scrapers/form8k.js";
 import { scrapeProxyLiveFeed } from "../../src/scrapers/proxy.js";
+import { scrapeTreasuryAuctions } from "../../src/scrapers/treasury-auctions.js";
 import { scrapeForm144LiveFeed } from "../../src/scrapers/form144.js";
 import { scrapeForm3LiveFeed } from "../../src/scrapers/form3.js";
 import { scrapeForm4LiveFeed } from "../../src/scrapers/form4.js";
@@ -164,6 +166,43 @@ export const scrapeProxyDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("proxyFilingsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * Treasury Auctions. Bills/Notes/Bonds/TIPS/FRN auction records.
+ * Fires daily at 7:30 AM ET. 14-day lookback. Two-stage records
+ * (announcement → results) overwrite cleanly via idempotent saves on
+ * cusip+auction_date.
+ */
+export const scrapeTreasuryAuctionsDaily = onSchedule(
+  {
+    schedule: "30 7 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[treasury-auctions-daily] starting (14-day lookback)");
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const sinceDate = since.toISOString().split("T")[0]!;
+    const auctions = await scrapeTreasuryAuctions({ sinceDate });
+    logger.info(
+      `[treasury-auctions-daily] scraper returned ${auctions.length} auctions`,
+    );
+    let docsWritten = 0;
+    if (auctions.length > 0) {
+      const r = await saveTreasuryAuctions(auctions);
+      logger.info(
+        `[treasury-auctions-daily] saved ${r.saved} auctions to ${r.collection}`,
+      );
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("treasuryAuctionsSync", { started, docsWritten });
   },
 );
 
@@ -1044,7 +1083,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.29.0";
+const SERVER_VERSION = "0.30.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

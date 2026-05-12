@@ -1988,6 +1988,87 @@ export interface ProxyFilingsQuery {
   limit?: number;
 }
 
+// ─── Treasury Auctions (api.fiscaldata.treasury.gov) ──────────────────────
+
+/**
+ * One Treasury security auction — Bills (≤1yr), Notes (2-10yr), Bonds (20-30yr),
+ * TIPS (inflation-protected), or FRN (floating-rate notes). Pulled from
+ * api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query.
+ *
+ * Key demand signal: bid_to_cover_ratio (tendered / accepted). Numbers above
+ * 2.5 typically signal strong demand; below 2.0 weak. SOMA holdings show
+ * the Federal Reserve's System Open Market Account allocation — a directly
+ * observable measure of QE/QT activity on each issue.
+ *
+ * Pre-auction records exist (announcement-only — yields/ratios still null).
+ * Post-auction the same record is updated with results. Idempotent saves
+ * keyed by CUSIP + auction_date handle the two-stage lifecycle cleanly.
+ */
+export interface TreasuryAuction {
+  id: string;
+  cusip: string;
+  security_type: string;
+  security_term: string;
+  auction_date: string;
+  issue_date: string;
+  maturity_date: string;
+  announcement_date: string;
+  offering_amount: number;
+  total_tendered: number | null;
+  total_accepted: number | null;
+  bid_to_cover_ratio: number | null;
+  high_yield: number | null;
+  low_yield: number | null;
+  average_yield: number | null;
+  high_discount_rate: number | null;
+  low_discount_rate: number | null;
+  average_discount_rate: number | null;
+  high_investment_rate: number | null;
+  low_investment_rate: number | null;
+  average_investment_rate: number | null;
+  high_price: number | null;
+  low_price: number | null;
+  average_price: number | null;
+  competitive_tendered: number | null;
+  competitive_accepted: number | null;
+  noncompetitive_accepted: number | null;
+  primary_dealer_tendered: number | null;
+  primary_dealer_accepted: number | null;
+  direct_bidder_tendered: number | null;
+  direct_bidder_accepted: number | null;
+  indirect_bidder_tendered: number | null;
+  indirect_bidder_accepted: number | null;
+  soma_tendered: number | null;
+  soma_accepted: number | null;
+  soma_holdings: number | null;
+  soma_included: boolean;
+  fima_included: boolean;
+  treas_retail_accepted: number | null;
+  reopening: boolean;
+  callable: boolean;
+  inflation_indexed: boolean;
+  auction_format: string;
+  interest_rate: number | null;
+  pdf_announcement_url: string | null;
+  pdf_competitive_results_url: string | null;
+  pdf_noncompetitive_results_url: string | null;
+  treasury_source_url: string;
+  scraped_at: string;
+}
+
+export interface TreasuryAuctionsQuery {
+  cusip?: string;
+  security_type?: string;
+  since?: string;
+  until?: string;
+  min_offering_amount?: number;
+  min_bid_to_cover?: number;
+  reopening?: boolean;
+  sort_by?: "auction_date" | "issue_date" | "maturity_date" | "offering_amount" | "bid_to_cover_ratio";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
 // ─── Unified search ────────────────────────────────────────────────────────
 
 /**
