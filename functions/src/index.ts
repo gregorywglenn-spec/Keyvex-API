@@ -62,6 +62,7 @@ import {
   saveProxyFilings,
   saveRegistrationStatements,
   saveTreasuryAuctions,
+  saveXbrlFundamentals,
   saveRollCallVotes,
   saveTenderOffers,
   writeJobMeta,
@@ -84,6 +85,7 @@ import { scrapeTreasuryAuctions } from "../../src/scrapers/treasury-auctions.js"
 import { scrapeBlsIndicators } from "../../src/scrapers/bls.js";
 import { scrapeOigExclusions } from "../../src/scrapers/oig-exclusions.js";
 import { scrapeCfpbComplaints } from "../../src/scrapers/cfpb-complaints.js";
+import { scrapeXbrlForTickers } from "../../src/scrapers/xbrl.js";
 import { scrapeForm144LiveFeed } from "../../src/scrapers/form144.js";
 import { scrapeForm3LiveFeed } from "../../src/scrapers/form3.js";
 import { scrapeForm4LiveFeed } from "../../src/scrapers/form4.js";
@@ -299,6 +301,52 @@ export const scrapeCfpbDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("consumerComplaintsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * XBRL Fundamentals — weekly refresh of a curated ticker universe.
+ *
+ * Fires Sundays at 4 AM ET. Each company-facts call returns 1500-3000
+ * observations, and SEC EDGAR allows ~6 req/sec, so 500 companies takes
+ * ~15 minutes. Memory bumped to 1 GiB; timeout 30 min for headroom.
+ *
+ * v1A universe: top 20 tickers (smoke set). Full S&P 500 / Russell 1000
+ * backfill is a v1.1 enhancement that requires importing the ticker list
+ * as a Firestore catalog or hardcoded array. For now this serves as the
+ * scheduled-refresh skeleton that can be expanded once the universe is
+ * defined.
+ */
+const XBRL_V1A_UNIVERSE = [
+  // Top 20 most-traded US stocks. Expand to S&P 500 in v1.1.
+  "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK.B",
+  "JPM", "V", "JNJ", "WMT", "UNH", "MA", "PG", "XOM", "HD", "BAC",
+  "LMT", "WFC",
+];
+
+export const scrapeXbrlWeekly = onSchedule(
+  {
+    schedule: "0 4 * * 0",
+    region: REGION,
+    timeZone: TZ,
+    memory: "1GiB",
+    timeoutSeconds: 1800,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info(
+      `[xbrl-weekly] starting refresh for ${XBRL_V1A_UNIVERSE.length} tickers`,
+    );
+    const records = await scrapeXbrlForTickers(XBRL_V1A_UNIVERSE);
+    logger.info(`[xbrl-weekly] scraper returned ${records.length} observations`);
+    let docsWritten = 0;
+    if (records.length > 0) {
+      const r = await saveXbrlFundamentals(records);
+      logger.info(`[xbrl-weekly] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("xbrlFundamentalsSync", { started, docsWritten });
   },
 );
 
@@ -1179,7 +1227,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.36.0";
+const SERVER_VERSION = "0.37.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

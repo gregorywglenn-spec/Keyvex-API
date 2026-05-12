@@ -16,6 +16,7 @@ import * as enforcementActions from "./enforcement-actions.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
 import * as federalRegister from "./federal-register.js";
 import * as federalContracts from "./federal-contracts.js";
+import * as fundamentals from "./fundamentals.js";
 import * as insiderTransactions from "./insider-transactions.js";
 import * as institutionalHoldings from "./institutional-holdings.js";
 import * as lobbyingFilings from "./lobbying-filings.js";
@@ -66,6 +67,7 @@ export const TOOLS: ToolModule[] = [
   economicIndicators,
   oigExclusions,
   consumerComplaints,
+  fundamentals,
   unifiedSearch,
 ];
 

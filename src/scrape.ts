@@ -103,6 +103,7 @@ import {
   saveOigExclusions,
   saveProxyFilings,
   saveTreasuryAuctions,
+  saveXbrlFundamentals,
 } from "./firestore.js";
 import {
   scrapeBioguideCatalog,
@@ -117,6 +118,10 @@ import { scrapeTreasuryAuctions } from "./scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "./scrapers/bls.js";
 import { scrapeOigExclusions } from "./scrapers/oig-exclusions.js";
 import { scrapeCfpbComplaints } from "./scrapers/cfpb-complaints.js";
+import {
+  scrapeXbrlByTicker,
+  scrapeXbrlForTickers,
+} from "./scrapers/xbrl.js";
 import {
   scrapeLobbyingByClient,
   scrapeLobbyingByPeriod,
@@ -408,6 +413,51 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return complaints;
+    },
+  },
+  xbrl: {
+    description:
+      "Scrape XBRL fundamentals for one ticker (full history across the 40-concept watchlist). Usage: tsx src/scrape.ts xbrl <TICKER> [--save].",
+    run: async (args) => {
+      const ticker = args.find((a) => !a.startsWith("--"));
+      if (!ticker) {
+        throw new Error("Usage: tsx src/scrape.ts xbrl <TICKER> [--save]");
+      }
+      const records = await scrapeXbrlByTicker(ticker);
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${records.length} XBRL observations to Firestore...`,
+        );
+        const result = await saveXbrlFundamentals(records);
+        console.error(
+          `[save] Saved ${result.saved} observations to ${result.collection}`,
+        );
+      }
+      return records;
+    },
+  },
+  "xbrl-batch": {
+    description:
+      "Scrape XBRL fundamentals for a comma-separated list of tickers (e.g. AAPL,MSFT,GOOGL). Add --save to write to Firestore. Used for incremental backfills; full S&P 500 takes ~10-15 min.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      if (!positional) {
+        throw new Error(
+          "Usage: tsx src/scrape.ts xbrl-batch <TICKER1,TICKER2,...> [--save]",
+        );
+      }
+      const tickers = positional.split(",").map((t) => t.trim()).filter(Boolean);
+      const records = await scrapeXbrlForTickers(tickers);
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${records.length} XBRL observations to Firestore...`,
+        );
+        const result = await saveXbrlFundamentals(records);
+        console.error(
+          `[save] Saved ${result.saved} observations to ${result.collection}`,
+        );
+      }
+      return records;
     },
   },
   "lobbying-registrant": {

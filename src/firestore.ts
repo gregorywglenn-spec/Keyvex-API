@@ -69,6 +69,8 @@ import type {
   ProxyFilingsQuery,
   TreasuryAuction,
   TreasuryAuctionsQuery,
+  XbrlFundamental,
+  XbrlFundamentalsQuery,
   RegistrationStatement,
   RegistrationStatementsQuery,
   RollCallVote,
@@ -1531,6 +1533,95 @@ export async function saveProxyFilings(
     saved += chunk.length;
   }
 
+  return { saved, collection: COLLECTION };
+}
+
+// ─── XBRL Fundamentals query + save ────────────────────────────────────────
+
+export async function queryXbrlFundamentals(
+  query: XbrlFundamentalsQuery,
+): Promise<QueryResult<XbrlFundamental>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("xbrl_fundamentals");
+
+  if (query.ticker) q = q.where("ticker", "==", query.ticker.toUpperCase());
+  if (query.company_cik) {
+    q = q.where("company_cik", "==", query.company_cik.padStart(10, "0"));
+  }
+  if (query.concept) q = q.where("concept", "==", query.concept);
+  if (query.category) q = q.where("category", "==", query.category);
+  if (query.fiscal_year !== undefined) {
+    q = q.where("fiscal_year", "==", query.fiscal_year);
+  }
+  if (query.fiscal_period) {
+    q = q.where("fiscal_period", "==", query.fiscal_period);
+  }
+  if (query.form) q = q.where("form", "==", query.form);
+
+  const sortField = query.sort_by ?? "period_end";
+  const sortOrder = query.sort_order ?? "desc";
+
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  // latest_only is a post-fetch dedup; pull wider window when set.
+  const fetchLimit = query.latest_only ? 2000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as XbrlFundamental);
+
+  if (query.latest_only) {
+    // One record per (ticker, concept). Keep the one with the latest period_end.
+    const latest = new Map<string, XbrlFundamental>();
+    for (const d of docs) {
+      const key = `${d.ticker}|${d.concept}`;
+      const existing = latest.get(key);
+      if (!existing || d.period_end > existing.period_end) {
+        latest.set(key, d);
+      }
+    }
+    docs = Array.from(latest.values()).sort((a, b) =>
+      b.period_end.localeCompare(a.period_end),
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveXbrlFundamentals(
+  records: XbrlFundamental[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "xbrl_fundamentals";
+  if (records.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = records.slice(i, i + BATCH_SIZE);
+    for (const r of chunk) {
+      batch.set(collection.doc(r.id), r, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
   return { saved, collection: COLLECTION };
 }
 

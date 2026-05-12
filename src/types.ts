@@ -1992,6 +1992,82 @@ export interface ProxyFilingsQuery {
   limit?: number;
 }
 
+// ─── XBRL Fundamentals (SEC EDGAR companyfacts) ───────────────────────────
+
+/**
+ * One observation of one XBRL-tagged financial concept for one company at
+ * one period end. Pulled from SEC EDGAR's company-facts API
+ * (data.sec.gov/api/xbrl/companyfacts/CIK<id>.json).
+ *
+ * Each 10-K and 10-Q filing tags its line items with concepts from the
+ * US GAAP taxonomy. KeyVex captures a curated subset (~40 concepts) that
+ * map to a standard income statement / balance sheet / cash flow set.
+ *
+ * Pairs naturally with get_material_events (8-K announcements about
+ * specific line items), get_proxy_filings (exec comp tied to financial
+ * performance), and get_insider_transactions (insiders trading ahead of
+ * a quarterly print).
+ *
+ * v1A scope: curated concepts only, S&P 500 + Russell 1000 universe.
+ * Full XBRL coverage (every concept, every public company) is v1.1.
+ *
+ * Pure-publisher posture: we surface the values as filed. We do NOT
+ * compute derived ratios (P/E, ROE, etc.) or trend metrics — agents
+ * compute those on top.
+ */
+export interface XbrlFundamental {
+  /** Composite key: "{cik}-{concept}-{period_end}-{form}". */
+  id: string;
+  ticker: string;
+  company_name: string;
+  company_cik: string;
+  /** Taxonomy: "us-gaap" (financial) or "dei" (document/entity info). */
+  concept_taxonomy: string;
+  /** XBRL tag name (e.g., "Revenues", "NetIncomeLoss", "Assets"). */
+  concept: string;
+  /** Human-readable label from the XBRL taxonomy. */
+  concept_label: string;
+  /** KeyVex bucket: income_statement | balance_sheet | cash_flow | metrics | entity. */
+  category: string;
+  /** ISO YYYY-MM-DD. Period end (always populated). */
+  period_end: string;
+  /** ISO YYYY-MM-DD. Period start (income statement + cash flow concepts; null for point-in-time balance sheet). */
+  period_start: string | null;
+  fiscal_year: number;
+  /** "Q1" | "Q2" | "Q3" | "Q4" | "FY". */
+  fiscal_period: string;
+  /** "10-K" | "10-Q" | "10-K/A" | "10-Q/A". */
+  form: string;
+  filed_date: string;
+  accession_number: string;
+  /** Numeric value as reported. */
+  value: number;
+  /** Unit string: "USD" | "shares" | "USD/shares" | "pure" | "percent" | etc. */
+  unit: string;
+  /** Optional reporting frame (e.g., "CY2024Q3", "CY2024"). Used for cross-company comparison. */
+  frame: string;
+  /** Public EDGAR filing URL. */
+  sec_source_url: string;
+  scraped_at: string;
+}
+
+export interface XbrlFundamentalsQuery {
+  ticker?: string;
+  company_cik?: string;
+  concept?: string;
+  category?: string;
+  fiscal_year?: number;
+  fiscal_period?: string;
+  form?: string;
+  since?: string;
+  until?: string;
+  /** When true, return only the most-recent observation per (ticker, concept). */
+  latest_only?: boolean;
+  sort_by?: "period_end" | "filed_date" | "value";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
 // ─── CFPB Consumer Complaints ──────────────────────────────────────────────
 
 /**

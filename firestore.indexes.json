@@ -874,6 +874,93 @@
         { "fieldPath": "timely_response", "order": "ASCENDING" },
         { "fieldPath": "date_received", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "company_cik", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "concept", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "concept", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "form", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "concept", "order": "ASCENDING" },
+        { "fieldPath": "form", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "fiscal_year", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "fiscal_period", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
