@@ -157,6 +157,15 @@ const TESTS: TestCase[] = [
   // Pick a topic likely to appear in a 1-week Federal Register window.
   // "Notice" appears in many titles; safer than topic-specific terms.
   { tool: "get_federal_register_documents", label: "text 'notice'", args: { text: "notice", limit: 5 } },
+
+  // ─── 22. unified_search (cross-collection fan-out) ─────────────────────
+  // Different envelope shape (results_by_source), so we read total_count
+  // from the envelope post-handler in runOne. The tool isn't a list
+  // returning ResultEnvelope<T>; it's a federated multi-source response.
+  { tool: "unified_search", label: "ticker=LMT fan-out", args: { ticker: "LMT", per_source_limit: 2 } },
+  { tool: "unified_search", label: "company_cik=Apple fan-out", args: { company_cik: "0000320193", per_source_limit: 2 } },
+  { tool: "unified_search", label: "bioguide=Collins fan-out", args: { bioguide_id: KNOWN_IDS.bioguide, per_source_limit: 3 } },
+  { tool: "unified_search", label: "ticker+sources whitelist", args: { ticker: "NVDA", sources: ["insider_trades", "material_events", "congressional_trades"], per_source_limit: 2 } },
 ];
 
 interface TestResult {
@@ -184,17 +193,41 @@ async function runOne(t: TestCase): Promise<TestResult> {
   }
   const startedAt = Date.now();
   try {
-    const result = (await mod.handler(t.args)) as ResultEnvelope<unknown>;
+    const raw = (await mod.handler(t.args)) as
+      | ResultEnvelope<unknown>
+      | { total_count: number; sources_with_results: string[]; results_by_source: Record<string, unknown> }
+      | { result: unknown | null };
     const elapsed = Date.now() - startedAt;
+
+    // Tools return one of three shapes — list (ResultEnvelope), single
+    // (SingleResultEnvelope), or unified_search (fan-out envelope). Read
+    // count + has_more uniformly across all three.
+    let count: number;
+    let hasMore = false;
+    if ("total_count" in raw) {
+      // unified_search envelope: count = sum across sources, has_more = any
+      // source reports has_more.
+      count = raw.total_count;
+      hasMore = Object.values(raw.results_by_source).some(
+        (b) => typeof b === "object" && b !== null && "has_more" in b && (b as { has_more: boolean }).has_more,
+      );
+    } else if ("results" in raw) {
+      count = (raw as ResultEnvelope<unknown>).count;
+      hasMore = (raw as ResultEnvelope<unknown>).has_more;
+    } else {
+      // SingleResultEnvelope: count is 1 if result != null else 0.
+      count = (raw as { result: unknown | null }).result === null ? 0 : 1;
+    }
+
     let status: TestResult["status"] = "PASS";
-    if (result.count === 0 && !t.allowEmpty) status = "EMPTY";
+    if (count === 0 && !t.allowEmpty) status = "EMPTY";
     if (elapsed > 5000) status = "SLOW";
     return {
       tool: t.tool,
       label: t.label,
       status,
-      count: result.count,
-      has_more: result.has_more,
+      count,
+      has_more: hasMore,
       elapsed_ms: elapsed,
     };
   } catch (err) {
