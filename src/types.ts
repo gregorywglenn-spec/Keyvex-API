@@ -1425,26 +1425,30 @@ export interface NportFilingsQuery {
  * prediction" signals — just the announcement as filed.
  */
 export interface EnforcementAction {
-  /** Composite key. SEC: "sec-{guid}" or "sec-{slug}"; DOJ: "doj-{uuid}". */
+  /** Composite key. SEC: "sec-{guid}" or "sec-{slug}"; DOJ: "doj-{uuid}";
+   *  CFTC: "cftc-{releaseNumber}" (e.g., "cftc-9230-26"). */
   action_id: string;
-  /** "sec" or "doj". */
-  source: "sec" | "doj";
+  /** Issuing agency. */
+  source: "sec" | "doj" | "cftc";
   /** Title / headline of the press release. */
   title: string;
   /** Short summary (DOJ teaser field, or first sentence of SEC description). */
   teaser: string;
-  /** Body / description. SEC: full description from RSS. DOJ: HTML-stripped body excerpt. */
+  /** Body / description. SEC: full description from RSS. DOJ: HTML-stripped body excerpt.
+   *  CFTC v1A: empty (index-only scrape; full body fetch is v1.1). */
   description: string;
   /** ISO date the announcement was published. */
   published_date: string;
   /** Public URL of the full press release. */
   url: string;
   /** SEC: the issuing division (when surfaced; often empty in RSS).
-   *  DOJ: the issuing component (e.g., "Criminal Division", "Office of Public Affairs"). */
+   *  DOJ: the issuing component (e.g., "Criminal Division", "Office of Public Affairs").
+   *  CFTC: the division when surfaced ("Division of Enforcement", etc.). */
   agency_component: string;
-  /** DOJ-specific release number (e.g., "26-489"). Empty for SEC. */
+  /** DOJ-specific release number (e.g., "26-489"). CFTC: release number from URL slug
+   *  (e.g., "9230-26"). Empty for SEC. */
   release_number: string;
-  /** DOJ-specific topic tags. Empty for SEC. */
+  /** DOJ-specific topic tags. Empty for SEC + CFTC v1A. */
   topics: string[];
   /** When KeyVex scraped this record. */
   scraped_at: string;
@@ -1454,7 +1458,7 @@ export interface EnforcementActionsQuery {
   /** Direct lookup by action_id. */
   action_id?: string;
   /** Filter to one source. */
-  source?: "sec" | "doj";
+  source?: "sec" | "doj" | "cftc";
   /** Substring against title (case-insensitive). */
   title?: string;
   /** Substring against description + teaser concatenated (case-insensitive). */

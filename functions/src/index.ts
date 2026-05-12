@@ -928,7 +928,7 @@ export const scrapeEnforcementDaily = onSchedule(
   },
   async () => {
     const started = Date.now();
-    logger.info("[enforcement] starting daily SEC + DOJ refresh");
+    logger.info("[enforcement] starting daily SEC + DOJ + CFTC refresh");
     const actions = await scrapeEnforcementActions({});
     logger.info(`[enforcement] scraper returned ${actions.length} actions`);
     let docsWritten = 0;
@@ -1083,7 +1083,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.30.0";
+const SERVER_VERSION = "0.31.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

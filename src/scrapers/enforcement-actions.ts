@@ -20,12 +20,14 @@
  */
 
 import { XMLParser } from "fast-xml-parser";
+import * as cheerio from "cheerio";
 import type { EnforcementAction } from "../types.js";
 
 const CONFIG = {
   USER_AGENT: process.env.SEC_USER_AGENT ?? "KeyVexMCP/0.1 contact@keyvex.com",
   SEC_RSS_URL: "https://www.sec.gov/news/pressreleases.rss",
   DOJ_API_URL: "https://www.justice.gov/api/v1/press_releases.json",
+  CFTC_INDEX_URL: "https://www.cftc.gov/PressRoom/PressReleases",
   RATE_LIMIT_MS: 200,
   /** Max number of pages of DOJ records to pull per run (20 records / page).
    *  10 pages = 200 most-recent records, plenty for daily refresh. */
@@ -287,6 +289,83 @@ export async function scrapeDojEnforcementApi(
   return out;
 }
 
+// ─── CFTC (HTML index — no RSS, no API) ────────────────────────────────────
+
+/**
+ * CFTC has no RSS or JSON API for press releases as of 2026-05. The index
+ * page at /PressRoom/PressReleases lists ~50 most-recent releases as
+ * server-rendered HTML. Each row is one release with:
+ *   - `<time datetime="ISO_TIMESTAMP">` for the date
+ *   - `<a href="/PressRoom/PressReleases/<id>-<yr>">TITLE</a>` for the link
+ *
+ * v1A scope is metadata-only (title + date + URL + release number). The
+ * full body would require a second fetch per release (~50 round trips).
+ * Agents follow `url` for the prose. v1.1 polish: fetch body for the
+ * top-5 most-recent enforcement-only releases.
+ */
+export async function scrapeCftcEnforcementHtml(): Promise<EnforcementAction[]> {
+  const scrapedAt = new Date().toISOString();
+  console.error("[cftc enforcement] Fetching index HTML...");
+  await sleep(CONFIG.RATE_LIMIT_MS);
+
+  const res = await fetch(CONFIG.CFTC_INDEX_URL, {
+    headers: {
+      "User-Agent": CONFIG.USER_AGENT,
+      Accept: "text/html",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`CFTC HTML HTTP ${res.status} ${res.statusText}`);
+  }
+  const html = await res.text();
+  const $ = cheerio.load(html);
+
+  // The index lays out one release per <tr> with two <td>s — date then
+  // link. We walk all rows and pair the date <time> with the next sibling
+  // press-release link.
+  const out: EnforcementAction[] = [];
+  $("tr").each((_, row) => {
+    const $row = $(row);
+    const $time = $row.find("time[datetime]").first();
+    const $link = $row
+      .find('a[href*="/PressRoom/PressReleases/"]')
+      .first();
+    if ($time.length === 0 || $link.length === 0) return;
+
+    const datetime = $time.attr("datetime") ?? "";
+    const isoDate = datetime ? datetime.slice(0, 10) : "";
+    const href = $link.attr("href") ?? "";
+    const title = $link.text().trim();
+    if (!isoDate || !href || !title) return;
+
+    // Release number lives at the end of the URL slug (e.g. "9230-26"
+    // for the 9230th release of fiscal year 2026). Use it as the stable
+    // ID component.
+    const releaseSlug = href.split("/").filter(Boolean).pop() ?? "";
+    if (!releaseSlug) return;
+
+    out.push({
+      action_id: `cftc-${releaseSlug}`,
+      source: "cftc",
+      title,
+      teaser: "",
+      // v1A: body not extracted (would need per-release fetch).
+      description: "",
+      published_date: isoDate,
+      url: href.startsWith("http")
+        ? href
+        : `https://www.cftc.gov${href}`,
+      agency_component: "",
+      release_number: releaseSlug,
+      topics: [],
+      scraped_at: scrapedAt,
+    });
+  });
+
+  console.error(`[cftc enforcement] Parsed ${out.length} releases from index`);
+  return out;
+}
+
 // ─── Combined entry point ──────────────────────────────────────────────────
 
 export interface ScrapeEnforcementOptions {
@@ -296,6 +375,8 @@ export interface ScrapeEnforcementOptions {
   skipSec?: boolean;
   /** When true, skip the DOJ JSON fetch. Default false. */
   skipDoj?: boolean;
+  /** When true, skip the CFTC HTML index fetch. Default false. */
+  skipCftc?: boolean;
 }
 
 export async function scrapeEnforcementActions(
@@ -322,8 +403,17 @@ export async function scrapeEnforcementActions(
       console.error(`[enforcement] DOJ API FAILED — ${msg}`);
     }
   }
+  if (!options.skipCftc) {
+    try {
+      const cftc = await scrapeCftcEnforcementHtml();
+      all.push(...cftc);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[enforcement] CFTC HTML FAILED — ${msg}`);
+    }
+  }
   console.error(
-    `[enforcement] TOTAL: ${all.length} actions across both sources`,
+    `[enforcement] TOTAL: ${all.length} actions across SEC / DOJ / CFTC`,
   );
   return all;
 }

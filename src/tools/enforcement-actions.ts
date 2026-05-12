@@ -1,19 +1,21 @@
 /**
  * MCP tool: get_enforcement_actions
  *
- * Returns SEC + DOJ press releases / litigation releases from a unified
- * `enforcement_actions` collection. The 17th MCP tool. Pairs naturally
- * with get_insider_transactions / get_activist_stakes / get_tender_offers
- * for "negative-event flag" detection — agents can see when a company
- * (or its executives) became the subject of an enforcement action.
+ * Returns SEC + DOJ + CFTC press releases / litigation releases from a unified
+ * `enforcement_actions` collection. Pairs naturally with get_insider_transactions
+ * / get_activist_stakes / get_tender_offers for "negative-event flag" detection
+ * — agents can see when a company (or its executives) became the subject of an
+ * enforcement action.
  *
  * Sources:
- *   SEC — press releases RSS at sec.gov/news/pressreleases.rss
- *         (rolling ~50-item window)
- *   DOJ — JSON API at justice.gov/api/v1/press_releases.json
- *         (266K+ historical records; v1A pulls latest ~200 per run)
+ *   SEC  — press releases RSS at sec.gov/news/pressreleases.rss
+ *          (rolling ~50-item window)
+ *   DOJ  — JSON API at justice.gov/api/v1/press_releases.json
+ *          (266K+ historical records; v1A pulls latest ~200 per run)
+ *   CFTC — HTML index scrape at cftc.gov/PressRoom/PressReleases (no RSS).
+ *          v1A index-only (title + date + release number + URL).
  *
- * v1A is metadata + teaser only. Full prose lives at `url`.
+ * v1A is metadata + teaser only (CFTC: no body extracted). Full prose lives at `url`.
  */
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
@@ -27,12 +29,12 @@ import type {
 export const definition: Tool = {
   name: "get_enforcement_actions",
   description: [
-    "Returns SEC + DOJ enforcement-related press releases. Use this when",
-    "the user asks about: recent SEC charges, DOJ indictments, insider",
-    "trading prosecutions, FCPA actions, fraud cases, antitrust",
-    "enforcement, or to add a 'negative event' flag to a ticker or person",
-    "by cross-checking against insider trades, activist filings, or",
-    "tender offers.",
+    "Returns SEC + DOJ + CFTC enforcement-related press releases. Use this",
+    "when the user asks about: recent SEC charges, DOJ indictments, CFTC",
+    "derivatives/swaps enforcement, insider trading prosecutions, FCPA",
+    "actions, fraud cases, antitrust enforcement, or to add a 'negative",
+    "event' flag to a ticker or person by cross-checking against insider",
+    "trades, activist filings, or tender offers.",
     "",
     "Sources:",
     "  source='sec'  — SEC press releases (sec.gov/news/pressreleases.rss).",
@@ -46,18 +48,24 @@ export const definition: Tool = {
     "                  topics[]. Common components: 'Criminal Division',",
     "                  'Antitrust Division', 'Tax Division', 'Civil Division',",
     "                  'Office of Public Affairs', 'United States Attorneys'.",
+    "  source='cftc' — CFTC press releases (cftc.gov/PressRoom/PressReleases).",
+    "                  HTML index scrape (no RSS). Rolling ~50-item window.",
+    "                  Covers derivatives/swaps enforcement, prediction-market",
+    "                  jurisdiction, spoofing prosecutions, and policy actions.",
+    "                  v1A index-only (no body extracted) — follow `url` for",
+    "                  the substantive announcement.",
     "",
-    "v1A scope: metadata + teaser + description (capped ~3000 chars). Full",
-    "prose lives at `url` — agents follow for the substantive announcement.",
-    "Pure-publisher posture: no derived 'severity' or 'outcome prediction'",
-    "signals.",
+    "v1A scope: metadata + teaser + description (capped ~3000 chars; empty",
+    "for CFTC v1A). Full prose lives at `url` — agents follow for the",
+    "substantive announcement. Pure-publisher posture: no derived 'severity'",
+    "or 'outcome prediction' signals.",
     "",
-    "Identifier format: action_id is 'sec-{guid-or-slug}' for SEC items",
-    "or 'doj-{uuid}' for DOJ items. Stable across re-scrapes.",
+    "Identifier format: action_id is 'sec-{guid-or-slug}', 'doj-{uuid}', or",
+    "'cftc-{release-number}' (e.g., 'cftc-9230-26'). Stable across re-scrapes.",
     "",
     "Cross-source tip: pair with get_insider_transactions to detect insider",
-    "trades by executives at companies later named in SEC/DOJ charges, or",
-    "with get_activist_stakes to spot enforcement-driven exit attempts.",
+    "trades by executives at companies later named in SEC/DOJ/CFTC charges,",
+    "or with get_activist_stakes to spot enforcement-driven exit attempts.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -65,11 +73,11 @@ export const definition: Tool = {
       action_id: {
         type: "string",
         description:
-          "Direct lookup ('sec-{guid}' or 'doj-{uuid}'). Fastest path.",
+          "Direct lookup ('sec-{guid}', 'doj-{uuid}', or 'cftc-{release-number}'). Fastest path.",
       },
       source: {
         type: "string",
-        enum: ["sec", "doj"],
+        enum: ["sec", "doj", "cftc"],
         description: "Filter to one source.",
       },
       title: {
@@ -144,9 +152,13 @@ function validateAndNormalize(raw: unknown): EnforcementActionsQuery {
   }
 
   if (args.source !== undefined) {
-    if (args.source !== "sec" && args.source !== "doj") {
+    if (
+      args.source !== "sec" &&
+      args.source !== "doj" &&
+      args.source !== "cftc"
+    ) {
       throw new Error(
-        `INVALID source: '${String(args.source)}' — expected 'sec' or 'doj'`,
+        `INVALID source: '${String(args.source)}' — expected 'sec', 'doj', or 'cftc'`,
       );
     }
     out.source = args.source;
