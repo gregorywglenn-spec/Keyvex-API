@@ -29,6 +29,7 @@ import {
   queryNportFilings,
   queryOtcMarketWeekly,
   queryPrivatePlacements,
+  queryProxyFilings,
   queryRegistrationStatements,
   queryTenderOffers,
 } from "../firestore.js";
@@ -53,14 +54,14 @@ export const definition: Tool = {
     "with a single fan-out.",
     "",
     "Identifier coverage:",
-    "  - ticker → 10 collections (insider_trades, institutional_holdings,",
+    "  - ticker → 11 collections (insider_trades, institutional_holdings,",
     "    congressional_trades, planned_insider_sales, initial_ownership_baselines,",
-    "    activist_ownership, material_events, tender_offers, registration_statements,",
-    "    otc_market_weekly)",
+    "    activist_ownership, material_events, proxy_filings, tender_offers,",
+    "    registration_statements, otc_market_weekly)",
     "  - bioguide_id → 2 collections (congressional_trades, annual_financial_disclosures)",
-    "  - company_cik → 8 collections (insider_trades, planned_insider_sales,",
+    "  - company_cik → 9 collections (insider_trades, planned_insider_sales,",
     "    initial_ownership_baselines, activist_ownership, material_events,",
-    "    private_placements, registration_statements, nport_filings)",
+    "    proxy_filings, private_placements, registration_statements, nport_filings)",
     "  - recipient_uei → 1 collection (federal_contracts)",
     "",
     "Multiple identifiers can be combined to narrow each source's query (e.g.,",
@@ -216,6 +217,19 @@ const ADAPTERS: SourceAdapter[] = [
     call: (q, limit) => {
       if (!q.ticker && !q.company_cik) return null;
       return queryMaterialEvents({
+        ...(q.ticker !== undefined && { ticker: q.ticker }),
+        ...(q.company_cik !== undefined && { company_cik: q.company_cik }),
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "proxy_filings",
+    call: (q, limit) => {
+      if (!q.ticker && !q.company_cik) return null;
+      return queryProxyFilings({
         ...(q.ticker !== undefined && { ticker: q.ticker }),
         ...(q.company_cik !== undefined && { company_cik: q.company_cik }),
         ...(q.since !== undefined && { since: q.since }),
