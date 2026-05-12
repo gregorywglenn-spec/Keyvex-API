@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KeyVex — MCP server for US public financial disclosures</title>
-  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. Congressional trades, insider transactions, institutional holdings, lobbying, federal contracts, and material events — all queryable by AI agents through one endpoint." />
+  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 21 tools across 22+ government sources — congressional trades, insider transactions, institutional holdings, lobbying, federal contracts, material events, FEC campaign finance, bills, roll-call votes, dark-pool volume, OFAC sanctions, Federal Register, and more — all queryable by AI agents through one endpoint." />
   <meta property="og:title" content="KeyVex — MCP server for US public financial disclosures" />
-  <meta property="og:description" content="13 distinct disclosure sources, one Bearer-authenticated MCP endpoint. Designed for AI agents from the ground up." />
+  <meta property="og:description" content="21 MCP tools across 22+ US public-disclosure sources, one Bearer-authenticated endpoint. Designed for AI agents from the ground up." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://keyvex.com" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1117'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='32' fill='%234dff20'%3EK%3C/text%3E%3C/svg%3E" />
@@ -237,9 +237,11 @@
       <div class="status-badge">Pre-launch · Preview access</div>
       <h1>The MCP server for US public financial disclosures.</h1>
       <p class="sub">
-        13 distinct disclosure sources — congressional trades, insider transactions,
-        institutional holdings, lobbying spend, federal contracts, member profiles,
-        financial disclosures, and material events — all queryable by AI agents
+        21 tools across 22+ government sources — congressional trades, insider
+        transactions, institutional + mutual-fund holdings, dark-pool volume,
+        lobbying spend, FEC campaign finance, federal contracts, bills,
+        roll-call votes, OFAC sanctions, Federal Register rules, M&amp;A tender
+        offers, private placements, and more — all queryable by AI agents
         through one Bearer-authenticated endpoint.
       </p>
       <div class="cta-row">
@@ -253,10 +255,10 @@
     <section id="sources">
       <h2>One queryable surface for every public US financial disclosure that matters.</h2>
       <p class="lead">
-        KeyVex normalizes 13 distinct US public-record sources into a clean Model
-        Context Protocol (MCP) server. Connect it to Claude, Cursor, your custom
-        agent, or any MCP-compatible client. No scraping, no parsing, no
-        schema-wrangling on your end.
+        KeyVex normalizes 22+ distinct US public-record sources into a clean
+        Model Context Protocol (MCP) server with 21 agent-native tools. Connect
+        it to Claude, Cursor, your custom agent, or any MCP-compatible client.
+        No scraping, no parsing, no schema-wrangling on your end.
       </p>
       <ol class="sources">
         <li><strong>SEC Form 4</strong><span class="desc">Open-market insider trades by officers, directors, and 10%+ holders.</span></li>
@@ -265,20 +267,31 @@
         <li><strong>SEC 13F</strong><span class="desc">Quarterly institutional fund holdings.</span></li>
         <li><strong>SEC 13D / 13G</strong><span class="desc">Activist + passive 5%+ ownership disclosures.</span></li>
         <li><strong>SEC 8-K</strong><span class="desc">Material-event filings (M&amp;A, exec changes, earnings, restructurings).</span></li>
+        <li><strong>SEC Schedule TO</strong><span class="desc">Tender offers — third-party M&amp;A bids and issuer buybacks.</span></li>
+        <li><strong>SEC Form D</strong><span class="desc">Reg D exempt private placements — VC raises, PE funds, real-estate syndicates.</span></li>
+        <li><strong>SEC Form N-PORT</strong><span class="desc">Monthly mutual fund / ETF / closed-end fund portfolio reports.</span></li>
+        <li><strong>SEC Form S-1 / S-3</strong><span class="desc">IPO + shelf registration statements (incl. amendments).</span></li>
+        <li><strong>SEC + DOJ enforcement</strong><span class="desc">Press releases announcing charges, settlements, and indictments.</span></li>
         <li><strong>USAspending federal contracts</strong><span class="desc">Federal contract awards across every agency.</span></li>
+        <li><strong>FEC campaign finance</strong><span class="desc">Federal candidates + their linked committees (campaign, PAC, Super PAC, party).</span></li>
         <li><strong>Senate LDA lobbying</strong><span class="desc">Quarterly lobbying disclosures filed under the Lobbying Disclosure Act.</span></li>
         <li><strong>Senate eFD PTRs</strong><span class="desc">Senator + spouse + dependent stock trades, filed via the Senate eFD portal.</span></li>
         <li><strong>House Clerk PTRs</strong><span class="desc">Representative + spouse + dependent trades, filed via the House Clerk.</span></li>
         <li><strong>Current member catalog</strong><span class="desc">Every sitting senator and representative with full committee + subcommittee assignments.</span></li>
         <li><strong>Historical legislators</strong><span class="desc">Every member who has ever served Congress (1789→present).</span></li>
         <li><strong>Form 278 annual financial disclosures</strong><span class="desc">Net-worth statements covering members' assets, liabilities, and outside income.</span></li>
+        <li><strong>Congress.gov bills</strong><span class="desc">All 8 bill + resolution types tracked across the current Congress.</span></li>
+        <li><strong>House roll-call votes</strong><span class="desc">Every recorded House vote with linked-bill metadata (Senate v1.1).</span></li>
+        <li><strong>FINRA OTC Transparency</strong><span class="desc">Weekly off-exchange (ATS dark-pool) volume by security and venue.</span></li>
+        <li><strong>OFAC SDN sanctions list</strong><span class="desc">19K+ Specially Designated Nationals (Cuba / Iran / Russia / NK / terrorism / narcotics).</span></li>
+        <li><strong>Federal Register</strong><span class="desc">Daily-published rules, proposed rules, notices, and presidential documents.</span></li>
       </ol>
       <p class="muted small" style="margin-top: 24px;">Refreshed continuously by autonomous schedulers. No human in the loop.</p>
     </section>
 
     <!-- Section 2 — Cross-source play -->
     <section id="demo">
-      <h2>One conversation. Five sources. Zero stitching.</h2>
+      <h2>One conversation. Six sources. Zero stitching.</h2>
       <p class="lead">
         Most financial-data APIs give you one narrow view. KeyVex's tools are
         designed to chain. Here's a real query an agent can run in a single
@@ -290,19 +303,23 @@
 Agent: get_member_profile(bioguide_id:"&lt;each trader's id&gt;")
 → returns party, state, committees — including who sits on Armed Services
 
+Agent: get_roll_call_votes(legislation_type:"HR", since:"2026-01-01")
+→ what defense-related bills those members actually voted on
+
 Agent: get_federal_contracts(recipient_name:"Lockheed Martin", since:"2026-01-01")
 → returns 1,247 LMT contracts awarded by DoD
 
-Agent: get_material_events(ticker:"LMT", item_codes:["1.01","2.01"])
-→ returns Lockheed's recent material-agreement and acquisition 8-K filings
-
 Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
-→ returns LMT's lobbying spend, what issues, what agencies contacted</code></pre>
+→ returns LMT's lobbying spend, what issues, what agencies contacted
+
+Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
+→ that member's FEC candidate ID + principal campaign committee</code></pre>
       <p>
-        Five separate data sources, joined by <code>ticker</code> +
-        <code>bioguide_id</code> + <code>recipient_name</code>. Triangulation that
-        takes a Bloomberg terminal and an analyst now takes a single AI agent and
-        a few seconds.
+        Six separate disclosure sources, joined by <code>ticker</code> +
+        <code>bioguide_id</code> + <code>recipient_name</code> + name. Triangulation
+        that takes a Bloomberg terminal and an analyst now takes a single AI agent
+        and a few seconds. With 21 tools in total, this is one chain of many that
+        agents can compose on the fly.
       </p>
       <p class="muted small">No other MCP server exposes this combined surface today.</p>
     </section>
@@ -321,12 +338,25 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
       <h3 style="margin-top: 24px;">Health check (no auth required)</h3>
       <pre><code>curl https://mcp.keyvex.com</code></pre>
 
-      <h3 style="margin-top: 24px;">Tool call (auth required)</h3>
+      <h3 style="margin-top: 24px;">List the 21 tools (auth required)</h3>
       <pre><code>curl -X POST https://mcp.keyvex.com \
   -H "Authorization: Bearer &lt;your-key&gt;" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'</code></pre>
+
+      <h3 style="margin-top: 24px;">Call a tool (e.g. dark-pool flow for NVDA)</h3>
+      <pre><code>curl -X POST https://mcp.keyvex.com \
+  -H "Authorization: Bearer &lt;your-key&gt;" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc":"2.0","id":2,"method":"tools/call",
+    "params":{
+      "name":"get_otc_market_weekly",
+      "arguments":{"issue_symbol":"NVDA","sort_by":"total_notional_sum","limit":10}
+    }
+  }'</code></pre>
 
       <p class="muted small" style="margin-top: 12px;">
         From Claude Desktop: add KeyVex to your <code>claude_desktop_config.json</code>
@@ -369,7 +399,7 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
             <td>Unlimited</td>
           </tr>
           <tr>
-            <td class="tier-name">All 13 tools</td>
+            <td class="tier-name">All 21 tools</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
@@ -475,10 +505,14 @@ Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
       <details>
         <summary>Where does the data come from?</summary>
         <p>
-          Official US government sources only — SEC EDGAR, USAspending.gov, Senate
-          eFD, House Clerk Office, Senate LDA, the unitedstates/congress-legislators
-          public catalog. All public-record data. No paid data partnerships, no
-          scraped paywalled content.
+          Official US government sources only — SEC EDGAR (Form 4 / 144 / 3 /
+          13D-G / 13F / 8-K / D / N-PORT / S-1 / S-3 / Schedule TO / Form 278),
+          USAspending.gov, Senate eFD, House Clerk Office, Senate LDA, the
+          unitedstates/congress-legislators public catalog, api.congress.gov
+          (bills + House roll-call votes), api.open.fec.gov (campaign finance),
+          FINRA OTC Transparency, US Treasury OFAC, federalregister.gov, and
+          SEC + DOJ press release feeds. All public-record data. No paid data
+          partnerships, no scraped paywalled content.
         </p>
       </details>
 
