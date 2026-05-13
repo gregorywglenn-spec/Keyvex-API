@@ -412,28 +412,47 @@
         same composition is just as natural:
       </p>
       <pre><code>Agent: get_congressional_trades(ticker:"LMT", since:"2026-01-01")
-→ returns 23 trades by senators and reps in Lockheed Martin stock
+→ 23 trades by senators and reps in Lockheed Martin stock
 
 Agent: get_member_profile(bioguide_id:"&lt;each trader's id&gt;")
-→ returns party, state, committees — including who sits on Armed Services
+→ party, state, committees — including who sits on Armed Services
 
 Agent: get_roll_call_votes(legislation_type:"HR", since:"2026-01-01")
-→ what defense-related bills those members actually voted on
+→ defense-related bills those members actually voted on
 
 Agent: get_federal_contracts(recipient_name:"Lockheed Martin", since:"2026-01-01")
-→ returns 1,247 LMT contracts awarded by DoD
+→ 1,247 LMT contracts awarded by DoD
+
+Agent: get_fundamentals(ticker:"LMT", category:"income_statement")
+→ LMT's actual revenue + operating income trend, quarter by quarter (XBRL)
 
 Agent: get_lobbying_filings(client_name:"Lockheed Martin", filing_year:2026)
-→ returns LMT's lobbying spend, what issues, what agencies contacted
+→ LMT's lobbying spend, what issues, what agencies contacted
+
+Agent: get_proxy_filings(ticker:"LMT")
+→ exec comp + board nominations + shareholder proposals
+
+Agent: get_insider_transactions(ticker:"LMT")
+→ insider buys/sells from the company's officers + directors
+
+Agent: get_enforcement_actions(text:"Lockheed")
+→ any SEC / DOJ / CFTC / OCC / FDIC actions involving LMT
+
+Agent: get_economic_indicators(category:"rates", latest_only:true)
+→ Fed Funds + 10Y Treasury + mortgage rate context (FRED)
+
+Agent: get_treasury_auctions(security_type:"Note", since:"2026-01-01")
+→ bond-market sentiment / demand backdrop
 
 Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
 → that member's FEC candidate ID + principal campaign committee</code></pre>
       <p>
-        Six separate disclosure sources, joined by <code>ticker</code> +
-        <code>bioguide_id</code> + <code>recipient_name</code> + name. Triangulation
-        that takes a Bloomberg terminal and an analyst now takes a single AI agent
-        and a few seconds. With 22 tools in total, this is one chain of many that
-        agents can compose on the fly.
+        <strong>Twelve separate disclosure sources</strong>, joined by
+        <code>ticker</code> + <code>bioguide_id</code> +
+        <code>recipient_name</code> + company name. Triangulation that takes a
+        Bloomberg terminal and an analyst — fundamentals from a separate
+        provider — and a macro data subscription on top, all combined into a
+        single AI agent conversation in a few seconds.
       </p>
       <p>
         Or in one tool call:
