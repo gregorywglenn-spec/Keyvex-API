@@ -116,6 +116,7 @@ import {
 } from "./scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "./scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "./scrapers/bls.js";
+import { scrapeFredIndicators } from "./scrapers/fred.js";
 import { scrapeOigExclusions } from "./scrapers/oig-exclusions.js";
 import { scrapeCfpbComplaints } from "./scrapers/cfpb-complaints.js";
 import {
@@ -374,6 +375,23 @@ const COMMANDS: Record<string, CliCommand> = {
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${indicators.length} BLS observations to Firestore...`,
+        );
+        const result = await saveEconomicIndicators(indicators);
+        console.error(
+          `[save] Saved ${result.saved} observations to ${result.collection}`,
+        );
+      }
+      return indicators;
+    },
+  },
+  fred: {
+    description:
+      "Scrape FRED economic indicators (curated 30-series watchlist covering rates, GDP, inflation, money, debt, trade, sentiment). Requires FRED_API_KEY env var. Default 5-year window; --save to write to Firestore.",
+    run: async (args) => {
+      const indicators = await scrapeFredIndicators({});
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${indicators.length} FRED observations to Firestore...`,
         );
         const result = await saveEconomicIndicators(indicators);
         console.error(

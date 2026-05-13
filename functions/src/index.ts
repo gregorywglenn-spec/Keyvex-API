@@ -83,6 +83,7 @@ import { scrape8kLiveFeed } from "../../src/scrapers/form8k.js";
 import { scrapeProxyLiveFeed } from "../../src/scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "../../src/scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "../../src/scrapers/bls.js";
+import { scrapeFredIndicators } from "../../src/scrapers/fred.js";
 import { scrapeOigExclusions } from "../../src/scrapers/oig-exclusions.js";
 import { scrapeCfpbComplaints } from "../../src/scrapers/cfpb-complaints.js";
 import { scrapeAndSaveXbrlStreaming } from "../../src/scrapers/xbrl.js";
@@ -242,6 +243,42 @@ export const scrapeBlsDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("blsIndicatorsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * FRED economic indicators. Curated 30-series watchlist covering rates,
+ * GDP, money supply, inflation alternatives (PCE), Fed balance sheet,
+ * debt, trade, sentiment. Fires daily at 9:00 AM ET. Series have varied
+ * release cadences (daily for rates, monthly for jobs, quarterly for GDP)
+ * so a daily refresh keeps everything current. Idempotent on
+ * (series_id, period). Requires FRED_API_KEY secret.
+ */
+const fredApiKey = defineSecret("FRED_API_KEY");
+
+export const scrapeFredDaily = onSchedule(
+  {
+    schedule: "0 9 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+    secrets: [fredApiKey],
+  },
+  async () => {
+    const started = Date.now();
+    process.env.FRED_API_KEY = fredApiKey.value();
+    logger.info("[fred-daily] starting (5-year lookback, curated watchlist)");
+    const indicators = await scrapeFredIndicators({});
+    logger.info(`[fred-daily] scraper returned ${indicators.length} observations`);
+    let docsWritten = 0;
+    if (indicators.length > 0) {
+      const r = await saveEconomicIndicators(indicators);
+      logger.info(`[fred-daily] saved ${r.saved} observations to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("fredIndicatorsSync", { started, docsWritten });
   },
 );
 
@@ -1223,7 +1260,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.38.0";
+const SERVER_VERSION = "0.39.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

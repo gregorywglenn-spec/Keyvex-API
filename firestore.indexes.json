@@ -804,6 +804,32 @@
       ]
     },
     {
+      "collectionGroup": "economic_indicators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "economic_indicators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "economic_indicators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "series_id", "order": "ASCENDING" },
+        { "fieldPath": "period", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "oig_exclusions",
       "queryScope": "COLLECTION",
       "fields": [

@@ -2215,15 +2215,17 @@ export interface OigExclusionsQuery {
 export interface EconomicIndicator {
   /** Composite key: "{series_id}-{period}" (e.g., "LNS14000000-2026M04"). */
   id: string;
-  /** Issuing agency. v1A: "bls" only. */
-  source: "bls";
+  /** Issuing agency. "bls" = Bureau of Labor Statistics. "fred" = Federal
+   *  Reserve Economic Data (St. Louis Fed, republishes + adds many other
+   *  series from Fed/BEA/Treasury/private sources). */
+  source: "bls" | "fred";
   series_id: string;
   series_name: string;
   /** Coarse bucket: "employment" | "wages" | "inflation" | "productivity" | "hours" | "labor-force". */
   category: string;
   /** Period label in BLS's native shape: "2026M04" (monthly), "2026Q01" (quarterly), "2026A01" (annual). */
   period: string;
-  /** "monthly" | "quarterly" | "semiannual" | "annual". */
+  /** "monthly" | "quarterly" | "semiannual" | "annual" | "weekly" | "daily". */
   period_type: string;
   /** Calendar year, integer. */
   year: number;
@@ -2235,16 +2237,17 @@ export interface EconomicIndicator {
   series_description: string;
   /** Joined BLS footnote codes + text (e.g., "P=preliminary; 9=data unavailable due to..."). */
   notes: string;
-  /** Public BLS series page. */
-  bls_source_url: string;
+  /** Public series page (BLS data.bls.gov/timeseries/... or FRED fred.stlouisfed.org/series/...). */
+  source_url: string;
   /** When KeyVex scraped this. */
   scraped_at: string;
 }
 
 export interface EconomicIndicatorsQuery {
+  source?: "bls" | "fred";
   series_id?: string;
   category?: string;
-  period_type?: "monthly" | "quarterly" | "semiannual" | "annual";
+  period_type?: "monthly" | "quarterly" | "semiannual" | "annual" | "weekly" | "daily";
   since_year?: number;
   until_year?: number;
   /** When true, only return the most-recent observation per series. */

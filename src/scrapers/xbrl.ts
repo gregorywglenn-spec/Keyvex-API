@@ -301,8 +301,18 @@ function buildRecord(args: BuildArgs, scrapedAt: string): XbrlFundamental | null
   // Firestore doc IDs can't contain "/". Form codes like "10-K/A" need
   // sanitization. Replace "/" with "_" so the ID is "10-K_A".
   const safeForm = form.replace(/\//g, "_");
+  // period_start distinguishes cumulative-YTD vs per-quarter observations
+  // of the same concept on the same form. Both have the same period_end
+  // (e.g., 2024-09-30) so without period_start in the ID they collide.
+  // Real example: AAPL Revenues 2017-09-30 10-K has TWO observations —
+  // FY2017 cumulative ($229B, start=2016-09-25) and Q4 standalone
+  // ($52B, start=2017-07-02). Without including start, one overwrites
+  // the other and agents can't tell which they're getting.
+  // Balance-sheet concepts have no period_start (point-in-time) — use
+  // "pit" sentinel so the ID stays well-formed and stable.
+  const periodStartPart = args.obs.start ? args.obs.start.slice(0, 10) : "pit";
   return {
-    id: `${args.cikPadded}-${args.concept}-${periodEnd}-${safeForm}`,
+    id: `${args.cikPadded}-${args.concept}-${periodEnd}-${safeForm}-${periodStartPart}`,
     ticker: args.ticker,
     company_name: args.companyName,
     company_cik: args.cikPadded,

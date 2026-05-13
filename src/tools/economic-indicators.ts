@@ -21,35 +21,51 @@ import type {
 export const definition: Tool = {
   name: "get_economic_indicators",
   description: [
-    "Returns observations of key US macro indicators sourced from BLS",
-    "(Bureau of Labor Statistics). v1A scope: a curated watchlist of ~20",
-    "high-signal series across employment, wages, inflation, productivity,",
-    "and hours-worked. Each record is one observation (one period of one",
-    "series).",
+    "Returns observations of key US macro indicators from two sources:",
+    "  - BLS (Bureau of Labor Statistics): the canonical labor + price",
+    "    statistics. ~20-series watchlist covering unemployment, payrolls,",
+    "    wages, CPI, PPI, productivity. Most monthly, ECI/productivity",
+    "    quarterly.",
+    "  - FRED (Federal Reserve Economic Data, St Louis Fed): rates, money",
+    "    supply, GDP, PCE inflation, mortgage rates, jobless claims, Fed",
+    "    balance sheet, breakeven inflation, dollar index, consumer",
+    "    sentiment. ~30-series watchlist. Some daily (rates, dollar),",
+    "    weekly (mortgage, Fed assets, jobless claims), monthly, quarterly.",
+    "",
+    "Filter to one source via `source: 'bls'` or `source: 'fred'`. Default",
+    "returns both unified — `series_id` disambiguates anyway since each ID",
+    "is unique across both catalogs.",
     "",
     "Use this when the user asks about: unemployment rate, jobs report,",
-    "nonfarm payrolls, CPI / inflation, PPI / wholesale inflation, labor",
-    "force participation, average hourly earnings, productivity growth,",
-    "unit labor costs, employment cost index (ECI), or general macro",
-    "context for congressional voting or Treasury yield analysis.",
+    "nonfarm payrolls, CPI / PCE / inflation, Fed Funds rate, Treasury",
+    "yields, mortgage rates, yield-curve inversion, money supply / M2,",
+    "Fed balance sheet / QE / QT activity, GDP, housing starts, retail",
+    "sales, consumer sentiment, jobless claims, trade balance, dollar",
+    "strength, or general macro context for cross-source analysis.",
     "",
     "Categories (for filtering):",
-    "  - employment     — unemployment rates (U-3, U-6), payrolls",
-    "                     (total / private / government), employment level",
-    "  - labor-force    — labor force participation rate",
-    "  - wages          — average hourly earnings, employment cost index",
-    "  - hours          — average weekly hours",
-    "  - inflation      — CPI (all items, core, food, energy, housing),",
-    "                     PPI (final demand, core)",
-    "  - productivity   — nonfarm productivity, unit labor costs",
+    "  - rates          — Fed Funds, Treasury yields, mortgage, corporate bonds",
+    "  - gdp            — Real + nominal GDP, GDP growth rate",
+    "  - activity       — Industrial production, housing starts, retail sales",
+    "  - inflation      — CPI/PPI (BLS) + PCE/Core PCE/breakevens (FRED)",
+    "  - employment     — Unemployment rates (U-3, U-6), payrolls, jobless claims",
+    "  - labor-force    — Labor force participation rate",
+    "  - wages          — Average hourly earnings, employment cost index",
+    "  - hours          — Average weekly hours",
+    "  - productivity   — Nonfarm productivity, unit labor costs",
+    "  - money          — M2, Fed total assets, overnight reverse repo",
+    "  - debt           — Federal debt, Treasury general account",
+    "  - trade          — Trade balance, trade-weighted dollar index",
+    "  - sentiment      — U Michigan Consumer Sentiment",
     "",
-    "Most series are monthly; productivity + ECI are quarterly. Use",
-    "`period_type` to filter. `period` is BLS's native format —",
-    "'2026M04' (April 2026), '2026Q01' (Q1 2026), '2026A01' (annual).",
-    "Lexicographic sort on `period` is chronological.",
+    "Period format is fixed-width per cadence so lexicographic sort = chronological:",
+    "  - 2026M04 (April 2026), 2026Q01 (Q1 2026), 2026A01 (annual 2026),",
+    "    2026W18 (week 18 of 2026), 2026D258 (day-of-year 258).",
     "",
     "Set `latest_only=true` to get one record per series (the most-recent",
     "observation) — useful for 'where are things now' snapshot questions.",
+    "Daily series under latest_only return only the latest day per series",
+    "(deduped client-side); without it you can pull arbitrary history.",
     "",
     "Pure-publisher posture: the unit on each series is documented in the",
     "`unit` field; we do not compute year-over-year deltas, seasonally",
@@ -59,10 +75,16 @@ export const definition: Tool = {
   inputSchema: {
     type: "object",
     properties: {
+      source: {
+        type: "string",
+        enum: ["bls", "fred"],
+        description:
+          "Filter to one source. Omit to query both. BLS = canonical labor + price stats. FRED = rates, money, GDP, PCE inflation, sentiment.",
+      },
       series_id: {
         type: "string",
         description:
-          "BLS series ID (e.g., 'LNS14000000' for U-3 unemployment, 'CES0000000001' for nonfarm payrolls, 'CUUR0000SA0' for CPI All Items).",
+          "Exact series ID. BLS examples: 'LNS14000000' (U-3), 'CES0000000001' (payrolls), 'CUUR0000SA0' (CPI). FRED examples: 'DFF' (Fed Funds), 'DGS10' (10Y Treasury), 'PCEPILFE' (Core PCE), 'M2SL' (M2), 'WALCL' (Fed assets), 'UMCSENT' (sentiment).",
       },
       category: {
         type: "string",
@@ -73,12 +95,19 @@ export const definition: Tool = {
           "hours",
           "inflation",
           "productivity",
+          "rates",
+          "gdp",
+          "activity",
+          "money",
+          "debt",
+          "trade",
+          "sentiment",
         ],
         description: "Bucket filter.",
       },
       period_type: {
         type: "string",
-        enum: ["monthly", "quarterly", "semiannual", "annual"],
+        enum: ["monthly", "quarterly", "semiannual", "annual", "weekly", "daily"],
         description: "Cadence filter.",
       },
       since_year: {
@@ -135,6 +164,14 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
   const args = raw as Record<string, unknown>;
   const out: EconomicIndicatorsQuery = {};
 
+  if (args.source !== undefined) {
+    if (args.source !== "bls" && args.source !== "fred") {
+      throw new Error(
+        `INVALID source: '${String(args.source)}' — expected 'bls' or 'fred'`,
+      );
+    }
+    out.source = args.source;
+  }
   if (args.series_id !== undefined) {
     if (typeof args.series_id !== "string") {
       throw new Error("series_id must be a string");
@@ -149,6 +186,13 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
       "hours",
       "inflation",
       "productivity",
+      "rates",
+      "gdp",
+      "activity",
+      "money",
+      "debt",
+      "trade",
+      "sentiment",
     ];
     if (!valid.includes(args.category as string)) {
       throw new Error(`INVALID category: '${String(args.category)}'`);
@@ -156,7 +200,14 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
     out.category = args.category as string;
   }
   if (args.period_type !== undefined) {
-    const valid = ["monthly", "quarterly", "semiannual", "annual"];
+    const valid = [
+      "monthly",
+      "quarterly",
+      "semiannual",
+      "annual",
+      "weekly",
+      "daily",
+    ];
     if (!valid.includes(args.period_type as string)) {
       throw new Error(`INVALID period_type: '${String(args.period_type)}'`);
     }

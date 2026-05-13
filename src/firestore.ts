@@ -1839,6 +1839,7 @@ export async function queryEconomicIndicators(
   const db = await getLiveDb();
   let q: FirestoreQuery = db.collection("economic_indicators");
 
+  if (query.source) q = q.where("source", "==", query.source);
   if (query.series_id) q = q.where("series_id", "==", query.series_id);
   if (query.category) q = q.where("category", "==", query.category);
   if (query.period_type) q = q.where("period_type", "==", query.period_type);
@@ -1849,8 +1850,9 @@ export async function queryEconomicIndicators(
     q = q.where("year", "<=", query.until_year);
   }
 
-  // sort_by default = period (the BLS composite "YYYYMxx" sorts lexicographically
-  // = chronologically, since both year and month parts are fixed-width).
+  // sort_by default = period (composite "YYYYMxx"/"YYYYQxx"/"YYYYDxxx" sorts
+  // lexicographically = chronologically since year and period code are
+  // fixed-width in both BLS and FRED conventions).
   const sortField = query.sort_by ?? "period";
   const sortOrder = query.sort_order ?? "desc";
   q = q.orderBy(sortField, sortOrder);
@@ -1858,7 +1860,8 @@ export async function queryEconomicIndicators(
   const userLimit = query.limit ?? 50;
   // latest_only is a client-side post-filter — Firestore can't natively
   // dedup-by-series_id in a single query. Pull a wider window when set.
-  const fetchLimit = query.latest_only ? 500 : userLimit + 1;
+  // FRED daily series have ~1825 obs over 5yr so bump to 5000 for safety.
+  const fetchLimit = query.latest_only ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();

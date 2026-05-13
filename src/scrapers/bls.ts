@@ -348,7 +348,7 @@ export async function scrapeBlsIndicators(
           unit: spec?.unit ?? "",
           series_description: spec?.description ?? "",
           notes: joinFootnotes(dp.footnotes),
-          bls_source_url: `https://data.bls.gov/timeseries/${seriesId}`,
+          source_url: `https://data.bls.gov/timeseries/${seriesId}`,
           scraped_at: scrapedAt,
         });
       }
