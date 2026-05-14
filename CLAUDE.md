@@ -1047,3 +1047,61 @@ get_fec_candidate_profile(candidate_name:"…")    → trader's campaign committ
 - Day 9: `feedback_raw_input_clean_output.md`
 
 The three new XBRL-specific Hard Lessons above are captured in this CLAUDE.md and don't need to become separate memory entries — they're project-specific schema/API quirks, not behavioral rules.
+
+---
+
+### 🌅 Day 10 (2026-05-14) — Greg-away autonomous run: 3 new tools + FTC + Senate votes
+
+This session ran in **bypass-permissions mode** while Greg stepped away — the `defaultMode` accepted value in his Claude Code build turned out to be `dontAsk` (the older schema name, not `bypassPermissions`) plus explicit wildcard rules in the allow array. Settings change captured in this commit and **reverted at session close** to restore default permission prompting.
+
+Shipped this run:
+
+| # | Item | Notes |
+|---|---|---|
+| 1 | **`get_fec_contributions`** (29th tool) | FEC Schedule A — itemized contributions ≥ $200 (default ingestion floor $1K to cut payroll noise). The "follow the money INTO committees" leg of political-alpha. New Firestore collection `fec_contributions` with 5,000+ rows seeded (cycle 2026, 180-day window). New daily scheduler `scrapeFecScheduleADaily` @ 7:30 ET. |
+| 2 | **`get_fec_independent_expenditures`** (30th tool) | FEC Schedule E — super PAC ads FOR or AGAINST candidates (post-Citizens-United vehicle). `support_oppose_indicator` is the critical signal ('S' / 'O'). New Firestore collection `fec_independent_expenditures` with 1,000 rows seeded. Daily scheduler @ 7:45 ET. |
+| 3 | **`get_federal_grants`** (31st tool) | USAspending federal grants (block / formula / project / cooperative). Different recipient universe than contracts — universities, non-profits, research, state/local. CFDA-keyed. New collection `federal_grants`. 167 grants seeded. Daily scheduler @ 6:12 ET (next to the existing 6:10 contracts run). |
+| 4 | **FTC as 6th source on `get_enforcement_actions`** | RSS feed at `ftc.gov/feeds/press-release.xml`. 10 real records seeded (Shutterstock $35M settlement, IM Mastery Academy MLM scheme). source enum: sec / doj / cftc / occ / fdic / **ftc**. |
+| 5 | **Senate roll-call votes** added to `get_roll_call_votes` | Source: senate.gov/legislative/LIS/roll_call_lists/ XML feeds (api.congress.gov has no Senate vote endpoint — confirmed 404). 782 Senate votes backfilled for the 119th Congress. The `congressLegislationDaily` cron now writes both chambers in one pass. |
+
+**Tool count: 31 (was 28). Server v0.41.0 LIVE at `mcp.keyvex.com`.** Three new daily scheduled functions deployed (Schedule A, Schedule E, USAspending grants). Two existing schedulers redeployed to pick up the new code (`scrapeCongressLegislationDaily` for Senate, `scrapeEnforcementDaily` for FTC).
+
+**Deferred (each needs its own dedicated session):**
+- **FARA** (foreign agents) — DOJ's eFile portal is APEX-based with no public REST API. Bulk XLSX downloads need a separate ingestion pattern. The probe showed 404s on every guessed endpoint and the eFile site redirects to an interactive APEX UI. Off the Day 10 path; v1.1.
+- **FEC Schedule B (PAC disbursements)** — diminishing returns vs. Schedule A/E. Most signal-rich PAC spending lives in IE (Schedule E); Schedule B is dominated by administrative expenses (rent, salaries, consulting). Add in a future session if a specific use-case emerges.
+
+**Three Hard Lessons captured during the FEC build:**
+
+1. **FEC Schedule A and E silently IGNORE `page` pagination.** Once you pass page=2 with a filter that produces >100 rows, the API returns the FIRST page over and over — same `sub_id` set, no error, no warning. The dedup ratio of 100 unique / 2000 raw rows was the tell. **Fix**: cursor-based pagination via `last_index` + `last_<sort_field>` from `pagination.last_indexes`. First request omits those; subsequent requests pass back the prior response's values. Terminate when results[] is empty. **Always test FEC scraper code against a filter that produces >100 expected rows** to catch this — small test sets hide the bug.
+
+2. **`link_id` is filing-level, not row-level.** First normalizer fell back to `link_id` when `sub_id` was missing. `link_id` is shared across all sub-rows of a single filing — using it as a doc ID collapses entire filings into one Firestore document. The actual row-level unique ID is `sub_id` (an integer-shaped string like `4010720261300288097`). **Lesson**: when picking a doc ID field on a hierarchical API, verify uniqueness on a multi-row probe before assuming.
+
+3. **Senate roll-call vote_date is `DD-MMM` with no year.** The senate.gov XML menu reports each vote's date as "18-Dec" or "13-May" without a year. The year is at the `congress_year` element on the parent envelope. Parse the day+month abbreviation, look up the month number, format `${congressYear}-${MM}-${DD}`. Other senate.gov XMLs likely follow the same convention.
+
+**For Future Claude on Day 11+:** The 31-tool surface remains launch-ready and now includes the political-alpha LOOP-CLOSING tool (`get_fec_contributions`). Three high-impact cross-source patterns now possible:
+
+```
+get_fec_contributions(contributor_employer:"Boeing")   → who at Boeing donated
+  → candidate_id of each donee
+get_fec_candidate_profile(candidate_id:"…")             → which seat they ran for
+get_roll_call_votes(...)                                → how they voted on defense bills
+get_federal_contracts(recipient_name:"Boeing")          → DoD awards Boeing won
+get_congressional_trades(ticker:"BA")                   → whether anyone traded BA stock
+```
+
+Or the grant-side equivalent:
+
+```
+get_federal_grants(cfda_number:"93.847")               → all NIH R01 awards
+  → recipient_uei  →
+get_lobbying_filings(client_name:"<university>")       → which unis lobbied for what
+get_member_profile(committee_id:"HSCM05")              → who's on the relevant subcommittee
+get_fec_contributions(contributor_employer:"<university>")
+                                                       → uni-employee political donations
+```
+
+Open queue: launch prep + registry submissions remain the dominant priority. The deferred scraper list (FARA, GAO, NLRB, FERC, EPA ECHO, OSHA, NHTSA, FEC Schedule B) plus the v1.1 unified_search-by-name-fuzzy work continues to roll forward, each needing its own session.
+
+**Last Updated**
+
+May 14, 2026 — Day 10. **31 MCP tools live at `mcp.keyvex.com` v0.41.0.** Three new daily scheduled scrapers deployed. The political-alpha "follow the money INTO committees" loop is now closed via `get_fec_contributions` + `get_fec_independent_expenditures`. Cross-source data surface now spans 32+ autonomous scrapers across SEC, FEC (5 endpoints), congress, USAspending (contracts + grants), 6 enforcement agencies, lobbying, OFAC, fundamentals (XBRL), and macro indicators (BLS + FRED).
