@@ -195,10 +195,39 @@ const TESTS: TestCase[] = [
   { tool: "get_consumer_complaints", label: "credit reporting issue", args: { product: "Credit reporting or other personal consumer reports", limit: 5 } },
   { tool: "get_consumer_complaints", label: "CA state filter", args: { state: "CA", limit: 5 } },
 
-  // ─── enforcement_actions: NEW sources (CFTC / OCC / FDIC) ─────────────
+  // ─── enforcement_actions: NEW sources (CFTC / OCC / FDIC / FTC) ──────
   { tool: "get_enforcement_actions", label: "CFTC actions", args: { source: "cftc", limit: 5 } },
   { tool: "get_enforcement_actions", label: "OCC actions", args: { source: "occ", limit: 5 } },
   { tool: "get_enforcement_actions", label: "FDIC actions", args: { source: "fdic", limit: 5 } },
+  { tool: "get_enforcement_actions", label: "FTC actions (Day 10)", args: { source: "ftc", limit: 5 } },
+
+  // ─── Day 10 new tools ───────────────────────────────────────────────
+  { tool: "get_fec_contributions", label: "baseline limit", args: { limit: 5 } },
+  { tool: "get_fec_contributions", label: "PA contributors", args: { contributor_state: "PA", limit: 5 } },
+  { tool: "get_fec_contributions", label: "$5K+ contributions", args: { min_amount: 5000, limit: 5 } },
+  { tool: "get_fec_contributions", label: "cycle 2026 sorted by amount", args: { cycle: 2026, sort_by: "contribution_receipt_amount", sort_order: "desc", limit: 5 } },
+
+  { tool: "get_fec_independent_expenditures", label: "baseline limit", args: { limit: 5 } },
+  { tool: "get_fec_independent_expenditures", label: "support ads", args: { support_oppose: "S", limit: 5 } },
+  { tool: "get_fec_independent_expenditures", label: "oppose ads", args: { support_oppose: "O", limit: 5 } },
+  { tool: "get_fec_independent_expenditures", label: "top by amount", args: { sort_by: "expenditure_amount", sort_order: "desc", limit: 5 } },
+
+  { tool: "get_federal_grants", label: "baseline limit", args: { limit: 5 } },
+  { tool: "get_federal_grants", label: "top by amount", args: { sort_by: "award_amount", sort_order: "desc", limit: 5 } },
+  { tool: "get_federal_grants", label: "DOT awards", args: { awarding_agency: "Department of Transportation", limit: 5 } },
+
+  { tool: "get_cftc_cot_reports", label: "baseline limit", args: { limit: 5 } },
+  { tool: "get_cftc_cot_reports", label: "latest_only snapshot", args: { latest_only: true, limit: 10 } },
+  { tool: "get_cftc_cot_reports", label: "GOLD positioning", args: { commodity_name: "GOLD", limit: 5 } },
+  { tool: "get_cftc_cot_reports", label: "by noncomm_net desc", args: { sort_by: "noncomm_net", sort_order: "desc", limit: 5 } },
+
+  { tool: "get_sec_fails_to_deliver", label: "baseline limit", args: { limit: 5 } },
+  { tool: "get_sec_fails_to_deliver", label: "$1M+ failures", args: { min_value: 1000000, limit: 5 } },
+  { tool: "get_sec_fails_to_deliver", label: "100K+ shares", args: { min_quantity: 100000, limit: 5 } },
+  { tool: "get_sec_fails_to_deliver", label: "by fail_value desc", args: { sort_by: "fail_value", sort_order: "desc", limit: 5 } },
+
+  // ─── roll-call: Senate (new in Day 10) ──────────────────────────────
+  { tool: "get_roll_call_votes", label: "Senate votes (Day 10)", args: { chamber: "senate", limit: 5 } },
 ];
 
 interface TestResult {

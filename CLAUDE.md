@@ -1105,3 +1105,64 @@ Open queue: launch prep + registry submissions remain the dominant priority. The
 **Last Updated**
 
 May 14, 2026 — Day 10. **31 MCP tools live at `mcp.keyvex.com` v0.41.0.** Three new daily scheduled scrapers deployed. The political-alpha "follow the money INTO committees" loop is now closed via `get_fec_contributions` + `get_fec_independent_expenditures`. Cross-source data surface now spans 32+ autonomous scrapers across SEC, FEC (5 endpoints), congress, USAspending (contracts + grants), 6 enforcement agencies, lobbying, OFAC, fundamentals (XBRL), and macro indicators (BLS + FRED).
+
+---
+
+### 🌅 Day 10 LATER (2026-05-14, autonomous batch 2) — Options-adjacent surface
+
+After the first Day 10 batch (FEC Schedule A/E, FTC, Senate votes, USAspending grants → 31 tools), Greg asked about options trading data. The honest answer: real options chains / unusual activity / OPRA flow are paywalled. But the **public-disclosure options-adjacent surface** is rich and unlocked here. Built tonight:
+
+| # | Tool | What it gives |
+|---|---|---|
+| 32 | **`get_cftc_cot_reports`** | CFTC Commitments of Traders — weekly futures + options-on-futures positioning by trader class (non-commercial / commercial / non-reportable). 1,106 rows seeded across 4 weeks. Saturday 7 AM ET cron. **The macro positioning dataset.** Source: publicreporting.cftc.gov Socrata API (`jun7-fc8e`). |
+| 33 | **`get_sec_fails_to_deliver`** | SEC bi-monthly Fails-to-Deliver — daily settlement failures by ticker / CUSIP / date. **49,844 rows seeded** from April 2026 first-half. Persistent FTDs are a contrarian short-squeeze leading indicator. Bi-monthly cron on the 1st + 16th @ 5 AM ET with auto-fallback for SEC's variable 2-3 week posting lag. Source: sec.gov/files/data/fails-deliver-data/ bi-monthly zips. New dep: `adm-zip`. |
+
+**Audits captured (defer to v1.1):**
+- **Form 4 derivative table NOT ingested** — `form4.ts` only parses `nonDerivativeTable.nonDerivativeTransaction`. Stock-option exercises, warrant exercises, RSU vestings live in `derivativeTable.derivativeTransaction` and are silently dropped. Adding `is_derivative` filter requires extending the scraper + re-backfilling the `insider_trades` collection. ~2-3 hr lift.
+- **N-PORT primary_document XML NOT parsed** — `nport.ts` is filing-level metadata only (filing_id + filer + dates + URL). Per-holding derivative positions (swaps, options, futures, repos) live inside `primary_document_url` XML which isn't parsed. Same v1A posture as 8-K. ~2-3 hr lift.
+
+**CBOE put/call ratio deferred** — endpoints mostly Cloudflare-403'd. Needs dedicated HTML-scrape session.
+
+**Server v0.42.0 LIVE at `mcp.keyvex.com`. Tool count: 33 (was 31).**
+
+**Battle test (the real check):**
+- **Local handler**: `npx tsx scripts/battle-test.ts` — **101 PASS / 1 EMPTY / 3 SLOW / 0 ERROR (105 queries)**. The 1 ERROR earlier was a composite-index-still-building artifact (GOLD positioning) that cleared once Firestore finished propagating. Pre-existing SLOW items (substring scans on big collections) are v1.1 polish, not regressions.
+- **Live wire**: 13 `tools/call` requests through `https://mcp.keyvex.com/` over HTTPS with Bearer auth — **13/13 PASS** with real data. Full pipeline verified: HTTPS → Hosting rewrite → Cloud Run → MCP transport → handler → Firestore → response.
+
+**Hard Lesson captured:**
+
+> **SEC bi-monthly Fails-to-Deliver posting lag is 2-3 weeks, not 1 week.** Initial scraper resolved the target half-month to `today - 10 days`. SEC publishes the second-half-of-month file ~2-3 weeks AFTER the half ends. On May 14, April-b (Apr 16-30) was still unpublished. Fix: change resolver to `today - 20 days`, AND add auto-fallback that walks backward through up to 6 half-months on 404 until a published file is found. Make the cron resilient to posting-delay variance.
+
+**Cross-source value of the new tools:**
+
+```
+get_sec_fails_to_deliver(min_value:1000000)          → biggest dollar-volume failures
+  → ticker → 
+get_otc_market_weekly(issue_symbol:"<X>")            → dark-pool activity same window
+get_activist_stakes(ticker:"<X>")                    → activist position changes
+get_insider_transactions(ticker:"<X>")               → insider activity
+                                                       (short-squeeze setup signal)
+```
+
+```
+get_cftc_cot_reports(latest_only:true)               → current macro positioning
+  → cross-reference with:
+get_economic_indicators(category:"rates")            → Fed funds / 10Y context
+get_treasury_auctions(security_type:"Note")          → bond-market demand
+                                                       (full macro picture)
+```
+
+**For Future Claude on Day 11+:** The 33-tool surface is launch-ready. Real options data (chains, IV, greeks) requires paid OPRA feed — not feasible without revenue. Public-disclosure options-adjacent surface is now complete: CFTC futures positioning, SEC FTD, Form 4 (non-deriv), Reg SHO threshold (via FTD), N-PORT (metadata), VIX (via FRED), Form 144 (planned sales). Form 4 derivative-table + N-PORT primary-doc parsing are the natural v1.1 next steps.
+
+**Open queue rolling to Day 11+:**
+1. Pre-launch commercial work (Privacy Policy live; launch posts drafts; MCP registry submissions: Anthropic + Smithery + Awesome-MCP + PulseMCP)
+2. Form 4 derivative-table extension (~2-3 hr; adds `is_derivative` filter, stock-option exercise signal)
+3. N-PORT primary-doc parsing (~2-3 hr; fund derivative holdings)
+4. CBOE put/call ratio (dedicated HTML-scrape session)
+5. FARA (dedicated APEX/XLSX session)
+6. v1.1 unified_search company-name fuzzy
+7. Node 20 → 22 upgrade before 2026-10-30 decommission
+
+**Last Updated**
+
+May 14, 2026 — Day 10 LATE. **33 MCP tools live at `mcp.keyvex.com` v0.42.0.** Options-adjacent public-disclosure surface complete: CFTC COT futures positioning + SEC Fails-to-Deliver daily settlement failures + the existing Form 4 / N-PORT / Form 144 / VIX-via-FRED coverage. Battle-tested both locally (101/105) and live wire (13/13). Two real audit findings logged as v1.1 polish (Form 4 derivative table, N-PORT primary-doc XML).
