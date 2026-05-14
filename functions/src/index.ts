@@ -43,6 +43,7 @@ import {
   saveFecContributions,
   saveFecIndependentExpenditures,
   saveFederalContractAwards,
+  saveFederalGrants,
   saveForm144Filings,
   saveForm278Filings,
   saveForm3Holdings,
@@ -98,6 +99,7 @@ import { scrapeLobbyingByPeriod } from "../../src/scrapers/lobbying.js";
 import { scrapeSenateLiveFeed } from "../../src/scrapers/senate.js";
 import { scrapeSenateForm278 } from "../../src/scrapers/form278.js";
 import { scrapeContractsLiveFeed } from "../../src/scrapers/usaspending.js";
+import { scrapeGrantsLiveFeed } from "../../src/scrapers/usaspending-grants.js";
 import {
   scrapeFecCandidates,
   scrapeFecCommittees,
@@ -623,6 +625,36 @@ export const scrapeUSAspendingDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("federalContractsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * USAspending federal GRANTS (assistance awards). Daily 6:12 AM ET.
+ *
+ * Different universe than contracts — universities, non-profits, state
+ * & local agencies, research institutions. CFDA-program-keyed.
+ */
+export const scrapeUSAspendingGrantsDaily = onSchedule(
+  {
+    schedule: "12 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 1800,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[usaspending grants] starting (7-day lookback)");
+    const grants = await scrapeGrantsLiveFeed(7);
+    logger.info(`[usaspending grants] scraper returned ${grants.length}`);
+    let docsWritten = 0;
+    if (grants.length > 0) {
+      const r = await saveFederalGrants(grants);
+      logger.info(`[usaspending grants] saved ${r.saved} grants to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("federalGrantsSync", { started, docsWritten });
   },
 );
 
@@ -1348,7 +1380,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.40.0";
+const SERVER_VERSION = "0.41.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

@@ -82,6 +82,7 @@ import {
   saveFecContributions,
   saveFecIndependentExpenditures,
   saveFederalContractAwards,
+  saveFederalGrants,
   saveForm144Filings,
   saveForm278Filings,
   saveEnforcementActions,
@@ -149,6 +150,10 @@ import {
   scrapeContractsByRecipient,
   scrapeContractsLiveFeed,
 } from "./scrapers/usaspending.js";
+import {
+  scrapeGrantsByRecipient,
+  scrapeGrantsLiveFeed,
+} from "./scrapers/usaspending-grants.js";
 import {
   scrapeFecCandidates,
   scrapeFecCommittees,
@@ -628,6 +633,45 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return awards;
+    },
+  },
+  "usaspending-grants": {
+    description:
+      "Scrape federal GRANTS (Block / Formula / Project / Cooperative) by recipient. Usage: usaspending-grants <RECIPIENT> [days] [--save]. Different universe than contracts — universities, non-profits, state agencies.",
+    run: async (args) => {
+      const positional = args.filter((a) => !a.startsWith("--"));
+      const recipient = positional[0];
+      if (!recipient) throw new Error("Usage: usaspending-grants <RECIPIENT> [days] [--save]");
+      const days = positional[1] ? parseInt(positional[1], 10) : 365;
+      const grants = await scrapeGrantsByRecipient(recipient, days);
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${grants.length} federal grants to Firestore...`,
+        );
+        const result = await saveFederalGrants(grants);
+        console.error(`[save] Saved ${result.saved} grants to ${result.collection}`);
+      }
+      return grants;
+    },
+  },
+  "usaspending-grants-feed": {
+    description:
+      "Scrape recent federal grants across all recipients for the last N days (default 7; add --save).",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 7;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const grants = await scrapeGrantsLiveFeed(days);
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${grants.length} federal grants to Firestore...`,
+        );
+        const result = await saveFederalGrants(grants);
+        console.error(`[save] Saved ${result.saved} grants to ${result.collection}`);
+      }
+      return grants;
     },
   },
   "13d-13g": {

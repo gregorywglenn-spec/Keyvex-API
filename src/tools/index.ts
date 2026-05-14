@@ -18,6 +18,7 @@ import * as fecContributions from "./fec-contributions.js";
 import * as fecIndependentExpenditures from "./fec-independent-expenditures.js";
 import * as federalRegister from "./federal-register.js";
 import * as federalContracts from "./federal-contracts.js";
+import * as federalGrants from "./federal-grants.js";
 import * as fundamentals from "./fundamentals.js";
 import * as insiderTransactions from "./insider-transactions.js";
 import * as institutionalHoldings from "./institutional-holdings.js";
@@ -49,6 +50,7 @@ export const TOOLS: ToolModule[] = [
   plannedInsiderSales,
   activistStakes,
   federalContracts,
+  federalGrants,
   memberProfile,
   materialEvents,
   lobbyingFilings,

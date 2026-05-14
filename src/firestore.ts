@@ -36,6 +36,8 @@ import type {
   FecIndependentExpenditureQuery,
   FederalContractAward,
   FederalContractAwardsQuery,
+  FederalGrant,
+  FederalGrantsQuery,
   FederalRegisterDocument,
   FederalRegisterDocumentsQuery,
   Form144Filing,
@@ -895,6 +897,115 @@ export async function saveFederalContractAwards(
     saved += chunk.length;
   }
 
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Federal grants (USAspending assistance awards) query + save ─────────
+
+export async function queryFederalGrants(
+  query: FederalGrantsQuery,
+): Promise<QueryResult<FederalGrant>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("federal_grants");
+
+  if (query.recipient_uei) {
+    q = q.where("recipient_uei", "==", query.recipient_uei);
+  } else if (query.awarding_agency) {
+    q = q.where("awarding_agency", "==", query.awarding_agency);
+  } else if (query.cfda_number) {
+    q = q.where("cfda_number", "==", query.cfda_number);
+  }
+
+  const sortField = query.sort_by ?? "last_modified_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  const userLimit = query.limit ?? 50;
+  const needsSubstring = !!query.recipient_name;
+  const fetchLimit = needsSubstring ? 5000 : Math.max(userLimit * 4, 500);
+
+  try {
+    q = q.orderBy(sortField, sortOrder).limit(fetchLimit);
+  } catch {
+    q = q.limit(fetchLimit);
+  }
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as FederalGrant);
+
+  if (query.recipient_name) {
+    const needle = query.recipient_name.toLowerCase();
+    docs = docs.filter((g) =>
+      (g.recipient_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.min_amount !== undefined) {
+    docs = docs.filter((g) => g.award_amount >= (query.min_amount ?? 0));
+  }
+  if (query.since) {
+    docs = docs.filter(
+      (g) => (g.last_modified_date ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (g) => (g.last_modified_date ?? "") <= (query.until ?? "9999"),
+    );
+  }
+
+  docs.sort((a, b) => {
+    const av =
+      sortField === "last_modified_date"
+        ? a.last_modified_date
+        : sortField === "start_date"
+        ? a.start_date
+        : sortField === "award_amount"
+        ? a.award_amount
+        : a.total_outlays;
+    const bv =
+      sortField === "last_modified_date"
+        ? b.last_modified_date
+        : sortField === "start_date"
+        ? b.start_date
+        : sortField === "award_amount"
+        ? b.award_amount
+        : b.total_outlays;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveFederalGrants(
+  grants: FederalGrant[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "federal_grants";
+  if (grants.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+  for (let i = 0; i < grants.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = grants.slice(i, i + BATCH_SIZE);
+    for (const g of chunk) {
+      batch.set(collection.doc(g.id), g, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
   return { saved, collection: COLLECTION };
 }
 

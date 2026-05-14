@@ -612,6 +612,66 @@ export interface FederalContractAwardsQuery {
   limit?: number;
 }
 
+// ─── Federal Grants (USAspending assistance awards) ────────────────────────
+
+/**
+ * One federal GRANT or cooperative agreement award. Sibling collection to
+ * federal_contracts but a completely different recipient universe —
+ * universities, non-profits, state & local agencies, healthcare research
+ * institutions, public-private partnerships.
+ *
+ * Award type codes covered (USAspending):
+ *   02 = Block Grant
+ *   03 = Formula Grant
+ *   04 = Project Grant (most common)
+ *   05 = Cooperative Agreement
+ *
+ * Grant-specific fields vs. contracts: cfda_number (Catalog of Federal
+ * Domestic Assistance program ID), no NAICS / PSC (those are contract-only).
+ */
+export interface FederalGrant {
+  /** USAspending generated_internal_id. Stable across modifications. */
+  id: string;
+  /** Award ID (typically a grant number assigned by the awarding agency). */
+  award_id: string;
+  recipient_name: string;
+  recipient_uei: string;
+  recipient_id: string;
+  /** Total obligated amount. */
+  award_amount: number;
+  /** Cumulative outlays disbursed against the grant. */
+  total_outlays: number;
+  description: string;
+  /** Award Type (e.g., "PROJECT GRANT (B)", "COOPERATIVE AGREEMENT"). */
+  award_type: string;
+  awarding_agency: string;
+  awarding_subagency: string;
+  /** CFDA program number (e.g., "89.003" = NHPRC discretionary grants). */
+  cfda_number: string;
+  /** COVID/IIJA "Disaster Emergency Fund" codes. */
+  def_codes: string[];
+  start_date: string;
+  end_date: string;
+  last_modified_date: string;
+  place_of_performance_state: string;
+  award_url: string;
+  source_url: string;
+  data_source: "USASPENDING";
+}
+
+export interface FederalGrantsQuery {
+  recipient_name?: string;
+  recipient_uei?: string;
+  awarding_agency?: string;
+  cfda_number?: string;
+  min_amount?: number;
+  since?: string;
+  until?: string;
+  sort_by?: "last_modified_date" | "start_date" | "award_amount" | "total_outlays";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
 // ─── Activist / 5%+ ownership disclosures (Schedule 13D / 13G) ─────────────
 
 /**

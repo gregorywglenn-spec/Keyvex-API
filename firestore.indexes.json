@@ -500,6 +500,46 @@
       ]
     },
     {
+      "collectionGroup": "federal_grants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipient_uei", "order": "ASCENDING" },
+        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "federal_grants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
+        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "federal_grants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cfda_number", "order": "ASCENDING" },
+        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "federal_grants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
+        { "fieldPath": "award_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "federal_grants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cfda_number", "order": "ASCENDING" },
+        { "fieldPath": "award_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "otc_market_weekly",
       "queryScope": "COLLECTION",
       "fields": [
