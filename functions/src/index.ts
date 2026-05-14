@@ -40,6 +40,8 @@ import {
   saveCongressionalTrades,
   saveFecCandidates,
   saveFecCommittees,
+  saveFecContributions,
+  saveFecIndependentExpenditures,
   saveFederalContractAwards,
   saveForm144Filings,
   saveForm278Filings,
@@ -100,6 +102,8 @@ import {
   scrapeFecCandidates,
   scrapeFecCommittees,
 } from "../../src/scrapers/fec.js";
+import { scrapeFecScheduleA } from "../../src/scrapers/fec-schedule-a.js";
+import { scrapeFecScheduleE } from "../../src/scrapers/fec-schedule-e.js";
 import { scrapeTenderOffersLiveFeed } from "../../src/scrapers/tender-offers.js";
 import {
   scrapeBills,
@@ -856,6 +860,89 @@ export const scrapeFecCommitteesWeekly = onSchedule(
 );
 
 /**
+ * FEC Schedule A contributions (≥ $1,000 itemized). Daily 7:30 AM ET.
+ *
+ * Cadence: daily 7-day rolling window. FEC re-publishes corrections to
+ * past filings, so the 7-day overlap on a daily cadence catches both
+ * fresh disclosures and amendments. Idempotent via sub_id doc IDs.
+ *
+ * Scope discipline: $1,000+ floor (signal-rich; cuts payroll-deduction
+ * noise) + cycle=2026 keeps the daily pull bounded under FEC's 10K-row
+ * page-pagination ceiling. Heavy filtered backfills (committee_id /
+ * candidate_id) are CLI-only via `npx tsx src/scrape.ts fec-contributions
+ * --committee=C0XXXXXXX --save`.
+ */
+export const scrapeFecScheduleADaily = onSchedule(
+  {
+    schedule: "30 7 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 900,
+    secrets: [fecApiKey],
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[fec sched-a] starting daily refresh (7-day window, $1K+)");
+    const contributions = await scrapeFecScheduleA({
+      lookbackDays: 7,
+      minAmount: 1000,
+      cycle: 2026,
+    });
+    logger.info(`[fec sched-a] scraper returned ${contributions.length}`);
+    let docsWritten = 0;
+    if (contributions.length > 0) {
+      const r = await saveFecContributions(contributions);
+      logger.info(`[fec sched-a] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("fecScheduleASync", { started, docsWritten });
+  },
+);
+
+/**
+ * FEC Schedule E independent expenditures (≥ $1,000). Daily 7:45 AM ET.
+ *
+ * Cadence: daily 7-day rolling window. Super PAC ad spending shows up
+ * via F24 filings (24-hour notices) and F5 (quarterly) and gets amended
+ * frequently — daily-overlap-on-7-days catches both new and corrections.
+ *
+ * Cycle scope: 2026. Pre-election windows can spike dramatically (e.g.,
+ * the 60 days before a general election), so the 10K-page cap can hit
+ * for the busiest days; tighten in v1.1 with cursor pagination across
+ * the full result set.
+ */
+export const scrapeFecScheduleEDaily = onSchedule(
+  {
+    schedule: "45 7 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 900,
+    secrets: [fecApiKey],
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[fec sched-e] starting daily refresh (7-day window, $1K+)");
+    const ies = await scrapeFecScheduleE({
+      lookbackDays: 7,
+      minAmount: 1000,
+      cycle: 2026,
+    });
+    logger.info(`[fec sched-e] scraper returned ${ies.length}`);
+    let docsWritten = 0;
+    if (ies.length > 0) {
+      const r = await saveFecIndependentExpenditures(ies);
+      logger.info(`[fec sched-e] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("fecScheduleESync", { started, docsWritten });
+  },
+);
+
+/**
  * SEC Schedule TO (tender offers). Daily 7 AM ET.
  *
  * Cadence: daily. New tender offer filings can land any business day;
@@ -930,7 +1017,8 @@ export const scrapeCongressLegislationDaily = onSchedule(
       billsWritten = r.saved;
     }
 
-    const votes = await scrapeRollCallVotes({ congress: 119, chamber: "house" });
+    // Both chambers — House via api.congress.gov, Senate via senate.gov XML.
+    const votes = await scrapeRollCallVotes({ congress: 119 });
     logger.info(`[congress] votes scraper returned ${votes.length}`);
     let votesWritten = 0;
     if (votes.length > 0) {
@@ -1105,7 +1193,7 @@ export const scrapeEnforcementDaily = onSchedule(
   },
   async () => {
     const started = Date.now();
-    logger.info("[enforcement] starting daily SEC + DOJ + CFTC + OCC + FDIC refresh");
+    logger.info("[enforcement] starting daily SEC + DOJ + CFTC + OCC + FDIC + FTC refresh");
     const actions = await scrapeEnforcementActions({});
     logger.info(`[enforcement] scraper returned ${actions.length} actions`);
     let docsWritten = 0;
@@ -1260,7 +1348,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.39.0";
+const SERVER_VERSION = "0.40.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

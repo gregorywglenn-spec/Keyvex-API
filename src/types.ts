@@ -1429,7 +1429,7 @@ export interface EnforcementAction {
    *  CFTC: "cftc-{releaseNumber}" (e.g., "cftc-9230-26"). */
   action_id: string;
   /** Issuing agency. */
-  source: "sec" | "doj" | "cftc" | "occ" | "fdic";
+  source: "sec" | "doj" | "cftc" | "occ" | "fdic" | "ftc";
   /** Title / headline of the press release. */
   title: string;
   /** Short summary (DOJ teaser field, or first sentence of SEC description). */
@@ -1458,7 +1458,7 @@ export interface EnforcementActionsQuery {
   /** Direct lookup by action_id. */
   action_id?: string;
   /** Filter to one source. */
-  source?: "sec" | "doj" | "cftc";
+  source?: "sec" | "doj" | "cftc" | "occ" | "fdic" | "ftc";
   /** Substring against title (case-insensitive). */
   title?: string;
   /** Substring against description + teaser concatenated (case-insensitive). */
@@ -1941,6 +1941,223 @@ export interface FecCommitteeQuery {
   cycle?: number;
   sort_by?: "name" | "last_file_date";
   sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+// ─── FEC Schedule A — Contributions (v1A) ───────────────────────────────────
+
+/**
+ * One Schedule A contribution row from the FEC. Schedule A is the FEC's
+ * record of money flowing INTO a committee — itemized when ≥ $200 from
+ * an individual (PACs also report all PAC-to-PAC and CCM transfers).
+ *
+ * This is the "follow the money" half of the political-alpha play. Joins:
+ *   - candidate_id → fec_candidates collection (FEC profile) and via
+ *     name-match → legislators (bioguide_id) for trade/vote/committee
+ *     cross-source queries.
+ *   - recipient_committee_id → fec_committees collection (committee
+ *     designation, type, party affiliation).
+ *   - contributor_employer (substring) → cross-reference with
+ *     lobbying_filings registrants / clients to spot lobbyist donors.
+ *
+ * Scope notes for v1A:
+ *   - Default ingestion minimum: $1,000+ contributions (signal-rich;
+ *     filters out payroll-deduction memos that dominate raw volume).
+ *   - Cycle scope: 2026 (current). Backfilling 2024/2022 requires
+ *     explicit cycle filter.
+ *   - contribution_receipt_date can be null on memo / subtotal rows;
+ *     agents using since/until filters should be aware.
+ */
+export interface FecContribution {
+  /** FEC's globally unique row ID (sub_id from API). Primary key. */
+  sub_id: string;
+  /** Dollar amount of the contribution. */
+  contribution_receipt_amount: number;
+  /** ISO date the contribution was received. Empty on memo rows. */
+  contribution_receipt_date: string;
+  /** FEC-assigned ID if the contributor is a committee (rare for SchA). */
+  contributor_id: string;
+  /** Filer-provided full name (typically "LAST, FIRST" for individuals). */
+  contributor_name: string;
+  contributor_first_name: string;
+  contributor_last_name: string;
+  /** Employer string (free-text; not normalized — see Hard Lessons). */
+  contributor_employer: string;
+  /** Occupation string (free-text). */
+  contributor_occupation: string;
+  contributor_city: string;
+  /** 2-letter state code. */
+  contributor_state: string;
+  contributor_zip: string;
+  /** Entity type code: IND (individual), COM (committee), CCM (candidate committee), PAC, PTY, CAN, ORG, UNK. */
+  entity_type: string;
+  entity_type_desc: string;
+  /** Recipient (the committee that received the money). FK → fec_committees. */
+  recipient_committee_id: string;
+  recipient_committee_name: string;
+  recipient_committee_type: string;
+  recipient_committee_org_type: string;
+  /** Designation code on recipient: P (Principal), A (Authorized), B (Lobbyist), D (Leadership PAC), J (Joint), U (Unauthorized). */
+  recipient_committee_designation: string;
+  /** Candidate the recipient committee supports (when committee is candidate-tied). FK → fec_candidates. */
+  candidate_id: string;
+  candidate_name: string;
+  /** Office sought by the candidate: H/S/P. */
+  candidate_office: string;
+  candidate_office_state: string;
+  candidate_office_district: string;
+  /** Election cycle (2-year period; e.g. 2026 = 2025+2026). */
+  two_year_transaction_period: number | null;
+  /** Election type: P (Primary), G (General), R (Runoff), S (Special), C (Convention), O (Other). */
+  election_type: string;
+  /** Receipt type code; FEC schema-specific. */
+  receipt_type: string;
+  receipt_type_desc: string;
+  /** Report type (M1-M12 monthly, Q1-Q3 quarterly, YE year-end, etc.). */
+  report_type: string;
+  report_year: number | null;
+  file_number: number | null;
+  transaction_id: string;
+  /** FEC image number — links to the original filing scan. */
+  image_number: string;
+  /** Direct PDF URL on docquery.fec.gov. */
+  pdf_url: string;
+  /** Memo text (free-text comments from the filer). */
+  memo_text: string;
+  memo_code: string;
+  /** True when this row is a memo subtotal (not a real new contribution). */
+  memoed_subtotal: boolean;
+  /** True when the contributor is an individual (entity_type = IND). */
+  is_individual: boolean;
+  /** Contributor's year-to-date cumulative giving to this committee. */
+  contributor_aggregate_ytd: number | null;
+  /** Date FEC loaded the row into their warehouse (NOT contribution date). */
+  load_date: string;
+  /** "A" = amended record; "N" = new (or null). */
+  amendment_indicator: string;
+  /** Filing form code (F3, F3X, F3P, F24, etc.). */
+  filing_form: string;
+  /** Provenance URL — agents can verify against the source. */
+  source_url: string;
+  /** When KeyVex scraped this record (ISO 8601). */
+  scraped_at: string;
+}
+
+export interface FecContributionQuery {
+  /** Direct doc lookup by FEC sub_id (fastest). */
+  sub_id?: string;
+  /** Filter by recipient committee. */
+  recipient_committee_id?: string;
+  /** Filter by candidate the recipient committee supports. */
+  candidate_id?: string;
+  /** Case-insensitive substring on contributor_name. */
+  contributor_name?: string;
+  /** Case-insensitive substring on contributor_employer. */
+  contributor_employer?: string;
+  /** Exact 2-letter state code. */
+  contributor_state?: string;
+  /** Entity type code (IND, COM, PAC, etc.). */
+  entity_type?: string;
+  /** Inclusive lower bound on contribution_receipt_amount. */
+  min_amount?: number;
+  /** Inclusive upper bound on contribution_receipt_amount. */
+  max_amount?: number;
+  /** Inclusive lower bound on contribution_receipt_date (YYYY-MM-DD). */
+  since?: string;
+  /** Inclusive upper bound on contribution_receipt_date (YYYY-MM-DD). */
+  until?: string;
+  /** Election cycle year (2026, 2024, 2022). */
+  cycle?: number;
+  /** Skip rows flagged as memo subtotals (FEC's noise rows). Default false. */
+  exclude_memos?: boolean;
+  sort_by?: "contribution_receipt_date" | "contribution_receipt_amount";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+// ─── FEC Schedule E — Independent Expenditures (v1A) ───────────────────────
+
+/**
+ * One Schedule E independent expenditure. Money spent BY a super PAC or
+ * IE-only committee uncoordinatedly FOR or AGAINST a federal candidate
+ * (the hallmark vehicle for political ad warfare since Citizens United).
+ *
+ * Distinct from Schedule A (money flowing INTO a committee). Same FEC
+ * cursor-pagination quirks. F24 (24-hour notices within 20 days of an
+ * election) and F5 (quarterly IE reports) both flow through schedule_e.
+ *
+ * Critical signal: support_oppose_indicator — "S" = support, "O" = oppose.
+ * A single candidate can have dozens of S and O entries from different
+ * super PACs across one cycle.
+ */
+export interface FecIndependentExpenditure {
+  /** FEC's globally unique sub_id. Primary key. */
+  sub_id: string;
+  /** Committee that made the expenditure (super PAC / IE-only PAC). */
+  committee_id: string;
+  committee_name: string;
+  committee_type: string;
+  committee_designation: string;
+  /** Target candidate (the politician being supported or opposed). */
+  candidate_id: string;
+  candidate_name: string;
+  candidate_office: string;
+  candidate_office_state: string;
+  candidate_office_district: string;
+  candidate_party: string;
+  /** "S" = support, "O" = oppose. Empty when missing on row. */
+  support_oppose_indicator: string;
+  expenditure_amount: number;
+  /** Date the expenditure was made (YYYY-MM-DD; can be a future / typo'd
+   *  date in FEC filings — we preserve as-is per pure-publisher posture). */
+  expenditure_date: string;
+  /** Date the ad / mailer / phone bank was disseminated to the public. */
+  dissemination_date: string;
+  /** Free-text description of what the money was spent on. */
+  disbursement_description: string;
+  /** FEC category code (e.g., "001" = Media). */
+  category_code: string;
+  category_code_full: string;
+  /** Vendor / contractor that received the payment (ad agency, media buyer, etc.). */
+  payee_name: string;
+  payee_city: string;
+  payee_state: string;
+  payee_zip: string;
+  election_type: string;
+  report_type: string;
+  report_year: number | null;
+  file_number: number | null;
+  transaction_id: string;
+  image_number: string;
+  /** Filing form: F24 (24-hour notice) or F5 (quarterly). */
+  filing_form: string;
+  memoed_subtotal: boolean;
+  amendment_indicator: string;
+  two_year_transaction_period: number | null;
+  source_url: string;
+  scraped_at: string;
+}
+
+export interface FecIndependentExpenditureQuery {
+  sub_id?: string;
+  committee_id?: string;
+  candidate_id?: string;
+  /** "S" = support only, "O" = oppose only. */
+  support_oppose?: "S" | "O";
+  /** Substring on payee_name. */
+  payee_name?: string;
+  /** Substring on disbursement_description. */
+  description?: string;
+  candidate_office?: string;
+  candidate_office_state?: string;
+  min_amount?: number;
+  max_amount?: number;
+  since?: string;
+  until?: string;
+  cycle?: number;
+  exclude_memos?: boolean;
+  sort_by?: "expenditure_date" | "expenditure_amount";
+  sort_order?: "asc" | "desc";
   limit?: number;
 }
 

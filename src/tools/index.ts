@@ -14,6 +14,8 @@ import * as consumerComplaints from "./consumer-complaints.js";
 import * as economicIndicators from "./economic-indicators.js";
 import * as enforcementActions from "./enforcement-actions.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
+import * as fecContributions from "./fec-contributions.js";
+import * as fecIndependentExpenditures from "./fec-independent-expenditures.js";
 import * as federalRegister from "./federal-register.js";
 import * as federalContracts from "./federal-contracts.js";
 import * as fundamentals from "./fundamentals.js";
@@ -52,6 +54,8 @@ export const TOOLS: ToolModule[] = [
   lobbyingFilings,
   annualFinancialDisclosures,
   fecCandidateProfile,
+  fecContributions,
+  fecIndependentExpenditures,
   tenderOffers,
   bills,
   rollCallVotes,

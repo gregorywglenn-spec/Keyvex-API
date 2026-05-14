@@ -79,6 +79,8 @@ import {
   saveCongressionalTrades,
   saveFecCandidates,
   saveFecCommittees,
+  saveFecContributions,
+  saveFecIndependentExpenditures,
   saveFederalContractAwards,
   saveForm144Filings,
   saveForm278Filings,
@@ -151,6 +153,8 @@ import {
   scrapeFecCandidates,
   scrapeFecCommittees,
 } from "./scrapers/fec.js";
+import { scrapeFecScheduleA } from "./scrapers/fec-schedule-a.js";
+import { scrapeFecScheduleE } from "./scrapers/fec-schedule-e.js";
 import {
   scrapeTenderOffersByTicker,
   scrapeTenderOffersLiveFeed,
@@ -1013,6 +1017,96 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  "fec-contributions": {
+    description:
+      "Scrape FEC Schedule A contributions (money flowing INTO committees) from api.open.fec.gov. Defaults: rolling 7-day window, min_amount=$1000, cycle=2026. Optional: --days=N, --min-amount=N, --max-amount=N, --min-date=YYYY-MM-DD, --max-date=YYYY-MM-DD, --cycle=YYYY, --committee=C0XXXXXXX, --candidate=[HSP]0XXXXXXXX, --contributor-state=AA, --contributor-employer='COMPANY NAME', --max-pages=N. Add --save to write to fec_contributions Firestore collection. Requires FEC_API_KEY env var for >30 req/hr.",
+    run: async (args) => {
+      const flag = (name: string): string | undefined => {
+        const found = args.find((a) => a.startsWith(`--${name}=`));
+        return found ? found.slice(name.length + 3) : undefined;
+      };
+      const days = flag("days") ? parseInt(flag("days") as string, 10) : undefined;
+      const minAmount = flag("min-amount") ? parseFloat(flag("min-amount") as string) : undefined;
+      const maxAmount = flag("max-amount") ? parseFloat(flag("max-amount") as string) : undefined;
+      const minDate = flag("min-date");
+      const maxDate = flag("max-date");
+      const cycle = flag("cycle") ? parseInt(flag("cycle") as string, 10) : undefined;
+      const committeeId = flag("committee");
+      const candidateId = flag("candidate");
+      const contributorState = flag("contributor-state");
+      const contributorEmployer = flag("contributor-employer");
+      const maxPages = flag("max-pages") ? parseInt(flag("max-pages") as string, 10) : undefined;
+      if (cycle !== undefined && (Number.isNaN(cycle) || cycle < 1976)) {
+        throw new Error("--cycle must be a year >= 1976");
+      }
+      const contributions = await scrapeFecScheduleA({
+        ...(minAmount !== undefined && { minAmount }),
+        ...(maxAmount !== undefined && { maxAmount }),
+        ...(days !== undefined && { lookbackDays: days }),
+        ...(minDate !== undefined && { minDate }),
+        ...(maxDate !== undefined && { maxDate }),
+        ...(cycle !== undefined && { cycle }),
+        ...(committeeId !== undefined && { committeeId }),
+        ...(candidateId !== undefined && { candidateId }),
+        ...(contributorState !== undefined && { contributorState }),
+        ...(contributorEmployer !== undefined && { contributorEmployer }),
+        ...(maxPages !== undefined && { maxPages }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${contributions.length} FEC contributions to Firestore...`,
+        );
+        const result = await saveFecContributions(contributions);
+        console.error(
+          `[save] Saved ${result.saved} contributions to ${result.collection}`,
+        );
+      }
+      return contributions;
+    },
+  },
+  "fec-ie": {
+    description:
+      "Scrape FEC Schedule E independent expenditures (super PAC ad spending FOR or AGAINST candidates). Defaults: 7-day window, $1000+, cycle 2026. Optional: --days=N, --min-amount=N, --cycle=YYYY, --committee=C0XXXXXXX, --candidate=[HSP]0XXXXXXXX, --support-oppose=S|O, --max-pages=N. Add --save to write to fec_independent_expenditures Firestore collection.",
+    run: async (args) => {
+      const flag = (name: string): string | undefined => {
+        const found = args.find((a) => a.startsWith(`--${name}=`));
+        return found ? found.slice(name.length + 3) : undefined;
+      };
+      const days = flag("days") ? parseInt(flag("days") as string, 10) : undefined;
+      const minAmount = flag("min-amount") ? parseFloat(flag("min-amount") as string) : undefined;
+      const cycle = flag("cycle") ? parseInt(flag("cycle") as string, 10) : undefined;
+      const committeeId = flag("committee");
+      const candidateId = flag("candidate");
+      const supportOpposeStr = flag("support-oppose");
+      const supportOppose =
+        supportOpposeStr === "S" || supportOpposeStr === "O"
+          ? supportOpposeStr
+          : undefined;
+      const maxPages = flag("max-pages") ? parseInt(flag("max-pages") as string, 10) : undefined;
+      if (cycle !== undefined && (Number.isNaN(cycle) || cycle < 1976)) {
+        throw new Error("--cycle must be a year >= 1976");
+      }
+      const ies = await scrapeFecScheduleE({
+        ...(minAmount !== undefined && { minAmount }),
+        ...(days !== undefined && { lookbackDays: days }),
+        ...(cycle !== undefined && { cycle }),
+        ...(committeeId !== undefined && { committeeId }),
+        ...(candidateId !== undefined && { candidateId }),
+        ...(supportOppose !== undefined && { supportOppose }),
+        ...(maxPages !== undefined && { maxPages }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${ies.length} FEC independent expenditures to Firestore...`,
+        );
+        const result = await saveFecIndependentExpenditures(ies);
+        console.error(
+          `[save] Saved ${result.saved} IEs to ${result.collection}`,
+        );
+      }
+      return ies;
     },
   },
   "federal-register": {

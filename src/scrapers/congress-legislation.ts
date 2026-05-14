@@ -26,6 +26,7 @@
  *   = full political-alpha picture.
  */
 
+import { XMLParser } from "fast-xml-parser";
 import type { Bill, RollCallVote } from "../types.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
@@ -326,8 +327,169 @@ function normalizeHouseVote(
   };
 }
 
-// normalizeSenateVote is intentionally absent for v1A; senate.gov XML scraper
-// (v1.1) will produce its own normalizer because the upstream schema differs.
+// ─── Senate roll-call XML (senate.gov) ─────────────────────────────────────
+
+const SENATE_VOTE_MENU_URL =
+  "https://www.senate.gov/legislative/LIS/roll_call_lists/vote_menu_{congress}_{session}.xml";
+
+interface RawSenateVoteSummary {
+  vote_number?: string | null;
+  vote_date?: string | null;
+  issue?: string | null;
+  question?: string | null;
+  result?: string | null;
+  title?: string | null;
+  vote_tally?: {
+    yeas?: number | string | null;
+    nays?: number | string | null;
+    present?: number | string | null;
+    absent?: number | string | null;
+  } | null;
+}
+
+interface SenateVoteMenu {
+  vote_summary?: {
+    congress?: number | string;
+    session?: number | string;
+    congress_year?: number | string;
+    votes?: {
+      vote?: RawSenateVoteSummary | RawSenateVoteSummary[];
+    };
+  };
+}
+
+const senateXmlParser = new XMLParser({
+  ignoreAttributes: false,
+  parseTagValue: false,
+  trimValues: true,
+});
+
+/** Parse a Senate "vote_date" like "18-Dec" into ISO YYYY-MM-DD using
+ *  the congress_year as the year anchor. Senate XML uses 2-digit day +
+ *  3-letter month abbreviation, no year. */
+function parseSenateVoteDate(
+  vote_date: string,
+  congressYear: number,
+): string {
+  if (!vote_date) return "";
+  const m = /^(\d{1,2})-([A-Za-z]{3})$/.exec(vote_date.trim());
+  if (!m) return "";
+  const day = m[1]!.padStart(2, "0");
+  const monAbbr = m[2]!.toLowerCase();
+  const months: Record<string, string> = {
+    jan: "01", feb: "02", mar: "03", apr: "04",
+    may: "05", jun: "06", jul: "07", aug: "08",
+    sep: "09", oct: "10", nov: "11", dec: "12",
+  };
+  const month = months[monAbbr];
+  if (!month) return "";
+  return `${congressYear}-${month}-${day}`;
+}
+
+/** Parse the "issue" string from a Senate vote (e.g. "S. 1234", "H.R. 5678",
+ *  "PN373", "S.J.Res. 130") into legislation_type + legislation_number. */
+function parseSenateIssue(issue: string): {
+  legType: string;
+  legNum: string;
+} {
+  if (!issue) return { legType: "", legNum: "" };
+  const trimmed = issue.trim();
+  // Nominations: PN{number}
+  const pn = /^PN(\d+)/i.exec(trimmed);
+  if (pn) return { legType: "PN", legNum: pn[1]! };
+  // Standard formats: "S. 1234", "H.R. 5678", "S.J.Res. 130", "H.Con.Res. 5"
+  const m = /^([A-Z][A-Z.]*?\.?(?:Res|Con\.Res|J\.Res)?\.?)\s*(\d+)/i.exec(trimmed);
+  if (m) {
+    let legType = m[1]!.replace(/\./g, "").toUpperCase();
+    // Normalize known abbreviations: SCONRES = S.Con.Res, etc.
+    if (legType === "SJRES") legType = "SJRES";
+    if (legType === "HJRES") legType = "HJRES";
+    if (legType === "SCONRES") legType = "SCONRES";
+    if (legType === "HCONRES") legType = "HCONRES";
+    return { legType, legNum: m[2]! };
+  }
+  return { legType: "", legNum: "" };
+}
+
+function normalizeSenateVote(
+  raw: RawSenateVoteSummary,
+  congress: number,
+  session: number,
+  congressYear: number,
+  scrapedAt: string,
+): RollCallVote | null {
+  const voteNumStr = raw.vote_number ?? "";
+  const rcNum = parseInt(voteNumStr, 10);
+  if (!voteNumStr || Number.isNaN(rcNum)) return null;
+  const issue = (raw.issue ?? "").toString().trim();
+  const { legType, legNum } = parseSenateIssue(issue);
+  const startDate = parseSenateVoteDate(
+    (raw.vote_date ?? "").toString(),
+    congressYear,
+  );
+  const result = (raw.result ?? "").toString().trim();
+  const question = (raw.question ?? "")
+    .toString()
+    .replace(/\s+/g, " ")
+    .trim();
+  // Per-vote XML URL (v1.1 will fetch this for per-senator positions).
+  const sourceDataUrl = `https://www.senate.gov/legislative/LIS/roll_call_votes/vote${congress}${session}/vote_${congress}_${session}_${voteNumStr.padStart(5, "0")}.xml`;
+  return {
+    vote_id: `senate-${congress}-${session}-${rcNum}`,
+    congress,
+    session_number: session,
+    chamber: "senate",
+    roll_call_number: rcNum,
+    vote_type: question,
+    result,
+    legislation_type: legType,
+    legislation_number: legNum,
+    bill_id: legType && legNum ? `${congress}-${legType}-${legNum}` : "",
+    start_date: startDate,
+    update_date: startDate,
+    source_data_url: sourceDataUrl,
+    congress_gov_url: "",
+    api_url: "",
+    scraped_at: scrapedAt,
+  };
+}
+
+async function fetchSenateVoteMenu(
+  congress: number,
+  session: number,
+): Promise<{
+  votes: RawSenateVoteSummary[];
+  congressYear: number;
+}> {
+  const url = SENATE_VOTE_MENU_URL.replace("{congress}", String(congress)).replace(
+    "{session}",
+    String(session),
+  );
+  console.error(`[votes]   senate session=${session}  GET ${url}`);
+  const res = await fetch(url, {
+    headers: { "User-Agent": CONFIG.USER_AGENT, Accept: "application/xml" },
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      // Session not yet published (e.g., future session) — silent skip.
+      console.error(
+        `[votes]   senate session=${session}: 404 (not yet published?)`,
+      );
+      return { votes: [], congressYear: 0 };
+    }
+    throw new Error(
+      `senate.gov XML HTTP ${res.status} ${res.statusText} — ${url}`,
+    );
+  }
+  const xml = await res.text();
+  const parsed = senateXmlParser.parse(xml) as SenateVoteMenu;
+  const cy = parsed.vote_summary?.congress_year;
+  const congressYear =
+    typeof cy === "number" ? cy : cy ? parseInt(String(cy), 10) : 0;
+  const votesRaw = parsed.vote_summary?.votes?.vote;
+  const votes = Array.isArray(votesRaw) ? votesRaw : votesRaw ? [votesRaw] : [];
+  return { votes, congressYear };
+}
 
 // ─── Public scrapers ────────────────────────────────────────────────────────
 
@@ -389,34 +551,51 @@ export async function scrapeRollCallVotes(
 ): Promise<RollCallVote[]> {
   const scrapedAt = new Date().toISOString();
   const sessions = options.session ? [options.session] : [1, 2];
-  // v1A is HOUSE ONLY. api.congress.gov v3 only exposes /house-vote; Senate
-  // roll-call votes live on senate.gov directly as XML at
-  // senate.gov/legislative/LIS/roll_call_lists/vote_menu_{congress}_{session}.xml
-  // and require a separate scraper. Tagged for v1.1.
-  if (options.chamber === "senate") {
-    throw new Error(
-      "Senate roll-call votes are v1.1 — not available via api.congress.gov. " +
-        "Live source: senate.gov/legislative/LIS/roll_call_lists/. " +
-        "Use chamber=house for now, or skip --chamber to default to house.",
-    );
-  }
+  const chambers: ("house" | "senate")[] = options.chamber
+    ? [options.chamber]
+    : ["house", "senate"];
   console.error(
-    `[votes] Scraping House votes for Congress ${options.congress}, sessions: ${sessions.join(",")} (Senate is v1.1)`,
+    `[votes] Scraping Congress ${options.congress}, sessions: ${sessions.join(",")}, chambers: ${chambers.join(",")}`,
   );
 
   const seen = new Map<string, RollCallVote>();
-  for (const session of sessions) {
-    console.error(`[votes]   house session=${session}`);
-    const raws = await fetchAllPages<HouseVoteListResponse, RawHouseVote>(
-      `/house-vote/${options.congress}/${session}`,
-      {},
-      (r) => r.houseRollCallVotes ?? [],
-      (r) => r.pagination,
-      { maxPages: options.maxPages },
-    );
-    for (const raw of raws) {
-      const v = normalizeHouseVote(raw, scrapedAt);
-      if (v) seen.set(v.vote_id, v);
+  for (const chamber of chambers) {
+    for (const session of sessions) {
+      try {
+        if (chamber === "house") {
+          console.error(`[votes]   house session=${session}`);
+          const raws = await fetchAllPages<HouseVoteListResponse, RawHouseVote>(
+            `/house-vote/${options.congress}/${session}`,
+            {},
+            (r) => r.houseRollCallVotes ?? [],
+            (r) => r.pagination,
+            { maxPages: options.maxPages },
+          );
+          for (const raw of raws) {
+            const v = normalizeHouseVote(raw, scrapedAt);
+            if (v) seen.set(v.vote_id, v);
+          }
+        } else {
+          // Senate XML — senate.gov, not api.congress.gov
+          const { votes: senateRaws, congressYear } = await fetchSenateVoteMenu(
+            options.congress,
+            session,
+          );
+          for (const raw of senateRaws) {
+            const v = normalizeSenateVote(
+              raw,
+              options.congress,
+              session,
+              congressYear,
+              scrapedAt,
+            );
+            if (v) seen.set(v.vote_id, v);
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[votes]   ${chamber} session=${session} FAILED: ${msg}`);
+      }
     }
   }
   const votes = Array.from(seen.values());

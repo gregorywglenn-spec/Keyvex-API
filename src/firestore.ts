@@ -30,6 +30,10 @@ import type {
   FecCandidateQuery,
   FecCommittee,
   FecCommitteeQuery,
+  FecContribution,
+  FecContributionQuery,
+  FecIndependentExpenditure,
+  FecIndependentExpenditureQuery,
   FederalContractAward,
   FederalContractAwardsQuery,
   FederalRegisterDocument,
@@ -3443,6 +3447,302 @@ export async function saveFecCommittees(
     saved += chunk.length;
   }
 
+  return { saved, collection: COLLECTION };
+}
+
+// ─── FEC contributions (Schedule A) query + save ──────────────────────────
+
+export async function queryFecContributions(
+  query: FecContributionQuery,
+): Promise<QueryResult<FecContribution>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("fec_contributions");
+
+  // Direct sub_id lookup is the fastest path.
+  if (query.sub_id) {
+    const docSnap = await db
+      .collection("fec_contributions")
+      .doc(query.sub_id)
+      .get();
+    if (!docSnap.exists) return { results: [], has_more: false };
+    return { results: [docSnap.data() as FecContribution], has_more: false };
+  }
+
+  // Pick exactly one equality dimension to drive the server-side filter.
+  // Schedule A is large; multiple equality+range combos blow up indexes.
+  // Priority order: recipient_committee_id → candidate_id → entity_type → state.
+  if (query.recipient_committee_id) {
+    q = q.where("recipient_committee_id", "==", query.recipient_committee_id);
+  } else if (query.candidate_id) {
+    q = q.where("candidate_id", "==", query.candidate_id);
+  } else if (query.entity_type) {
+    q = q.where("entity_type", "==", query.entity_type);
+  } else if (query.contributor_state) {
+    q = q.where("contributor_state", "==", query.contributor_state);
+  }
+  if (query.cycle !== undefined) {
+    q = q.where("two_year_transaction_period", "==", query.cycle);
+  }
+
+  // Server-side sort by date or amount (composite index).
+  const sortField = query.sort_by ?? "contribution_receipt_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  // Substring filters (contributor_name, contributor_employer) need a wider
+  // pre-fetch window since they're applied client-side.
+  const userLimit = query.limit ?? 50;
+  const needsSubstring = !!(query.contributor_name || query.contributor_employer);
+  const fetchLimit = needsSubstring ? 5000 : Math.max(userLimit * 4, 500);
+
+  try {
+    q = q.orderBy(sortField, sortOrder).limit(fetchLimit);
+  } catch {
+    // Index missing — fall through to client-side sort
+    q = q.limit(fetchLimit);
+  }
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as FecContribution);
+
+  // Client-side filters
+  if (query.contributor_name) {
+    const needle = query.contributor_name.toLowerCase();
+    docs = docs.filter((c) =>
+      (c.contributor_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.contributor_employer) {
+    const needle = query.contributor_employer.toLowerCase();
+    docs = docs.filter((c) =>
+      (c.contributor_employer ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.min_amount !== undefined) {
+    docs = docs.filter(
+      (c) => c.contribution_receipt_amount >= (query.min_amount ?? 0),
+    );
+  }
+  if (query.max_amount !== undefined) {
+    docs = docs.filter(
+      (c) =>
+        c.contribution_receipt_amount <= (query.max_amount ?? Infinity),
+    );
+  }
+  if (query.since) {
+    docs = docs.filter(
+      (c) => (c.contribution_receipt_date ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (c) => (c.contribution_receipt_date ?? "") <= (query.until ?? "9999"),
+    );
+  }
+  if (query.exclude_memos) {
+    docs = docs.filter((c) => c.memoed_subtotal !== true);
+  }
+
+  // Client-side resort in case server-side orderBy fell through.
+  docs.sort((a, b) => {
+    const av =
+      sortField === "contribution_receipt_amount"
+        ? a.contribution_receipt_amount
+        : a.contribution_receipt_date;
+    const bv =
+      sortField === "contribution_receipt_amount"
+        ? b.contribution_receipt_amount
+        : b.contribution_receipt_date;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+/**
+ * Save scraped Schedule A contributions to Firestore. Idempotent — sub_id is
+ * the immutable FEC-assigned row ID, so re-runs upsert cleanly with merge:true.
+ */
+export async function saveFecContributions(
+  contributions: FecContribution[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "fec_contributions";
+  if (contributions.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < contributions.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = contributions.slice(i, i + BATCH_SIZE);
+    for (const contrib of chunk) {
+      batch.set(collection.doc(contrib.sub_id), contrib, {
+        merge: true,
+      });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── FEC independent expenditures (Schedule E) query + save ───────────────
+
+export async function queryFecIndependentExpenditures(
+  query: FecIndependentExpenditureQuery,
+): Promise<QueryResult<FecIndependentExpenditure>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("fec_independent_expenditures");
+
+  if (query.sub_id) {
+    const docSnap = await db
+      .collection("fec_independent_expenditures")
+      .doc(query.sub_id)
+      .get();
+    if (!docSnap.exists) return { results: [], has_more: false };
+    return {
+      results: [docSnap.data() as FecIndependentExpenditure],
+      has_more: false,
+    };
+  }
+
+  // Pick exactly one server-side equality (priority order).
+  if (query.candidate_id) {
+    q = q.where("candidate_id", "==", query.candidate_id);
+  } else if (query.committee_id) {
+    q = q.where("committee_id", "==", query.committee_id);
+  } else if (query.support_oppose) {
+    q = q.where("support_oppose_indicator", "==", query.support_oppose);
+  } else if (query.candidate_office_state) {
+    q = q.where("candidate_office_state", "==", query.candidate_office_state);
+  }
+  if (query.cycle !== undefined) {
+    q = q.where("two_year_transaction_period", "==", query.cycle);
+  }
+
+  const sortField = query.sort_by ?? "expenditure_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  const userLimit = query.limit ?? 50;
+  const needsSubstring = !!(query.payee_name || query.description);
+  const fetchLimit = needsSubstring ? 5000 : Math.max(userLimit * 4, 500);
+
+  try {
+    q = q.orderBy(sortField, sortOrder).limit(fetchLimit);
+  } catch {
+    q = q.limit(fetchLimit);
+  }
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as FecIndependentExpenditure);
+
+  if (query.payee_name) {
+    const needle = query.payee_name.toLowerCase();
+    docs = docs.filter((c) =>
+      (c.payee_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.description) {
+    const needle = query.description.toLowerCase();
+    docs = docs.filter((c) =>
+      (c.disbursement_description ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.support_oppose && !["candidate_id", "committee_id"].some((k) => (query as Record<string, unknown>)[k])) {
+    // already filtered server-side
+  } else if (query.support_oppose) {
+    // Server-side filter wasn't used because candidate_id / committee_id won the slot
+    docs = docs.filter((c) => c.support_oppose_indicator === query.support_oppose);
+  }
+  if (query.min_amount !== undefined) {
+    docs = docs.filter(
+      (c) => c.expenditure_amount >= (query.min_amount ?? 0),
+    );
+  }
+  if (query.max_amount !== undefined) {
+    docs = docs.filter(
+      (c) => c.expenditure_amount <= (query.max_amount ?? Infinity),
+    );
+  }
+  if (query.since) {
+    docs = docs.filter(
+      (c) => (c.expenditure_date ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (c) => (c.expenditure_date ?? "") <= (query.until ?? "9999"),
+    );
+  }
+  if (query.exclude_memos) {
+    docs = docs.filter((c) => c.memoed_subtotal !== true);
+  }
+
+  docs.sort((a, b) => {
+    const av =
+      sortField === "expenditure_amount"
+        ? a.expenditure_amount
+        : a.expenditure_date;
+    const bv =
+      sortField === "expenditure_amount"
+        ? b.expenditure_amount
+        : b.expenditure_date;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveFecIndependentExpenditures(
+  ies: FecIndependentExpenditure[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "fec_independent_expenditures";
+  if (ies.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+  for (let i = 0; i < ies.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = ies.slice(i, i + BATCH_SIZE);
+    for (const ie of chunk) {
+      batch.set(collection.doc(ie.sub_id), ie, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
   return { saved, collection: COLLECTION };
 }
 
