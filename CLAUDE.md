@@ -1136,3 +1136,26 @@ Sequential drive through the open task list Greg flagged at session start. ~10 s
 - Day 9: `feedback_raw_input_clean_output.md`
 
 **For Future Claude starting fresh on Day 11:** The 31-tool surface plus today's schema upgrades (Form 4 derivatives + N-PORT holdings) is the cleanest the codebase has been. Pre-launch commercial work + registry submissions is the next push, not more scrapers. If you DO add a scraper, FEC Schedule A is the highest-leverage one. Don't add NHTSA / BEA / GAO without dedicated investigation sessions — they each have real friction that doesn't fit a 45-min budget.
+
+### 🌙 Day 10 LATE — post-restart deploy + verification (2026-05-14 night)
+
+The Day 10 build (`e437972`) and closeout (`07ed5ee`) were already committed. This stretch deployed v0.41.0 to production and verified it end-to-end. Commit `c64ae6a` (pushed to main).
+
+**Deployed:**
+- 2 new Secret Manager secrets: `EIA_API_KEY`, `GOVINFO_API_KEY`. Both api.data.gov-family keys — the GovInfo key (`l91B0...`) also works for NHTSA/USDA/DOL when those land.
+- 6 Cloud Functions: `mcp` + `scrapeNportDaily` updated; `scrapeFdaRecallsDaily`, `scrapeCpscRecallsDaily`, `scrapeEiaDaily`, `scrapeGovInfoDaily` created. Deployed **per-function** (not `--only functions`) — a full deploy aborts because 5 functions exist in the project but not in this worktree's code: `scrapeCftcCotWeekly`, `scrapeFecScheduleADaily`, `scrapeFecScheduleEDaily`, `scrapeSecFtdSemimonthly`, `scrapeUSAspendingGrantsDaily`. **Those 5 were NOT deleted** — they're live scrapers from another branch/worktree. Investigate before any `firebase deploy --only functions --force`.
+- Live endpoint verified: `https://mcp.keyvex.com` → `version:"0.41.0", tools:31`.
+
+**5 new collections populated (first real data):** EIA 1,941 observations · FDA recalls 10 · CPSC recalls 105 · GovInfo 458 packages · N-PORT holdings 2,504.
+
+**Bug caught + fixed during smoke testing (`c64ae6a`):** openFDA date-range query used a literal `+` in `recall_initiation_date:[start+TO+end]`; `encodeURIComponent` turned it into `%2B` (literal plus) → HTTP 500 on every FDA sub-feed. Fix: use spaces (`[start TO end]`), which encode to `%20`. **Lesson for any future openFDA scraper: never put a literal `+` in a search expression you're going to URL-encode.**
+
+**unified_search perf fix (`c64ae6a`):** `company_name` fan-out was 34–42s because it included the `lobbying_filings` adapter (51K-record substring scan). Pulled lobbying out of the fan-out → 14s. Agents query `get_lobbying_filings` directly for a company's lobbying. The remaining ~10-14s is `federal_contracts` + other substring adapters — the known v1.1 normalized-name-index item.
+
+**GAOREPORTS finding:** GovInfo's `GAOREPORTS` collection (16,569 packages) returns **0 results for 2026** — it's a historical archive that stopped receiving updates; GAO publishes current reports on gao.gov (WAF-blocked). The `get_government_publications` tool description now says so honestly. CRPT/PLAW/CHRG work great.
+
+**Battle test (102 cases, local handlers):** `0 ERROR · 0 EMPTY · 97 PASS · 5 SLOW`. All 5 SLOW are substring-scan latency on large collections (lobbying, federal_contracts, activist filer_name) — the documented v1.1 perf item, not regressions.
+
+**EIA caveat (v1.1 polish):** the `EIA-CRUDE-OIL-PROD-MONTHLY` series unit label says "thousand barrels per day" but the crpdn dataset value looks like a monthly total — verify and correct the unit label. The 4 price series (WTI/Brent/Henry Hub/gasoline) are unambiguous and correct.
+
+**Still open from the Day 10 rolling queue:** item 2 — **backfill `insider_trades`** with the new Form 4 derivative fields. Run `npx tsx src/scrape.ts form4-feed 60 --save` (wide window) so pre-v0.41 records get `is_derivative` etc. merged on. Until then, `is_derivative=false` queries silently exclude old records.
