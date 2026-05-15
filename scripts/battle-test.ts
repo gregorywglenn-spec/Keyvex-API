@@ -199,6 +199,43 @@ const TESTS: TestCase[] = [
   { tool: "get_enforcement_actions", label: "CFTC actions", args: { source: "cftc", limit: 5 } },
   { tool: "get_enforcement_actions", label: "OCC actions", args: { source: "occ", limit: 5 } },
   { tool: "get_enforcement_actions", label: "FDIC actions", args: { source: "fdic", limit: 5 } },
+
+  // ─── Day 10 v0.41.0 NEW SURFACES ─────────────────────────────────────
+  // Data for these 3 collections is ingested by scrapers that haven't run
+  // yet at the moment of this commit. allowEmpty=true keeps EMPTY out of
+  // the warnings list — we're only verifying the handlers don't ERROR.
+  // Post first-run, agents can remove allowEmpty to start asserting data.
+
+  // ─── 28. get_fund_holdings (N-PORT per-security) ───────────────────────
+  { tool: "get_fund_holdings", label: "ticker=NVDA", args: { ticker: "NVDA", limit: 5 }, allowEmpty: true },
+  { tool: "get_fund_holdings", label: "derivatives only", args: { is_derivative: true, limit: 5 }, allowEmpty: true },
+  { tool: "get_fund_holdings", label: "swap type", args: { derivative_type: "swap", limit: 5 }, allowEmpty: true },
+  { tool: "get_fund_holdings", label: "REPO asset_cat", args: { asset_cat: "REPO", limit: 5 }, allowEmpty: true },
+
+  // ─── 29. get_product_recalls (FDA + CPSC) ──────────────────────────────
+  { tool: "get_product_recalls", label: "FDA drug recalls", args: { source: "fda_drug", limit: 5 }, allowEmpty: true },
+  { tool: "get_product_recalls", label: "FDA Class I (severe)", args: { classification: "Class I", limit: 5 }, allowEmpty: true },
+  { tool: "get_product_recalls", label: "CPSC consumer recalls", args: { source: "cpsc", limit: 5 }, allowEmpty: true },
+  { tool: "get_product_recalls", label: "Pfizer recalls", args: { recalling_firm: "pfizer", limit: 5 }, allowEmpty: true },
+
+  // ─── 30. get_government_publications (GovInfo) ─────────────────────────
+  { tool: "get_government_publications", label: "committee reports", args: { collection: "CRPT", limit: 5 }, allowEmpty: true },
+  { tool: "get_government_publications", label: "public laws", args: { collection: "PLAW", limit: 5 }, allowEmpty: true },
+  { tool: "get_government_publications", label: "GAO oversight", args: { collection: "GAOREPORTS", limit: 5 }, allowEmpty: true },
+  { tool: "get_government_publications", label: "119th Congress only", args: { congress: "119", limit: 5 }, allowEmpty: true },
+
+  // ─── get_economic_indicators: NEW EIA source ─────────────────────────
+  { tool: "get_economic_indicators", label: "EIA energy", args: { source: "eia", limit: 5 }, allowEmpty: true },
+  { tool: "get_economic_indicators", label: "WTI crude", args: { series_id: "EIA-WTI-SPOT-WEEKLY", limit: 5 }, allowEmpty: true },
+  { tool: "get_economic_indicators", label: "energy category", args: { category: "energy", limit: 5 }, allowEmpty: true },
+
+  // ─── unified_search v1.1: company_name + cusip identifiers ─────────────
+  // company_name cascade should resolve to ticker+cik via EDGAR. The fan-out
+  // hits both ticker/cik adapters AND the new name-keyed adapters even when
+  // no data is present. Verifies validation + adapter routing, not data.
+  { tool: "unified_search", label: "company_name=Wells Fargo fan-out", args: { company_name: "Wells Fargo", per_source_limit: 2 }, allowEmpty: true },
+  { tool: "unified_search", label: "company_name=Lockheed (cascade)", args: { company_name: "Lockheed Martin", per_source_limit: 2 }, allowEmpty: true },
+  { tool: "unified_search", label: "cusip-only fan-out", args: { cusip: "037833100", per_source_limit: 3 }, allowEmpty: true },
 ];
 
 interface TestResult {

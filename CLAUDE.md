@@ -706,9 +706,10 @@ Built + shipped in commit `1335a95`:
 
 **Last Updated**
 
-May 12, 2026 — Day 9 LATE NIGHT. **28 MCP tools live, server v0.39.0**, 29+ autonomous scrapers running on cron, MCP endpoint at `https://mcp.keyvex.com`, landing page at `https://keyvex.com` (apex + www both mapped, auto-TLS). XBRL Fundamentals (28th MCP tool, 323K records across 130 S&P-100-anchored tickers) + FRED macro data (15K observations across 30 curated series — rates, GDP, PCE, money supply, Fed balance sheet) shipped this evening. Killer-query pull-quote front-and-center on the landing hero. KEYVEX wordmark logo wired into topbar + favicon + OG image. Derek's dashboard project active again. ~2 weeks to launch per Greg.
+May 14, 2026 — Day 10 closeout. **31 MCP tools live, server v0.41.0**, 32+ autonomous scrapers running on cron, MCP endpoint at `https://mcp.keyvex.com`, landing page at `https://keyvex.com` (apex + www both mapped, auto-TLS). Day 10 shipped 3 new MCP tools (get_fund_holdings = N-PORT per-security with derivatives, get_product_recalls = FDA drug+device+food + CPSC unified, get_government_publications = GovInfo CRPT+PLAW+CHRG+GAOREPORTS), plus EIA energy added to get_economic_indicators, Form 4 derivative table extension (recovers 30-50% of dropped data), unified_search v1.1 with company_name + cusip identifier cascade (Wells Fargo query now hits 17+ collections), Node 20→22 + firebase-functions v6→v7 upgrades, and secrets/.env auto-loader. Commit `e437972` pushed to main. BEA + NHTSA deferred with reasoning (BEA needs schema extension for state-level value, NHTSA needs bulk endpoint investigation).
 
 **Earlier "Last Updated" snapshots (kept for history):**
+- May 12, 2026 — Day 9 LATE NIGHT. 28 MCP tools, server v0.39.0. XBRL Fundamentals + FRED macro data.
 - May 12, 2026 — Day 9 LATE EVENING. 27 MCP tools, server v0.36.0 (pre-XBRL marathon checkpoint).
 - May 12, 2026 — Day 9 EVENING. 24 MCP tools, server v0.30.0 (mid-Day-9 checkpoint before the 6-scraper marathon).
 - May 11, 2026 — Day 8 EVENING. 21 MCP tools, server v0.27.0, 22+ autonomous scrapers, three live custom domains, battle-test green (59 queries, 0 errors).
@@ -1047,3 +1048,91 @@ get_fec_candidate_profile(candidate_name:"…")    → trader's campaign committ
 - Day 9: `feedback_raw_input_clean_output.md`
 
 The three new XBRL-specific Hard Lessons above are captured in this CLAUDE.md and don't need to become separate memory entries — they're project-specific schema/API quirks, not behavioral rules.
+
+### 🌄 Day 10 (2026-05-14) — 3 new MCP tools + Form 4 derivative recovery + N-PORT holdings + unified_search v1.1 + Node 22 + firebase-functions v7
+
+Sequential drive through the open task list Greg flagged at session start. ~10 substantial items shipped + 2 deferred with reasoning. Single commit landed as `e437972`, pushed to `main`.
+
+**State at close of Day 10:**
+- **31 MCP tools** at `mcp.keyvex.com` v0.41.0 (up from 28 at Day 9 close)
+- **32+ scheduled scrapers** on cron (was 27+)
+- **34+ data sources** on the landing page (was 30+)
+- Branch + main both at `e437972` on GitHub (`gregorywglenn-spec/Keyvex-API`)
+- Local dev: API keys in `secrets/.env` (gitignored) auto-load via new `src/load-secrets.ts` helper
+- Node 22 + firebase-functions v7 — both clean upgrades, bundle still 15.4 MB
+
+**What shipped (in queue order):**
+
+| # | Item | Result |
+|---|---|---|
+| 1 | Landing page refresh | 22→31 tools, 22+→34+ sources, 6 new source cards, scraper count 22+→32+, enforcement row updated to 5 regulators |
+| 2 | Form 4 derivative table extension | Parser now walks BOTH `nonDerivativeTable` AND `derivativeTable`, accepts 11 codes (P/S/A/M/X/C/F/G/D/I/V) instead of just P/S. 4 new fields (`is_derivative`, `underlying_security_title`, `underlying_security_shares`, `conversion_or_exercise_price`), 2 new filters (`is_derivative`, `transaction_codes`), 3 new indexes. Existing P/S doc-IDs preserved — idempotency maintained. **Recovers 30-50% of previously-dropped Form 4 data** (option exercises, RSU vests, tax-withholding sales, gifts) |
+| 3 | N-PORT primary-doc XML parsing | **29th MCP tool: `get_fund_holdings`**. Per-security rows extracted from each filing's `primary_doc.xml`. Covers equities (EC/EP), debt (DBT/ABS/MBS/UST/STIV), derivatives (DCO/DCR/DE/DFE/DIR/DR), repos (REPO/RP), cash (CASH). `is_derivative` + `derivative_type` ("future" / "forward" / "swap" / "option" / "warrant" / "swaption" / "other") expose fund derivative exposure first-class. 7 new indexes. `scrapeNportDaily` scheduler extended with holdings phase (memory 512→1GiB). **First MCP exposure of fund-level derivative books outside Bloomberg.** |
+| 4 | FDA Recalls scraper | **30th MCP tool: `get_product_recalls`** unified across openFDA drug/device/food sub-feeds + (next item) CPSC. Daily 6:50 AM ET scheduler covering all 3 FDA centers. Class I/II/III severity preserved per FDA convention. 5 new indexes for the `product_recalls` collection |
+| 5 | BEA macro data — **SKIPPED** | Analysis: FRED already republishes BEA's national-level NIPA series; unique BEA value is state-level data which requires a schema extension to `EconomicIndicator` (geo_fips + geo_name fields, or geo encoded into series_id). National-only build would be cosmetic. **Deferred to v1A.1** as its own session. Greg explicitly confirmed BEA key not needed for v0.41 |
+| 6 | NHTSA Vehicle Recalls — **DEFERRED** | `api.nhtsa.gov/recalls/recallsByVehicle` confirmed working but requires make+model+year per call (not bulk-friendly). NHTSA's `recentlyAdded` endpoint returned 403. `data.transportation.gov` Socrata-style recalls dataset URL pending investigation. **Deferred to v1A.1.** Source enum `"nhtsa"` reserved in `ProductRecall` type; tool description notes "Deferred to v1A.1". When we revisit, the same api.data.gov key we already have (see GovInfo below) will likely work |
+| 7 | CPSC Recalls scraper | Layered into the existing `get_product_recalls` as `source: "cpsc"`. `saferproducts.gov/RestWebServices/Recall` endpoint confirmed clean — JSON, no auth, date-range filterable. CPSC doesn't use FDA-style classifications (classification stays null). Daily 6:55 AM ET scheduler. Schema mapping: Manufacturers/Importers/Distributors/Retailers fallback chain → recalling_firm; Hazards[0].Name → reason_for_recall; Products[0].Type or .Name → product_category |
+| 8 | EIA energy data | Extends existing `get_economic_indicators` with `source: "eia"` enum value (NO new tool, additive). 5 curated series: WTI crude (RWTC), Brent crude (RBRTE), Henry Hub natgas (RNGWHHD), US gasoline retail (EMM_EPMR_PTE_NUS_DPG), US crude oil production (NUS+EPC0). New `energy` category. Daily 9:15 AM ET scheduler. **Series IDs are best-effort from working knowledge — needs live verification before production use** |
+| 9 | GovInfo / FOIA logs scraper | **31st MCP tool: `get_government_publications`** across CRPT (committee reports), PLAW (public laws), CHRG (hearings), GAOREPORTS (GAO oversight). Routes around gao.gov WAF block via GovInfo's API. FOIA logs deferred to v1.1 (per-agency, no unified API). 4 new indexes. Daily 9:30 AM ET scheduler. **Smoke-tested live**: pulled 5 CRPT records cleanly (modern 119th Congress + historical SERIALSET back to 1983); 5,948 PLAW records confirmed accessible in window |
+| 10 | Node 20 → 22 upgrade | `engines.node` "20"→"22" in functions/package.json + ">=20.0.0"→">=22.0.0" in root. esbuild `--target=node20`→`--target=node22`. Greg's local Node is 24.15.0 — engines bump won't break local dev. Typecheck clean, bundle clean at 15.4 MB |
+| 11 | firebase-functions v6 → v7 upgrade | `firebase-functions` ^6.1.0 → ^7.2.5 (major version jump). `firebase-admin` ^13.0.1 → ^13.9.0 (minor). npm install clean (11 vulnerabilities all in transitive deps — uuid/node-domexception deprecations, not actionable). Typecheck clean. Bundle clean. **No code changes required** — none of our usage (`onSchedule`, `onRequest`, `defineSecret`, `logger`) hit breaking changes. Pleasant surprise vs CLAUDE.md's "breaking changes" warning |
+| 12 | secrets/.env loader | New `src/load-secrets.ts` — reads `secrets/.env` at module load (resolves path via `import.meta.url`, not cwd). Sets `process.env` vars without overriding shell exports or Firebase Secret Manager values. Wired into FRED + EIA + GovInfo scrapers. Local-dev convenience — Firebase Functions still use `defineSecret` at deploy time. `secrets/` was already gitignored |
+| 13 | v1.1 unified_search company-name fuzzy | 2 new identifier params: `company_name` (resolves via EDGAR catalog) + `cusip`. `resolveCompanyByName()` helper added to `sec-tickers.ts` returns `{ticker, cik, title}`. 5 new name-keyed adapters (federal_contracts via recipient_name, lobbying_filings via client_name, enforcement_actions via text, consumer_complaints via company, product_recalls via recalling_firm). 4 collections extended with cusip filter (institutional_holdings, activist_ownership, nport_holdings, treasury_auctions). **"Tell me everything about Wells Fargo" now fans out to 17+ collections in one call.** |
+| 14 | Version + landing page batch | v0.40.0 → v0.41.0 in src/index.ts + functions/src/index.ts + package.json. Landing meta/hero/Section-1/curl-heading/pricing-table all bumped to 31 tools / 34+ sources |
+
+**Hard Lessons saved Day 10 (none of these need separate memory entries — project-specific schema/API quirks):**
+
+- **N-PORT primary-doc XML schema captured for v1A.** Root: `<edgarSubmission><formData><invstOrSecs><invstOrSec>...`. Per-row: name, lei, title, cusip, identifiers (ticker/isin), balance, units, curCd, valUSD, pctVal, payoffProfile, assetCat, issuerCat, invCountry, isRestrictedSec, fairValLevel, securityLending.{isCashCollateral,isNonCashCollateral,isLoanByFund}, derivativeInfo.{futrDeriv,fwdDeriv,swapDeriv,optionSwaptionWarrantDeriv,otherDeriv}. Asset-cat codes EC/EP/DBT/REPO/RP/ABS/MBS/UST/USTPS/STIV/SN/LT/MMF/CASH/DCO/DCR/DE/DFE/DIR/DR. Derivative discrimination via `<derivativeInfo>` child element presence. Deep derivative sub-blocks (counterparty, strike, expiration, leg terms) deferred to v1A.1 — agents follow `package_link` for that level. fast-xml-parser with `parseTagValue:false + parseAttributeValue:false`.
+
+- **GovInfo API requires `offsetMark=*` for pagination, NOT `offset=N`.** First-page request uses `offsetMark=*`; subsequent pages extract the offsetMark value from the `nextPage` URL's query string. The `offset=N` numeric scheme works for DEMO_KEY (which has loose validation) but **real api.data.gov keys reject it** with a 200 OK + "Please provide an offsetMark" message body. Silent-ish failure mode: HTTP succeeds, JSON has no data. Caught during the live smoke test with Greg's key. Same pattern likely applies to other api.data.gov-backed services with paginated endpoints.
+
+- **EIA + GovInfo + NHTSA + USDA + DOL all share api.data.gov key infrastructure.** One signup at https://api.data.gov/signup/ produces a key that works across all of them. Greg's EIA key (`HP4ax...`) worked when tested against the GovInfo PLAW endpoint, returning 5,948 real records. He later got a dedicated GovInfo key (`l91B0...`) for cleaner per-service rate-limit allocation, but functionally either would work. **Practical takeaway: when adding any new federal API in the future, check if it's api.data.gov-backed before signing up separately — the existing keys may already work.** Note: EIA's own signup (eia.gov/opendata/register.php) issues keys that ALSO work as api.data.gov keys — same backend, different signup paths.
+
+- **Form 4 doc-ID idempotency requires preserving the legacy P/S format while introducing new shapes for other codes.** Existing P/S non-derivative records used `${accession}-${txDate}-${code}-${roundedShares}`. Changing that for the same rows would break idempotent merge writes — old records would be orphaned and new ones would be created alongside. Solution: keep the legacy format for P/S in the non-derivative table, use row-index suffix for non-P/S non-derivative (`${accession}-${txDate}-${code}-${ndIdx}`), use D-marker + row-index for derivative table (`${accession}-D-${txDate}-${code}-${dIdx}`). Three distinct ID namespaces. Existing data unaffected; new data flows into new namespaces. This is the right pattern any time you extend a parser to capture rows it used to drop — preserve the existing namespace's IDs unchanged.
+
+- **firebase-functions v6 → v7 had no surface-breaking changes for our usage pattern.** The release notes warned about "breaking changes" — but they were all in lower-level APIs (Gen 1 triggers, specific cloud event types) we don't touch. `onSchedule`, `onRequest`, `defineSecret`, and `logger` all worked identically. **Lesson: major version bumps on Firebase packages aren't necessarily as scary as the changelog suggests** — read the changelog with your actual usage in mind before estimating migration cost. We budgeted 1-2 hr; actual was ~5 min once npm install completed.
+
+**Strategic decisions confirmed Day 10:**
+
+1. **BEA stays deferred until state-level data is the actual ask.** FRED already republishes BEA's national series; building a national-only BEA scraper would duplicate effort with no agent-visible benefit. State-level data is the real unlock — but it requires an EconomicIndicator schema extension (geo dimension) that deserves its own session. When Greg asks about regional macro data, that's the trigger to revisit.
+
+2. **NHTSA stays deferred until bulk endpoint is found.** `api.nhtsa.gov/recalls/recallsByVehicle` works per-vehicle but isn't viable for daily ingestion. Two paths to investigate when we revisit: (a) `data.transportation.gov` Socrata recalls dataset (if it exists), (b) NHTSA's static CSV/ZIP dump at static.nhtsa.gov. Source enum `"nhtsa"` is reserved in `ProductRecall` so adding it later is purely additive.
+
+3. **`unified_search` company-name resolution is the right shape.** Tested mental model: agent asks "tell me everything about Wells Fargo" → resolves to ticker WFC + CIK 0000072971 via EDGAR → cascades to all 12 ticker-keyed adapters AND 10 CIK-keyed adapters AND 5 name-substring-keyed adapters (federal_contracts/lobbying/enforcement/consumer_complaints/product_recalls). Single round trip touches the entire disclosure surface. No other MCP server provides this kind of identifier-cascade fan-out.
+
+4. **`secrets/.env` is the right pattern for local dev keys.** Each scraper that needs an API key gets `import "../load-secrets.js";` at the top. File is gitignored. Firebase Secret Manager handles production. No more shell-export friction.
+
+**Open queue rolling to Day 11+ (in priority order):**
+
+1. **Battle test the post-restart state** — run `scripts/battle-test.ts` against `mcp.keyvex.com` post-deploy. Verify all 31 tools respond, no regressions on existing surfaces (insider_trades schema change is highest-risk surface).
+
+2. **Backfill insider_trades with new fields** — existing records pre-v0.41 lack `is_derivative` etc. Run `npx tsx src/scrape.ts form4-feed 60 --save` (or wider) post-deploy to re-walk recent accessions and merge the new fields onto existing records.
+
+3. **Smoke-test N-PORT holdings + EIA + GovInfo against live data**:
+   - `npx tsx src/scrape.ts nport 1 --extract-holdings --save` — verify parser matches live N-PORT XML schema
+   - `npx tsx src/scrape.ts eia` — verify 5 EIA series IDs pull real data
+   - `npx tsx src/scrape.ts govinfo 1 --save` — verify the offsetMark pagination works end-to-end and 4 collections all return data
+
+4. **Deploy v0.41.0**: `firebase deploy --only firestore:indexes,functions` to land all 14 new indexes + 5 new schedulers + updated MCP HTTP function.
+
+5. **Re-run battle test post-deploy.** Confirm `mcp.keyvex.com` is advertising v0.41.0 + 31 tools after the new deploy.
+
+6. **Pre-launch commercial work** (unchanged from Day 9 close) — MCP registry submissions (Anthropic + Smithery + Awesome-MCP + PulseMCP), Privacy Policy is live, launch posts drafts, DM target list.
+
+7. **FEC Schedule A** — strongest TIER-1 quick-win for next scraper session. Closes the "donation → vote → trade" political-alpha loop.
+
+8. **NHTSA bulk endpoint investigation** — when we have a dedicated session, try data.transportation.gov Socrata recalls dataset + static.nhtsa.gov CSV dumps.
+
+9. **BEA state-level data** — extend `EconomicIndicator` schema with geo dimension, then ingest state personal income + state GDP for all 50 states.
+
+10. **FARA** (foreign agent registrations) — pairs with LDA lobbying.
+
+11. **FTC enforcement** — adds 6th source to `get_enforcement_actions`. Trivial pattern.
+
+12. **Senate roll-call votes** — completes the bicameral picture. House is in; Senate XML is at senate.gov, different endpoint.
+
+**Memory rules active for next session (12 total, unchanged from Day 9):**
+- All 11 from Day 8 still apply
+- Day 9: `feedback_raw_input_clean_output.md`
+
+**For Future Claude starting fresh on Day 11:** The 31-tool surface plus today's schema upgrades (Form 4 derivatives + N-PORT holdings) is the cleanest the codebase has been. Pre-launch commercial work + registry submissions is the next push, not more scrapers. If you DO add a scraper, FEC Schedule A is the highest-leverage one. Don't add NHTSA / BEA / GAO without dedicated investigation sessions — they each have real friction that doesn't fit a 45-min budget.
