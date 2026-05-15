@@ -21,7 +21,7 @@ import type {
 export const definition: Tool = {
   name: "get_economic_indicators",
   description: [
-    "Returns observations of key US macro indicators from two sources:",
+    "Returns observations of key US macro + energy indicators from three sources:",
     "  - BLS (Bureau of Labor Statistics): the canonical labor + price",
     "    statistics. ~20-series watchlist covering unemployment, payrolls,",
     "    wages, CPI, PPI, productivity. Most monthly, ECI/productivity",
@@ -31,10 +31,13 @@ export const definition: Tool = {
     "    balance sheet, breakeven inflation, dollar index, consumer",
     "    sentiment. ~30-series watchlist. Some daily (rates, dollar),",
     "    weekly (mortgage, Fed assets, jobless claims), monthly, quarterly.",
+    "  - EIA (Energy Information Administration): WTI + Brent crude oil",
+    "    spot prices, Henry Hub natural gas, US gasoline retail price, US",
+    "    crude oil production. Unique energy data not in BLS or FRED.",
+    "    Mostly weekly cadence.",
     "",
-    "Filter to one source via `source: 'bls'` or `source: 'fred'`. Default",
-    "returns both unified — `series_id` disambiguates anyway since each ID",
-    "is unique across both catalogs.",
+    "Filter to one source via `source: 'bls' | 'fred' | 'eia'`. Default",
+    "returns all three unified — `series_id` disambiguates across catalogs.",
     "",
     "Use this when the user asks about: unemployment rate, jobs report,",
     "nonfarm payrolls, CPI / PCE / inflation, Fed Funds rate, Treasury",
@@ -57,6 +60,8 @@ export const definition: Tool = {
     "  - debt           — Federal debt, Treasury general account",
     "  - trade          — Trade balance, trade-weighted dollar index",
     "  - sentiment      — U Michigan Consumer Sentiment",
+    "  - energy         — WTI/Brent crude, Henry Hub natural gas, retail gasoline,",
+    "                    US crude production (EIA)",
     "",
     "Period format is fixed-width per cadence so lexicographic sort = chronological:",
     "  - 2026M04 (April 2026), 2026Q01 (Q1 2026), 2026A01 (annual 2026),",
@@ -77,9 +82,9 @@ export const definition: Tool = {
     properties: {
       source: {
         type: "string",
-        enum: ["bls", "fred"],
+        enum: ["bls", "fred", "eia"],
         description:
-          "Filter to one source. Omit to query both. BLS = canonical labor + price stats. FRED = rates, money, GDP, PCE inflation, sentiment.",
+          "Filter to one source. Omit to query all three. BLS = canonical labor + price stats. FRED = rates, money, GDP, PCE inflation, sentiment. EIA = energy prices + production.",
       },
       series_id: {
         type: "string",
@@ -102,6 +107,7 @@ export const definition: Tool = {
           "debt",
           "trade",
           "sentiment",
+          "energy",
         ],
         description: "Bucket filter.",
       },
@@ -165,9 +171,13 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
   const out: EconomicIndicatorsQuery = {};
 
   if (args.source !== undefined) {
-    if (args.source !== "bls" && args.source !== "fred") {
+    if (
+      args.source !== "bls" &&
+      args.source !== "fred" &&
+      args.source !== "eia"
+    ) {
       throw new Error(
-        `INVALID source: '${String(args.source)}' — expected 'bls' or 'fred'`,
+        `INVALID source: '${String(args.source)}' — expected 'bls' | 'fred' | 'eia'`,
       );
     }
     out.source = args.source;
@@ -193,6 +203,7 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
       "debt",
       "trade",
       "sentiment",
+      "energy",
     ];
     if (!valid.includes(args.category as string)) {
       throw new Error(`INVALID category: '${String(args.category)}'`);

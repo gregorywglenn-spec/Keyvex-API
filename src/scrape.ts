@@ -85,6 +85,9 @@ import {
   saveEnforcementActions,
   saveFederalRegisterDocuments,
   saveNportFilings,
+  saveNportHoldings,
+  saveProductRecalls,
+  saveGovDocuments,
   saveOfacSdn,
   saveOtcMarketWeekly,
   savePrivatePlacements,
@@ -162,7 +165,18 @@ import {
 import { scrapeFinraOtcWeek } from "./scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "./scrapers/form-d.js";
 import { scrapeEnforcementActions } from "./scrapers/enforcement-actions.js";
-import { scrapeNportLiveFeed } from "./scrapers/nport.js";
+import {
+  scrapeNportHoldings,
+  scrapeNportLiveFeed,
+} from "./scrapers/nport.js";
+import {
+  scrapeAllFdaRecalls,
+  scrapeFdaRecalls,
+  type FdaSubSource,
+} from "./scrapers/fda-recalls.js";
+import { scrapeCpscRecalls } from "./scrapers/cpsc-recalls.js";
+import { scrapeEia } from "./scrapers/eia.js";
+import { scrapeGovInfo } from "./scrapers/govinfo.js";
 import { scrapeRegistrationStatementsLiveFeed } from "./scrapers/registration-statements.js";
 import { scrapeOfacSdn } from "./scrapers/ofac-sdn.js";
 import { scrapeFederalRegister } from "./scrapers/federal-register.js";
@@ -392,6 +406,35 @@ const COMMANDS: Record<string, CliCommand> = {
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${indicators.length} FRED observations to Firestore...`,
+        );
+        const result = await saveEconomicIndicators(indicators);
+        console.error(
+          `[save] Saved ${result.saved} observations to ${result.collection}`,
+        );
+      }
+      return indicators;
+    },
+  },
+  eia: {
+    description:
+      "Scrape EIA energy series (curated ~5-series watchlist: WTI + Brent crude, Henry Hub natural gas, US gasoline retail, US crude oil production). Requires EIA_API_KEY env var (register at https://www.eia.gov/opendata/register.php). Default: since 2018. Optional: --since-year=YYYY. Add --save to write to Firestore.",
+    run: async (args) => {
+      const sinceYearFlag = args.find((a) => a.startsWith("--since-year="));
+      const startYear = sinceYearFlag
+        ? parseInt(sinceYearFlag.slice("--since-year=".length), 10)
+        : undefined;
+      if (
+        startYear !== undefined &&
+        (Number.isNaN(startYear) || startYear < 1990)
+      ) {
+        throw new Error("--since-year must be an integer >= 1990");
+      }
+      const indicators = await scrapeEia({
+        ...(startYear !== undefined && { startYear }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${indicators.length} EIA observations to Firestore...`,
         );
         const result = await saveEconomicIndicators(indicators);
         console.error(
@@ -1080,7 +1123,7 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   nport: {
     description:
-      "Scrape SEC Form N-PORT (mutual fund / ETF / closed-end fund monthly portfolio reports) from EDGAR FTS. Default: last 2 days. Optional: <days> positional for longer lookback. Add --save to write to nport_filings Firestore collection. v1A is metadata-only — per-holding portfolio detail lives at primary_document_url (XML extraction is v1.1).",
+      "Scrape SEC Form N-PORT (mutual fund / ETF / closed-end fund monthly portfolio reports) from EDGAR FTS. Default: last 2 days. Optional: <days> positional for longer lookback. Add --save to write to nport_filings Firestore collection. Add --extract-holdings to ALSO fetch each primary_doc.xml, parse the invstOrSecs block, and (when --save is set) write per-security rows to nport_holdings (one row per holding, with derivative-type discriminator).",
     run: async (args) => {
       const positional = args.find((a) => !a.startsWith("--"));
       const days = positional ? parseInt(positional, 10) : 2;
@@ -1097,7 +1140,133 @@ const COMMANDS: Record<string, CliCommand> = {
           `[save] Saved ${result.saved} filings to ${result.collection}`,
         );
       }
+      if (args.includes("--extract-holdings")) {
+        console.error(
+          `[holdings] Extracting per-security rows from ${filings.length} filings...`,
+        );
+        const holdings = await scrapeNportHoldings(filings);
+        if (hasSaveFlag(args) && holdings.length > 0) {
+          console.error(
+            `[save] Writing ${holdings.length} holdings to Firestore...`,
+          );
+          const hr = await saveNportHoldings(holdings);
+          console.error(
+            `[save] Saved ${hr.saved} holdings to ${hr.collection}`,
+          );
+        }
+      }
       return filings;
+    },
+  },
+  "fda-recalls": {
+    description:
+      "Scrape openFDA drug + device + food recalls into the unified product_recalls collection. Default: last 30 days, all 3 sub-feeds. Optional: <days> positional for longer lookback (max ~25K records per sub-feed due to openFDA skip cap), --source=fda_drug|fda_device|fda_food to limit to one sub-feed, --max=N to cap per-sub-feed records. Add --save to write to Firestore.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 30;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const sourceFlag = args.find((a) => a.startsWith("--source="));
+      const sourceArg = sourceFlag
+        ? (sourceFlag.slice("--source=".length) as FdaSubSource)
+        : undefined;
+      const maxFlag = args.find((a) => a.startsWith("--max="));
+      const maxRecords = maxFlag
+        ? parseInt(maxFlag.slice("--max=".length), 10)
+        : undefined;
+      if (
+        maxRecords !== undefined &&
+        (Number.isNaN(maxRecords) || maxRecords < 1)
+      ) {
+        throw new Error("--max must be a positive integer");
+      }
+      const recalls = sourceArg
+        ? await scrapeFdaRecalls({
+            source: sourceArg,
+            lookbackDays: days,
+            ...(maxRecords !== undefined && { maxRecords }),
+          })
+        : await scrapeAllFdaRecalls({
+            lookbackDays: days,
+            ...(maxRecords !== undefined && { maxRecords }),
+          });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${recalls.length} recalls to Firestore...`,
+        );
+        const result = await saveProductRecalls(recalls);
+        console.error(
+          `[save] Saved ${result.saved} recalls to ${result.collection}`,
+        );
+      }
+      return recalls;
+    },
+  },
+  "cpsc-recalls": {
+    description:
+      "Scrape CPSC (Consumer Product Safety Commission) recalls from saferproducts.gov into the unified product_recalls collection. Default: last 30 days. Optional: <days> positional for longer lookback. Add --save to write to Firestore.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 30;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const recalls = await scrapeCpscRecalls({ lookbackDays: days });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${recalls.length} CPSC recalls to Firestore...`,
+        );
+        const result = await saveProductRecalls(recalls);
+        console.error(
+          `[save] Saved ${result.saved} recalls to ${result.collection}`,
+        );
+      }
+      return recalls;
+    },
+  },
+  govinfo: {
+    description:
+      "Scrape GovInfo packages across CRPT (Congressional Reports), PLAW (Public Laws), CHRG (Congressional Hearings), GAOREPORTS (GAO oversight). Default 30-day lookback, all four collections. Optional: <days> positional, --collection=CRPT|PLAW|CHRG|GAOREPORTS, --max=N per collection. Requires GOVINFO_API_KEY (DEMO_KEY works at low quota for testing). Add --save to write to Firestore.",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 30;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const collectionFlag = args.find((a) => a.startsWith("--collection="));
+      const collectionArg = collectionFlag
+        ? (collectionFlag.slice("--collection=".length) as
+            | "CRPT"
+            | "PLAW"
+            | "CHRG"
+            | "GAOREPORTS")
+        : undefined;
+      const maxFlag = args.find((a) => a.startsWith("--max="));
+      const maxPerCollection = maxFlag
+        ? parseInt(maxFlag.slice("--max=".length), 10)
+        : undefined;
+      if (
+        maxPerCollection !== undefined &&
+        (Number.isNaN(maxPerCollection) || maxPerCollection < 1)
+      ) {
+        throw new Error("--max must be a positive integer");
+      }
+      const docs = await scrapeGovInfo({
+        lookbackDays: days,
+        ...(collectionArg && { collection: collectionArg }),
+        ...(maxPerCollection !== undefined && { maxPerCollection }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${docs.length} GovInfo packages to Firestore...`,
+        );
+        const result = await saveGovDocuments(docs);
+        console.error(
+          `[save] Saved ${result.saved} packages to ${result.collection}`,
+        );
+      }
+      return docs;
     },
   },
   "enforcement-actions": {

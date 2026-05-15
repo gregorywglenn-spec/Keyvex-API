@@ -53,6 +53,12 @@ import type {
   MaterialEventsQuery,
   NportFiling,
   NportFilingsQuery,
+  NportHolding,
+  NportHoldingsQuery,
+  ProductRecall,
+  ProductRecallsQuery,
+  GovDocument,
+  GovDocumentsQuery,
   OfacSdnEntry,
   OfacSdnQuery,
   OtcMarketWeekly,
@@ -246,6 +252,12 @@ async function queryInsiderTransactionsLive(
   }
   if (query.transaction_type) {
     q = q.where("transaction_type", "==", query.transaction_type);
+  }
+  if (query.is_derivative !== undefined) {
+    q = q.where("is_derivative", "==", query.is_derivative);
+  }
+  if (query.transaction_codes && query.transaction_codes.length > 0) {
+    q = q.where("transaction_code", "in", query.transaction_codes);
   }
   if (query.min_value !== undefined) {
     q = q.where("total_value", ">=", query.min_value);
@@ -2601,6 +2613,331 @@ export async function saveNportFilings(
   return { saved, collection: COLLECTION };
 }
 
+// ─── N-PORT per-holding rows query + save ─────────────────────────────────
+
+export async function queryNportHoldings(
+  query: NportHoldingsQuery,
+): Promise<QueryResult<NportHolding>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  let q: FirestoreQuery = db.collection("nport_holdings");
+
+  if (query.filing_id) {
+    q = q.where("filing_id", "==", query.filing_id);
+  }
+  if (query.filer_cik) {
+    q = q.where("filer_cik", "==", query.filer_cik.padStart(10, "0"));
+  }
+  if (query.period_ending) {
+    q = q.where("period_ending", "==", query.period_ending);
+  }
+  if (query.cusip) {
+    q = q.where("cusip", "==", query.cusip);
+  }
+  if (query.ticker) {
+    q = q.where("ticker", "==", query.ticker.toUpperCase());
+  }
+  if (query.isin) {
+    q = q.where("isin", "==", query.isin);
+  }
+  if (query.asset_cat) {
+    q = q.where("asset_cat", "==", query.asset_cat);
+  }
+  if (query.is_derivative !== undefined) {
+    q = q.where("is_derivative", "==", query.is_derivative);
+  }
+  if (query.derivative_type) {
+    q = q.where("derivative_type", "==", query.derivative_type);
+  }
+  if (query.country) {
+    q = q.where("country", "==", query.country);
+  }
+  if (query.payoff_profile) {
+    q = q.where("payoff_profile", "==", query.payoff_profile);
+  }
+  if (query.min_value_usd !== undefined) {
+    q = q.where("value_usd", ">=", query.min_value_usd);
+  }
+  if (query.min_pct_of_portfolio !== undefined) {
+    q = q.where("pct_of_portfolio", ">=", query.min_pct_of_portfolio);
+  }
+
+  const userLimit = query.limit ?? 50;
+  // Substring filter on name OR filer_name forces a larger fetch window.
+  const usesSubstring = !!(query.name || query.filer_name);
+  const fetchLimit = usesSubstring ? 5000 : Math.max(userLimit * 4, 500);
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as NportHolding);
+
+  if (query.name) {
+    const needle = query.name.toLowerCase();
+    docs = docs.filter((h) => (h.name ?? "").toLowerCase().includes(needle));
+  }
+  if (query.filer_name) {
+    const needle = query.filer_name.toLowerCase();
+    docs = docs.filter((h) =>
+      (h.filer_name ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.since) {
+    docs = docs.filter((h) => h.period_ending >= query.since!);
+  }
+  if (query.until) {
+    docs = docs.filter((h) => h.period_ending <= query.until!);
+  }
+
+  const sortField = query.sort_by ?? "value_usd";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = (a as unknown as Record<string, number | string | null>)[
+      sortField
+    ];
+    const bv = (b as unknown as Record<string, number | string | null>)[
+      sortField
+    ];
+    // nulls last
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveNportHoldings(
+  holdings: NportHolding[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "nport_holdings";
+  if (holdings.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < holdings.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = holdings.slice(i, i + BATCH_SIZE);
+    for (const h of chunk) {
+      batch.set(collection.doc(h.id), h, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Product recalls (FDA + NHTSA + CPSC) query + save ───────────────────
+
+export async function queryProductRecalls(
+  query: ProductRecallsQuery,
+): Promise<QueryResult<ProductRecall>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.recall_number) {
+    // recall_number alone is ambiguous across sources — require source for
+    // doc lookup, otherwise fall through to a where query.
+    if (query.source) {
+      const id = `${query.source}-${query.recall_number}`;
+      const doc = await db.collection("product_recalls").doc(id).get();
+      if (!doc.exists) return { results: [], has_more: false };
+      return {
+        results: [doc.data() as ProductRecall],
+        has_more: false,
+      };
+    }
+  }
+
+  let q: FirestoreQuery = db.collection("product_recalls");
+
+  if (query.source) q = q.where("source", "==", query.source);
+  if (query.recall_number) {
+    q = q.where("recall_number", "==", query.recall_number);
+  }
+  if (query.classification) {
+    q = q.where("classification", "==", query.classification);
+  }
+  if (query.status) {
+    q = q.where("status", "==", query.status);
+  }
+  if (query.vehicle_make) {
+    q = q.where("vehicle_make", "==", query.vehicle_make.toUpperCase());
+  }
+
+  const sortField = query.sort_by ?? "recall_initiation_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  const usesSubstring = !!(
+    query.recalling_firm ||
+    query.product_description ||
+    query.vehicle_model
+  );
+  const fetchLimit = usesSubstring ? 5000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as ProductRecall);
+
+  if (query.recalling_firm) {
+    const needle = query.recalling_firm.toLowerCase();
+    docs = docs.filter((r) =>
+      (r.recalling_firm ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.product_description) {
+    const needle = query.product_description.toLowerCase();
+    docs = docs.filter((r) =>
+      (r.product_description ?? "").toLowerCase().includes(needle),
+    );
+  }
+  if (query.vehicle_model) {
+    const needle = query.vehicle_model.toLowerCase();
+    docs = docs.filter((r) =>
+      (r.vehicle_model ?? "").toLowerCase().includes(needle),
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveProductRecalls(
+  recalls: ProductRecall[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "product_recalls";
+  if (recalls.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < recalls.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = recalls.slice(i, i + BATCH_SIZE);
+    for (const r of chunk) {
+      batch.set(collection.doc(r.id), r, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+// ─── Government publications (GovInfo) query + save ──────────────────────
+
+export async function queryGovDocuments(
+  query: GovDocumentsQuery,
+): Promise<QueryResult<GovDocument>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+
+  if (query.package_id) {
+    const doc = await db
+      .collection("gov_documents")
+      .doc(query.package_id)
+      .get();
+    if (!doc.exists) return { results: [], has_more: false };
+    return { results: [doc.data() as GovDocument], has_more: false };
+  }
+
+  let q: FirestoreQuery = db.collection("gov_documents");
+  if (query.collection) q = q.where("collection", "==", query.collection);
+  if (query.doc_class) q = q.where("doc_class", "==", query.doc_class);
+  if (query.congress) q = q.where("congress", "==", query.congress);
+
+  const sortField = query.sort_by ?? "date_issued";
+  const sortOrder = query.sort_order ?? "desc";
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  const usesSubstring = !!query.title;
+  const fetchLimit = usesSubstring ? 5000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as GovDocument);
+
+  if (query.title) {
+    const needle = query.title.toLowerCase();
+    docs = docs.filter((d) =>
+      (d.title ?? "").toLowerCase().includes(needle),
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more };
+}
+
+export async function saveGovDocuments(
+  documents: GovDocument[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "gov_documents";
+  if (documents.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < documents.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = documents.slice(i, i + BATCH_SIZE);
+    for (const d of chunk) {
+      batch.set(collection.doc(d.id), d, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
 // ─── Enforcement actions (SEC + DOJ) query + save ────────────────────────
 
 export async function queryEnforcementActions(
@@ -3468,6 +3805,19 @@ function queryInsiderTransactionsStub(
     ) {
       return false;
     }
+    if (
+      query.is_derivative !== undefined &&
+      t.is_derivative !== query.is_derivative
+    ) {
+      return false;
+    }
+    if (
+      query.transaction_codes &&
+      query.transaction_codes.length > 0 &&
+      !query.transaction_codes.includes(t.transaction_code)
+    ) {
+      return false;
+    }
     if (query.min_value !== undefined && t.total_value < query.min_value) {
       return false;
     }
@@ -3532,6 +3882,10 @@ const STUB_INSIDER_TRADES: InsiderTransaction[] = [
     sec_filing_url:
       "https://www.sec.gov/Archives/edgar/data/320193/000032019326000071/",
     data_source: "SEC_EDGAR_FORM4",
+    is_derivative: false,
+    underlying_security_title: null,
+    underlying_security_shares: null,
+    conversion_or_exercise_price: null,
   },
   {
     id: "0000320193-26-000068-2026-04-08-S-12500",
@@ -3556,6 +3910,10 @@ const STUB_INSIDER_TRADES: InsiderTransaction[] = [
     sec_filing_url:
       "https://www.sec.gov/Archives/edgar/data/320193/000032019326000068/",
     data_source: "SEC_EDGAR_FORM4",
+    is_derivative: false,
+    underlying_security_title: null,
+    underlying_security_shares: null,
+    conversion_or_exercise_price: null,
   },
   {
     id: "0001045810-26-000044-2026-03-22-P-25000",
@@ -3580,6 +3938,10 @@ const STUB_INSIDER_TRADES: InsiderTransaction[] = [
     sec_filing_url:
       "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000044/",
     data_source: "SEC_EDGAR_FORM4",
+    is_derivative: false,
+    underlying_security_title: null,
+    underlying_security_shares: null,
+    conversion_or_exercise_price: null,
   },
   {
     id: "0000789019-26-000128-2026-04-22-S-8000",
@@ -3604,6 +3966,10 @@ const STUB_INSIDER_TRADES: InsiderTransaction[] = [
     sec_filing_url:
       "https://www.sec.gov/Archives/edgar/data/789019/000078901926000128/",
     data_source: "SEC_EDGAR_FORM4",
+    is_derivative: false,
+    underlying_security_title: null,
+    underlying_security_shares: null,
+    conversion_or_exercise_price: null,
   },
   {
     id: "0001045810-26-000041-2026-02-14-P-100000",
@@ -3628,5 +3994,9 @@ const STUB_INSIDER_TRADES: InsiderTransaction[] = [
     sec_filing_url:
       "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000041/",
     data_source: "SEC_EDGAR_FORM4",
+    is_derivative: false,
+    underlying_security_title: null,
+    underlying_security_shares: null,
+    conversion_or_exercise_price: null,
   },
 ];

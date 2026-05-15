@@ -1,6 +1,6 @@
 {
   "name": "keyvex",
-  "version": "0.39.0",
+  "version": "0.41.0",
   "description": "KeyVex — MCP server exposing US public financial disclosures (congressional trades, insider transactions, institutional holdings, federal contracts, lobbying, material events) as agent-native tools.",
   "type": "module",
   "main": "dist/index.js",
@@ -33,7 +33,7 @@
     "typescript": "^5.7.2"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "private": true
 }

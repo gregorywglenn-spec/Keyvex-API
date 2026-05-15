@@ -18,22 +18,29 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   queryActivistOwnership,
+  queryConsumerComplaints,
   queryCongressionalTrades,
+  queryEnforcementActions,
   queryFederalContractAwards,
   queryForm144Filings,
   queryForm278Filings,
   queryForm3Holdings,
   queryInsiderTransactions,
   queryInstitutionalHoldings,
+  queryLobbyingFilings,
   queryMaterialEvents,
   queryNportFilings,
+  queryNportHoldings,
   queryOtcMarketWeekly,
   queryPrivatePlacements,
+  queryProductRecalls,
   queryProxyFilings,
   queryRegistrationStatements,
   queryTenderOffers,
+  queryTreasuryAuctions,
   queryXbrlFundamentals,
 } from "../firestore.js";
+import { resolveCompanyByName } from "../sec-tickers.js";
 import type {
   UnifiedSearchEnvelope,
   UnifiedSearchQuery,
@@ -46,16 +53,16 @@ export const definition: Tool = {
   name: "unified_search",
   description: [
     "Identifier-driven cross-collection fan-out search. Pass one or more entity",
-    "identifiers — ticker, bioguide_id, company_cik, or recipient_uei — and",
-    "this tool queries every collection where that field is indexed, returning",
-    "results grouped by source in one envelope.",
+    "identifiers — ticker, bioguide_id, company_cik, recipient_uei, company_name,",
+    "or cusip — and this tool queries every collection where that field is",
+    "indexed, returning results grouped by source in one envelope.",
     "",
     "Use this for high-level 'tell me everything about X' questions before",
     "drilling into specific source tools. Replaces 6-10 sequential tool calls",
     "with a single fan-out.",
     "",
     "Identifier coverage:",
-    "  - ticker → 12 collections (insider_trades, institutional_holdings,",
+    "  - ticker → 12 SEC-keyed collections (insider_trades, institutional_holdings,",
     "    congressional_trades, planned_insider_sales, initial_ownership_baselines,",
     "    activist_ownership, material_events, proxy_filings, xbrl_fundamentals,",
     "    tender_offers, registration_statements, otc_market_weekly)",
@@ -65,9 +72,22 @@ export const definition: Tool = {
     "    proxy_filings, xbrl_fundamentals, private_placements, registration_statements,",
     "    nport_filings)",
     "  - recipient_uei → 1 collection (federal_contracts)",
+    "  - company_name → 5 name-keyed collections (federal_contracts, lobbying_filings,",
+    "    enforcement_actions, consumer_complaints, product_recalls) AND auto-",
+    "    resolves to ticker + company_cik via EDGAR's catalog, cascading into",
+    "    every ticker/CIK adapter above. The unlock for 'tell me everything about",
+    "    Wells Fargo' hitting 17+ collections in one call.",
+    "  - cusip → 4 collections (institutional_holdings, activist_ownership,",
+    "    nport_holdings, treasury_auctions)",
     "",
     "Multiple identifiers can be combined to narrow each source's query (e.g.,",
     "ticker + bioguide_id will filter congressional_trades by both).",
+    "",
+    "Name resolution: when only company_name is supplied, the resolved ticker",
+    "and CIK come from EDGAR's company_tickers_exchange.json (US-listed names",
+    "only). Foreign-only or private companies won't resolve to a ticker, but",
+    "name-keyed collections (CFPB, lobbying, etc.) still receive the substring",
+    "filter directly.",
     "",
     "Per-source result count is capped via per_source_limit (default 5,",
     "max 50). One slow or failing source returns an error block instead of",
@@ -98,6 +118,16 @@ export const definition: Tool = {
         type: "string",
         description:
           "USAspending recipient UEI. Fans out to federal_contracts only.",
+      },
+      company_name: {
+        type: "string",
+        description:
+          "Issuer name (e.g., 'Lockheed Martin', 'Wells Fargo'). Resolves to ticker + CIK via EDGAR catalog (if US-listed) AND substring-filters name-keyed collections (federal_contracts, lobbying_filings, enforcement_actions, consumer_complaints, product_recalls).",
+      },
+      cusip: {
+        type: "string",
+        description:
+          "9-character CUSIP security identifier. Fans out to institutional_holdings, activist_ownership, nport_holdings, treasury_auctions.",
       },
       since: {
         type: "string",
@@ -157,9 +187,13 @@ const ADAPTERS: SourceAdapter[] = [
   {
     name: "institutional_holdings",
     call: (q, limit) => {
-      if (!q.ticker) return null;
+      if (!q.ticker && !q.cusip) return null;
       // 13F has no since/until — the natural date is `quarter`. Skip date filter.
-      return queryInstitutionalHoldings({ ticker: q.ticker, limit });
+      return queryInstitutionalHoldings({
+        ...(q.ticker !== undefined && { ticker: q.ticker }),
+        ...(q.cusip !== undefined && { cusip: q.cusip }),
+        limit,
+      });
     },
   },
   {
@@ -204,10 +238,11 @@ const ADAPTERS: SourceAdapter[] = [
   {
     name: "activist_ownership",
     call: (q, limit) => {
-      if (!q.ticker && !q.company_cik) return null;
+      if (!q.ticker && !q.company_cik && !q.cusip) return null;
       return queryActivistOwnership({
         ...(q.ticker !== undefined && { ticker: q.ticker }),
         ...(q.company_cik !== undefined && { company_cik: q.company_cik }),
+        ...(q.cusip !== undefined && { cusip: q.cusip }),
         ...(q.since !== undefined && { since: q.since }),
         ...(q.until !== undefined && { until: q.until }),
         limit,
@@ -332,9 +367,88 @@ const ADAPTERS: SourceAdapter[] = [
   {
     name: "federal_contracts",
     call: (q, limit) => {
-      if (!q.recipient_uei) return null;
+      if (!q.recipient_uei && !q.company_name) return null;
       return queryFederalContractAwards({
-        recipient_uei: q.recipient_uei,
+        ...(q.recipient_uei !== undefined && { recipient_uei: q.recipient_uei }),
+        ...(q.company_name !== undefined && { recipient_name: q.company_name }),
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "lobbying_filings",
+    call: (q, limit) => {
+      if (!q.company_name) return null;
+      // The same company can appear as either the client (the buyer of
+      // lobbying services) or the registrant (the lobbying firm itself).
+      // We default to client_name match since that's the "who paid for
+      // influence" angle — agents asking about Wells Fargo usually want
+      // Wells-as-client, not Wells-as-lobbyist.
+      return queryLobbyingFilings({
+        client_name: q.company_name,
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "enforcement_actions",
+    call: (q, limit) => {
+      if (!q.company_name) return null;
+      return queryEnforcementActions({
+        // `text` searches title + description+teaser — broader than `title`
+        // alone, which is what an agent looking up a company expects.
+        text: q.company_name,
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "consumer_complaints",
+    call: (q, limit) => {
+      if (!q.company_name) return null;
+      return queryConsumerComplaints({
+        company: q.company_name,
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "product_recalls",
+    call: (q, limit) => {
+      if (!q.company_name) return null;
+      return queryProductRecalls({
+        recalling_firm: q.company_name,
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "nport_holdings",
+    call: (q, limit) => {
+      if (!q.ticker && !q.cusip) return null;
+      return queryNportHoldings({
+        ...(q.ticker !== undefined && { ticker: q.ticker }),
+        ...(q.cusip !== undefined && { cusip: q.cusip }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "treasury_auctions",
+    call: (q, limit) => {
+      if (!q.cusip) return null;
+      return queryTreasuryAuctions({
+        cusip: q.cusip,
         ...(q.since !== undefined && { since: q.since }),
         ...(q.until !== undefined && { until: q.until }),
         limit,
@@ -348,6 +462,27 @@ const ADAPTERS: SourceAdapter[] = [
 export async function handler(args: unknown): Promise<UnifiedSearchEnvelope> {
   const query = validateAndNormalize(args);
   const perSourceLimit = query.per_source_limit ?? 5;
+
+  // Name-resolution cascade: if company_name is supplied and the caller
+  // didn't pass an explicit ticker or company_cik, try to resolve the name
+  // against EDGAR's catalog and back-fill the identifiers. Resolved
+  // identifiers feed every ticker/CIK adapter automatically — that's the
+  // unlock for "tell me everything about Wells Fargo" hitting 17+
+  // collections in one call. If resolution fails (foreign-only / private
+  // company), name-keyed adapters still run on the raw company_name.
+  if (query.company_name && !query.ticker && !query.company_cik) {
+    try {
+      const resolved = await resolveCompanyByName(query.company_name);
+      if (resolved) {
+        query.ticker = resolved.ticker;
+        query.company_cik = resolved.cik;
+      }
+    } catch {
+      // EDGAR catalog load failure is non-fatal — name-keyed adapters
+      // still run with the substring fallback. Surface no error since
+      // partial results are still useful.
+    }
+  }
 
   // Build the list of adapters whose collection actually responds to the
   // provided identifier(s). Apply `sources` whitelist if present.
@@ -455,15 +590,38 @@ function validateAndNormalize(raw: unknown): UnifiedSearchQuery {
     out.recipient_uei = args.recipient_uei;
   }
 
+  if (args.company_name !== undefined) {
+    if (typeof args.company_name !== "string" || args.company_name.length < 2) {
+      throw new Error(
+        "company_name must be a string of at least 2 characters",
+      );
+    }
+    out.company_name = args.company_name;
+  }
+
+  if (args.cusip !== undefined) {
+    if (
+      typeof args.cusip !== "string" ||
+      !/^[A-Za-z0-9]{8,9}$/.test(args.cusip)
+    ) {
+      throw new Error(
+        `INVALID_CUSIP: '${String(args.cusip)}' — expected 8-9 alphanumeric chars`,
+      );
+    }
+    out.cusip = args.cusip.toUpperCase();
+  }
+
   // At least one identifier required.
   if (
     !out.ticker &&
     !out.bioguide_id &&
     !out.company_cik &&
-    !out.recipient_uei
+    !out.recipient_uei &&
+    !out.company_name &&
+    !out.cusip
   ) {
     throw new Error(
-      "MISSING_IDENTIFIER: at least one of ticker, bioguide_id, company_cik, or recipient_uei is required",
+      "MISSING_IDENTIFIER: at least one of ticker, bioguide_id, company_cik, recipient_uei, company_name, or cusip is required",
     );
   }
 

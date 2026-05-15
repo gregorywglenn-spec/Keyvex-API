@@ -17,11 +17,166 @@
       ]
     },
     {
+      "collectionGroup": "insider_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_derivative", "order": "ASCENDING" },
+        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "is_derivative", "order": "ASCENDING" },
+        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_code", "order": "ASCENDING" },
+        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "ticker", "order": "ASCENDING" },
         { "fieldPath": "market_value", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "value_usd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cusip", "order": "ASCENDING" },
+        { "fieldPath": "value_usd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filer_cik", "order": "ASCENDING" },
+        { "fieldPath": "value_usd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filing_id", "order": "ASCENDING" },
+        { "fieldPath": "value_usd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "is_derivative", "order": "ASCENDING" },
+        { "fieldPath": "period_ending", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "derivative_type", "order": "ASCENDING" },
+        { "fieldPath": "value_usd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "asset_cat", "order": "ASCENDING" },
+        { "fieldPath": "value_usd", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "product_recalls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "product_recalls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classification", "order": "ASCENDING" },
+        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "product_recalls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "product_recalls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "vehicle_make", "order": "ASCENDING" },
+        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "product_recalls",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "classification", "order": "ASCENDING" },
+        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gov_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "collection", "order": "ASCENDING" },
+        { "fieldPath": "date_issued", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gov_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "congress", "order": "ASCENDING" },
+        { "fieldPath": "date_issued", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gov_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "doc_class", "order": "ASCENDING" },
+        { "fieldPath": "date_issued", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gov_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "collection", "order": "ASCENDING" },
+        { "fieldPath": "last_modified", "order": "DESCENDING" }
       ]
     },
     {

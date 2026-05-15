@@ -40,9 +40,26 @@ export const definition: Tool = {
     "be filed within 2 business days of the trade. The reporting_lag_days",
     "field tells you how stale a particular disclosure is.",
     "",
-    "This tool returns only open-market purchases (transaction_code 'P') and",
-    "sales (transaction_code 'S'). It excludes grants, option exercises,",
-    "tax-withholding sales, and other non-discretionary transactions.",
+    "Returns BOTH non-derivative rows (direct common-stock buys/sells, RSU",
+    "vests, grants, gifts, tax-withholding sales) AND derivative rows (option",
+    "exercises, warrant conversions, RSU/PSU activity). Filter to one or the",
+    "other with is_derivative; filter to specific transaction codes with",
+    "transaction_codes.",
+    "",
+    "Common transaction codes:",
+    "  P open-market purchase   |  S open-market sale",
+    "  A grant / award / RSU vest  |  M exercise of derivative",
+    "  X exercise of in/at-the-money derivative  |  C conversion of derivative",
+    "  F payment of exercise price or tax with shares  |  G bona fide gift",
+    "  D disposition to issuer (forced)  |  I 401(k)/ESPP  |  V voluntary",
+    "",
+    "Useful filter combos:",
+    "  transaction_codes=['P']              open-market buys only (highest signal)",
+    "  transaction_codes=['M','X']          option exercises (cash-out trigger)",
+    "  transaction_codes=['A']              grants / RSU vests",
+    "  is_derivative=true                   all option/RSU/warrant activity",
+    "  is_derivative=false, transaction_type='sell', min_value=1000000",
+    "                                       large open-market sells of common stock",
     "",
     "Optional include_baseline=true: also returns matching Form 3 initial-",
     "ownership records (the insider's *starting* position when they first",
@@ -71,7 +88,20 @@ export const definition: Tool = {
       transaction_type: {
         type: "string",
         enum: ["buy", "sell"],
-        description: "Filter to purchases or sales only.",
+        description:
+          "Filter by direction. For P/S rows this is the open-market direction; for other codes, derived from acquired_disposed (A→buy, D→sell).",
+      },
+      is_derivative: {
+        type: "boolean",
+        description:
+          "Filter to derivative rows (options, RSUs, warrants, convertibles) when true, or non-derivative common-stock rows when false. Omit to see both.",
+      },
+      transaction_codes: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 30,
+        description:
+          "OR-filter on raw SEC transaction codes. Common picks: ['P'] open-market buys; ['S','F'] sells + tax-withholding; ['M','X'] option exercises; ['A'] grants/RSU vests; ['G'] gifts. Max 30 codes.",
       },
       min_value: {
         type: "number",
@@ -224,6 +254,29 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
       );
     }
     out.transaction_type = args.transaction_type;
+  }
+
+  if (args.is_derivative !== undefined) {
+    if (typeof args.is_derivative !== "boolean") {
+      throw new Error("is_derivative must be a boolean");
+    }
+    out.is_derivative = args.is_derivative;
+  }
+
+  if (args.transaction_codes !== undefined) {
+    if (
+      !Array.isArray(args.transaction_codes) ||
+      args.transaction_codes.length === 0 ||
+      args.transaction_codes.length > 30 ||
+      args.transaction_codes.some(
+        (c) => typeof c !== "string" || !/^[A-Z]$/.test(c),
+      )
+    ) {
+      throw new Error(
+        "INVALID transaction_codes — expected non-empty array of single-letter uppercase SEC codes (max 30)",
+      );
+    }
+    out.transaction_codes = args.transaction_codes as string[];
   }
 
   if (args.min_value !== undefined) {

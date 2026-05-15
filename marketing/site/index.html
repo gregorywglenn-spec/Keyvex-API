@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KeyVex — MCP server for US public financial disclosures</title>
-  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 22 tools across 22+ government sources — congressional trades, insider transactions, institutional holdings, lobbying, federal contracts, material events, FEC campaign finance, bills, roll-call votes, dark-pool volume, OFAC sanctions, Federal Register, and more — all queryable by AI agents through one endpoint." />
+  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 31 tools across 34+ government sources — congressional trades, insider transactions (with option exercises), institutional + mutual-fund holdings (including derivatives), XBRL fundamentals, lobbying, federal contracts, material events, FEC campaign finance, bills, roll-call votes, dark-pool volume, proxy filings, Treasury auctions, BLS + FRED + EIA macro data, HHS-OIG exclusions, CFPB complaints, FDA + CPSC product recalls, GovInfo congressional + GAO documents, OFAC sanctions, Federal Register, and more — all queryable by AI agents through one endpoint." />
   <meta property="og:title" content="KeyVex — MCP server for US public financial disclosures" />
-  <meta property="og:description" content="22 MCP tools across 22+ US public-disclosure sources, one Bearer-authenticated endpoint. Designed for AI agents from the ground up." />
+  <meta property="og:description" content="31 MCP tools across 34+ US public-disclosure sources, one Bearer-authenticated endpoint. Designed for AI agents from the ground up." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://keyvex.com" />
   <link rel="icon" type="image/png" href="keyvex-mark.png" />
@@ -348,12 +348,16 @@
         </p>
       </div>
       <p class="sub">
-        28 tools across 28+ government sources — congressional trades, insider
-        transactions, institutional + mutual-fund holdings, dark-pool volume,
-        lobbying spend, FEC campaign finance, federal contracts, bills,
-        roll-call votes, OFAC sanctions, Federal Register rules, M&amp;A tender
-        offers, private placements, XBRL fundamentals, and more — all queryable
-        by AI agents through one Bearer-authenticated endpoint.
+        31 tools across 34+ government sources — congressional trades, insider
+        transactions (with option exercises), institutional + mutual-fund
+        holdings (including derivatives), XBRL fundamentals, proxy filings,
+        dark-pool volume, lobbying spend, FEC campaign finance, federal
+        contracts, bills, roll-call votes, OFAC sanctions, Federal Register
+        rules, M&amp;A tender offers, private placements, Treasury auctions,
+        BLS + FRED + EIA macro &amp; energy data, HHS-OIG exclusions, CFPB
+        complaints, FDA + CPSC product recalls, GovInfo congressional + GAO
+        documents, and more — all queryable by AI agents through one
+        Bearer-authenticated endpoint.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="mailto:contact@keyvex.com?subject=KeyVex%20preview%20access">Get free preview access</a>
@@ -366,8 +370,8 @@
     <section id="sources">
       <h2>One queryable surface for every public US financial disclosure that matters.</h2>
       <p class="lead">
-        KeyVex normalizes 22+ distinct US public-record sources into a clean
-        Model Context Protocol (MCP) server with 22 agent-native tools. Connect
+        KeyVex normalizes 34+ distinct US public-record sources into a clean
+        Model Context Protocol (MCP) server with 31 agent-native tools. Connect
         it to Claude, Cursor, your custom agent, or any MCP-compatible client.
         No scraping, no parsing, no schema-wrangling on your end.
       </p>
@@ -382,7 +386,9 @@
         <li><strong>SEC Form D</strong><span class="desc">Reg D exempt private placements — VC raises, PE funds, real-estate syndicates.</span></li>
         <li><strong>SEC Form N-PORT</strong><span class="desc">Monthly mutual fund / ETF / closed-end fund portfolio reports.</span></li>
         <li><strong>SEC Form S-1 / S-3</strong><span class="desc">IPO + shelf registration statements (incl. amendments).</span></li>
-        <li><strong>SEC + DOJ enforcement</strong><span class="desc">Press releases announcing charges, settlements, and indictments.</span></li>
+        <li><strong>SEC DEF 14A proxy filings</strong><span class="desc">Annual proxy statements — exec comp, board nominations, shareholder proposals, merger-related votes.</span></li>
+        <li><strong>SEC XBRL fundamentals</strong><span class="desc">Income statement, balance sheet, cash flow, per-share metrics — quarter by quarter, straight from EDGAR's structured company facts.</span></li>
+        <li><strong>SEC + DOJ + CFTC + OCC + FDIC enforcement</strong><span class="desc">Press releases announcing charges, settlements, indictments, and bank-failure announcements across five regulators.</span></li>
         <li><strong>USAspending federal contracts</strong><span class="desc">Federal contract awards across every agency.</span></li>
         <li><strong>FEC campaign finance</strong><span class="desc">Federal candidates + their linked committees (campaign, PAC, Super PAC, party).</span></li>
         <li><strong>Senate LDA lobbying</strong><span class="desc">Quarterly lobbying disclosures filed under the Lobbying Disclosure Act.</span></li>
@@ -396,6 +402,15 @@
         <li><strong>FINRA OTC Transparency</strong><span class="desc">Weekly off-exchange (ATS dark-pool) volume by security and venue.</span></li>
         <li><strong>OFAC SDN sanctions list</strong><span class="desc">19K+ Specially Designated Nationals (Cuba / Iran / Russia / NK / terrorism / narcotics).</span></li>
         <li><strong>Federal Register</strong><span class="desc">Daily-published rules, proposed rules, notices, and presidential documents.</span></li>
+        <li><strong>US Treasury auctions</strong><span class="desc">Bills, Notes, Bonds, TIPS, FRN — with bid-to-cover ratios, yields, bidder breakdowns, and SOMA holdings (Fed QE/QT visibility).</span></li>
+        <li><strong>BLS + FRED economic indicators</strong><span class="desc">50 curated macro series — Fed Funds, Treasury yields, GDP, CPI/PCE, jobs, money supply, Fed balance sheet.</span></li>
+        <li><strong>HHS-OIG exclusions (LEIE)</strong><span class="desc">83K+ healthcare entities and individuals barred from federal program payment — compliance flag for contracts and insider activity.</span></li>
+        <li><strong>CFPB consumer complaints</strong><span class="desc">Daily consumer complaints against banks, lenders, credit reporters, and debt collectors — leading indicator for OCC / FDIC / CFPB enforcement.</span></li>
+        <li><strong>SEC N-PORT fund holdings</strong><span class="desc">Per-security mutual-fund + ETF holdings — equities, debt, swaps, options, futures, repos. The first MCP exposure of fund-level derivative books outside Bloomberg.</span></li>
+        <li><strong>FDA recalls (drug + device + food)</strong><span class="desc">openFDA recall registry across all three FDA centers, with Class I/II/III severity. Pairs with 8-K / insider trades for product-safety event flagging.</span></li>
+        <li><strong>CPSC consumer-product recalls</strong><span class="desc">Saferproducts.gov recall feed — clothing, electronics, toys, batteries, appliances. Includes hazard description, retailer, manufacturer country.</span></li>
+        <li><strong>EIA energy prices</strong><span class="desc">WTI + Brent crude, Henry Hub natural gas, US retail gasoline, US crude production. Energy data unique to EIA (not in BLS or FRED).</span></li>
+        <li><strong>GovInfo legislative + oversight</strong><span class="desc">Committee reports (CRPT), public laws (PLAW), congressional hearing transcripts (CHRG), GAO oversight reports — four collections from the GPO archive.</span></li>
       </ol>
       <p class="muted small" style="margin-top: 24px;">Refreshed continuously by autonomous schedulers. No human in the loop.</p>
     </section>
@@ -480,7 +495,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
       <h3 style="margin-top: 24px;">Health check (no auth required)</h3>
       <pre><code>curl https://mcp.keyvex.com</code></pre>
 
-      <h3 style="margin-top: 24px;">List the 22 tools (auth required)</h3>
+      <h3 style="margin-top: 24px;">List the 31 tools (auth required)</h3>
       <pre><code>curl -X POST https://mcp.keyvex.com \
   -H "Authorization: Bearer &lt;your-key&gt;" \
   -H "Content-Type: application/json" \
@@ -541,7 +556,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
             <td>Unlimited</td>
           </tr>
           <tr>
-            <td class="tier-name">All 22 tools</td>
+            <td class="tier-name">All 31 tools</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
@@ -651,7 +666,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
         <div class="card">
           <h3>Idempotent &amp; autonomous</h3>
           <p>
-            22+ scheduled scrapers run on cron — Form 4 every 30 min, 8-K hourly,
+            32+ scheduled scrapers run on cron — Form 4 every 30 min, 8-K hourly,
             congressional PTRs daily, full bioguide catalog weekly. Writes use
             <code>merge:true</code> semantics, so re-runs don't duplicate.
             Network blips trigger bounded retries. The warehouse fills itself in

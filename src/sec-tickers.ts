@@ -289,6 +289,34 @@ export async function lookupTickerByName(
 }
 
 /**
+ * Resolve an issuer name to its ticker + CIK + canonical title. Returns
+ * null if no EDGAR match. When multiple share classes match the same
+ * normalized name (LILA / LILAK), returns the shortest-ticker variant
+ * (usually the primary class).
+ *
+ * CIK is returned as a 10-digit zero-padded string to match the format
+ * the rest of KeyVex uses everywhere (Form 4 / 144 / 13F / NPORT etc.).
+ */
+export async function resolveCompanyByName(
+  issuerName: string,
+): Promise<{ ticker: string; cik: string; title: string } | null> {
+  if (!issuerName) return null;
+  const map = await loadMap();
+  const normalized = normalizeName(issuerName);
+  if (!normalized) return null;
+
+  const matches = map.get(normalized);
+  if (!matches || matches.length === 0) return null;
+
+  const best = [...matches].sort((a, b) => a.tickerLen - b.tickerLen)[0]!;
+  return {
+    ticker: best.ticker,
+    cik: String(best.cik).padStart(10, "0"),
+    title: best.title,
+  };
+}
+
+/**
  * Compare two issuer names for a "same company" match. Used by OpenFIGI's
  * pickBestMatch to detect wrong-issuer mappings — e.g., Bloomberg returned
  * ticker "OSG" (Overseas Shipholding Group) for Ambac Financial Group's

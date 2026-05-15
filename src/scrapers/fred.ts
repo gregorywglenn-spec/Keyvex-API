@@ -24,6 +24,7 @@
  * no real-vs-nominal recalculations, no model-implied forecasts. Agents
  * compute those on top.
  */
+import "../load-secrets.js";
 import type { EconomicIndicator } from "../types.js";
 
 const CONFIG = {

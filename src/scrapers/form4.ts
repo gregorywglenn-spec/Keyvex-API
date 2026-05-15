@@ -143,9 +143,54 @@ const xml = new XMLParser({
 });
 
 /**
+ * Codes we capture. Skips J/K (rare "other"/pledge) for signal-to-noise.
+ * Includes:
+ *   P open-market purchase, S open-market sale
+ *   A grant/award/RSU vest, M exercise of derivative
+ *   X exercise of in-the-money or at-the-money derivative
+ *   C conversion of derivative, F payment of exercise price or tax with shares
+ *   G bona fide gift, D disposition to issuer (forced)
+ *   I discretionary 401(k)/ESPP, V voluntary
+ */
+const ACCEPTED_CODES = new Set([
+  "P",
+  "S",
+  "A",
+  "M",
+  "X",
+  "C",
+  "F",
+  "G",
+  "D",
+  "I",
+  "V",
+]);
+
+/**
+ * Direction derivation. P/S are open-market and unambiguous; for the rest,
+ * trust `acquired_disposed` if present, otherwise fall back to code semantics
+ * (A/M/X/C/I = acquisition; F/G/D = disposition).
+ */
+function deriveType(code: string, acqDisp: string): "buy" | "sell" {
+  if (code === "P") return "buy";
+  if (code === "S") return "sell";
+  if (acqDisp === "A") return "buy";
+  if (acqDisp === "D") return "sell";
+  return /^(A|M|X|C|I)$/.test(code) ? "buy" : "sell";
+}
+
+/**
  * Parse a Form 4 XML document into structured trade records.
- * Only captures open-market purchases (P) and sales (S).
- * Skips grants (A), option exercises (M), tax-withholding (F), etc.
+ *
+ * Captures both `nonDerivativeTable` (direct common-stock transactions) and
+ * `derivativeTable` (options, RSUs, warrants, convertibles) rows across the
+ * full common-code set (P/S/A/M/X/C/F/G/D/I/V). Skips J/K and unknown codes.
+ *
+ * Doc-ID format preserves backwards-idempotency for the original P/S non-
+ * derivative records: those keep the legacy `${accession}-${date}-${code}-
+ * ${roundedShares}` format. New code paths (non-P/S non-derivative, all
+ * derivative rows) use row-index suffixes to stay collision-free without
+ * touching the existing namespace.
  */
 export function parseForm4Xml(
   xmlText: string,
@@ -189,19 +234,17 @@ export function parseForm4Xml(
   const companyName = read(issuer?.issuerName) || null;
   const cik = read(issuer?.issuerCik) || meta.companyCik;
 
-  const txnsRaw = doc.nonDerivativeTable?.nonDerivativeTransaction;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const txArray: any[] = Array.isArray(txnsRaw)
-    ? txnsRaw
-    : txnsRaw
-      ? [txnsRaw]
-      : [];
-
   const trades: InsiderTransaction[] = [];
 
-  for (const tx of txArray) {
+  // ── Non-derivative table (direct common-stock transactions) ──────────────
+  const ndRaw = doc.nonDerivativeTable?.nonDerivativeTransaction;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ndArray: any[] = Array.isArray(ndRaw) ? ndRaw : ndRaw ? [ndRaw] : [];
+
+  let ndIdx = 0;
+  for (const tx of ndArray) {
     const code = read(tx.transactionCoding?.transactionCode);
-    if (code !== "P" && code !== "S") continue;
+    if (!ACCEPTED_CODES.has(code)) continue;
 
     const shares =
       parseFloat(read(tx.transactionAmounts?.transactionShares)) || 0;
@@ -220,17 +263,28 @@ export function parseForm4Xml(
 
     if (!txDate || shares === 0) continue;
 
+    // Preserve the legacy P/S doc-ID format so prior writes stay idempotent.
+    // Use row-index suffix for all other codes (new namespace, no collision).
+    const id =
+      code === "P" || code === "S"
+        ? `${meta.accession}-${txDate}-${code}-${Math.round(shares)}`
+        : `${meta.accession}-${txDate}-${code}-${ndIdx}`;
+
     trades.push({
-      id: `${meta.accession}-${txDate}-${code}-${Math.round(shares)}`,
+      id,
       ticker,
       company_name: companyName,
       company_cik: cik,
       officer_name: officerName,
       officer_title: officerTitle,
       is_director: isDirector,
-      transaction_type: code === "P" ? "buy" : "sell",
+      transaction_type: deriveType(code, acqDispRaw),
       transaction_code: code,
       security_title: securityTitle,
+      is_derivative: false,
+      underlying_security_title: null,
+      underlying_security_shares: null,
+      conversion_or_exercise_price: null,
       transaction_date: txDate,
       disclosure_date: meta.filedAt,
       reporting_lag_days: businessDaysBetween(txDate, meta.filedAt),
@@ -244,6 +298,77 @@ export function parseForm4Xml(
       sec_filing_url: meta.url,
       data_source: "SEC_EDGAR_FORM4",
     });
+    ndIdx++;
+  }
+
+  // ── Derivative table (options, RSUs, warrants, convertibles) ─────────────
+  const dRaw = doc.derivativeTable?.derivativeTransaction;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dArray: any[] = Array.isArray(dRaw) ? dRaw : dRaw ? [dRaw] : [];
+
+  let dIdx = 0;
+  for (const tx of dArray) {
+    const code = read(tx.transactionCoding?.transactionCode);
+    if (!ACCEPTED_CODES.has(code)) continue;
+
+    const shares =
+      parseFloat(read(tx.transactionAmounts?.transactionShares)) || 0;
+    const price =
+      parseFloat(read(tx.transactionAmounts?.transactionPricePerShare)) || 0;
+    const txDate = read(tx.transactionDate);
+    const sharesAfterRaw = read(
+      tx.postTransactionAmounts?.sharesOwnedFollowingTransaction,
+    );
+    const sharesAfter = sharesAfterRaw ? parseFloat(sharesAfterRaw) : null;
+    const acqDispRaw = read(
+      tx.transactionAmounts?.transactionAcquiredDisposedCode,
+    );
+    const securityTitle = read(tx.securityTitle) || null;
+
+    const conversionPriceRaw = read(tx.conversionOrExercisePrice);
+    const conversionPrice = conversionPriceRaw
+      ? parseFloat(conversionPriceRaw) || null
+      : null;
+    const underlyingTitle =
+      read(tx.underlyingSecurity?.underlyingSecurityTitle) || null;
+    const underlyingSharesRaw = read(
+      tx.underlyingSecurity?.underlyingSecurityShares,
+    );
+    const underlyingShares = underlyingSharesRaw
+      ? parseFloat(underlyingSharesRaw) || null
+      : null;
+
+    if (!txDate || shares === 0) continue;
+
+    trades.push({
+      id: `${meta.accession}-D-${txDate}-${code}-${dIdx}`,
+      ticker,
+      company_name: companyName,
+      company_cik: cik,
+      officer_name: officerName,
+      officer_title: officerTitle,
+      is_director: isDirector,
+      transaction_type: deriveType(code, acqDispRaw),
+      transaction_code: code,
+      security_title: securityTitle,
+      is_derivative: true,
+      underlying_security_title: underlyingTitle,
+      underlying_security_shares: underlyingShares,
+      conversion_or_exercise_price: conversionPrice,
+      transaction_date: txDate,
+      disclosure_date: meta.filedAt,
+      reporting_lag_days: businessDaysBetween(txDate, meta.filedAt),
+      shares,
+      price_per_share: price,
+      total_value: shares * price,
+      shares_owned_after: sharesAfter,
+      acquired_disposed:
+        acqDispRaw === "A" || acqDispRaw === "D" ? acqDispRaw : null,
+      accession_number: meta.accession,
+      sec_filing_url: meta.url,
+      data_source: "SEC_EDGAR_FORM4",
+    });
+    dIdx++;
   }
 
   return trades;
@@ -314,8 +439,10 @@ export async function scrapeForm4ByTicker(
     }
   }
 
+  const ndCount = allTrades.filter((t) => !t.is_derivative).length;
+  const dCount = allTrades.length - ndCount;
   console.error(
-    `[form4] TOTAL: ${allTrades.length} open-market P/S trades for ${ticker}`,
+    `[form4] TOTAL: ${allTrades.length} trades for ${ticker} (${ndCount} non-derivative, ${dCount} derivative)`,
   );
   return allTrades;
 }
@@ -382,6 +509,10 @@ export async function scrapeForm4LiveFeed(
     }
   }
 
-  console.error(`[form4 live] TOTAL: ${allTrades.length} P/S trades`);
+  const ndCount = allTrades.filter((t) => !t.is_derivative).length;
+  const dCount = allTrades.length - ndCount;
+  console.error(
+    `[form4 live] TOTAL: ${allTrades.length} trades (${ndCount} non-derivative, ${dCount} derivative)`,
+  );
   return allTrades;
 }

@@ -45,9 +45,33 @@ export interface InsiderTransaction {
   officer_name: string;
   officer_title: string;
   is_director: boolean | null;
+  /**
+   * Direction of the transaction. For codes P/S this is the open-market
+   * direction. For codes A/M/X/C the insider acquired shares (→ "buy").
+   * For codes S/F/G/D the insider disposed shares (→ "sell"). Derived from
+   * acquired_disposed where present, otherwise from code semantics.
+   */
   transaction_type: "buy" | "sell";
+  /**
+   * Raw SEC code for the underlying transaction. Common values:
+   *   P open-market purchase | S open-market sale | A grant/award/RSU vest
+   *   M exercise of derivative | X exercise in/at-the-money derivative
+   *   C conversion of derivative | F payment of exercise price with shares
+   *     (or tax-withholding) | G bona fide gift | D disposition to issuer
+   */
   transaction_code: string;
   security_title: string | null;
+  /**
+   * True when the row came from the `derivativeTable` (option, RSU, warrant,
+   * convertible). When true, the derivative-specific fields below are
+   * populated and `shares` refers to the count of *derivative* units; check
+   * `underlying_security_shares` for the count of underlying common shares.
+   * False for `nonDerivativeTable` rows (direct common-stock transactions).
+   */
+  is_derivative: boolean;
+  underlying_security_title: string | null;
+  underlying_security_shares: number | null;
+  conversion_or_exercise_price: number | null;
   transaction_date: string;
   disclosure_date: string;
   reporting_lag_days: number | null;
@@ -73,6 +97,23 @@ export interface InsiderTransactionsQuery {
   min_value?: number;
   since?: string;
   until?: string;
+  /**
+   * Filter to derivative rows (options, RSUs, warrants) or non-derivative rows
+   * (direct common-stock transactions). Omit to see both. Pair with
+   * transaction_codes=["M","X"] for "option exercises only," or with
+   * transaction_codes=["A"] for "RSU grants only."
+   */
+  is_derivative?: boolean;
+  /**
+   * OR-filter on raw SEC transaction codes. Common picks:
+   *   ["P"]      open-market buys only
+   *   ["S","F"]  open-market sells + tax-withholding (the executive "net cash" view)
+   *   ["M","X"]  option exercises
+   *   ["A"]      grants / RSU vests
+   *   ["G"]      gifts
+   * Max 30 codes per query (Firestore array-contains-any cap).
+   */
+  transaction_codes?: string[];
   sort_by?: "disclosure_date" | "transaction_date" | "total_value";
   sort_order?: "desc" | "asc";
   limit?: number;
@@ -1406,6 +1447,219 @@ export interface NportFilingsQuery {
 }
 
 /**
+ * One investment-or-security row from an N-PORT primary document
+ * (`<invstOrSec>` element under `<formData><invstOrSecs>`). Each parent
+ * NportFiling has 1-1000+ NportHolding rows. Captures common fields shared
+ * across equities, debt, derivatives, and repos plus a derivative-type
+ * discriminator. Deep derivative sub-blocks (counterparty, strike, leg
+ * details, notional terms) are NOT extracted in v1A — agents follow the
+ * parent filing's primary_document_url for that level of detail.
+ *
+ * Tied to NportFiling by `filing_id`; doc-ID format `{accession}-{idx}` keeps
+ * re-scrapes idempotent and orderable within a filing.
+ */
+export interface NportHolding {
+  /** Composite doc ID: `{filing_id}-{holding_index}`. */
+  id: string;
+  /** EDGAR accession number — foreign key to NportFiling.filing_id. */
+  filing_id: string;
+  /** "NPORT-P" or "NPORT-P/A". */
+  filing_type: string;
+  is_amendment: boolean;
+  /** Reporting period end date (YYYY-MM-DD). */
+  period_ending: string;
+  /** Fund trust name (e.g., "iShares Trust"). */
+  filer_name: string;
+  /** Fund CIK (10-digit zero-padded). */
+  filer_cik: string;
+  sec_file_number: string;
+
+  /** 0-based position inside the parent filing's invstOrSecs list. */
+  holding_index: number;
+  /** Issuer name as filed. */
+  name: string;
+  /** Legal Entity Identifier. */
+  lei: string | null;
+  /** Security title (e.g., "Common Stock", "Senior Note 5.5% 2030"). */
+  title: string | null;
+  /** 9-character CUSIP. May be "N/A" or empty for non-CUSIP holdings. */
+  cusip: string | null;
+  /** Ticker if present in `<identifiers><ticker value="..."/>` (rare). */
+  ticker: string | null;
+  /** ISIN if present in `<identifiers><isin value="..."/>`. */
+  isin: string | null;
+
+  /**
+   * SEC asset-category code. Equities: EC (common), EP (preferred).
+   * Debt: DBT, ABS, MBS, UST, USTPS, STIV, SN, LT, MMF. Cash: CASH.
+   * Derivatives: DCO commodity, DCR credit, DE equity, DFE fx, DIR rate,
+   * DR other. Repos: REPO, RP.
+   */
+  asset_cat: string | null;
+  /** True iff asset_cat is a D* code (any derivative). */
+  is_derivative: boolean;
+  /**
+   * When is_derivative=true, the structural type derived from which child
+   * of `<derivativeInfo>` is present:
+   *   "future" | "forward" | "swap" | "option" | "warrant" | "swaption" |
+   *   "other" | null
+   */
+  derivative_type: string | null;
+  /** Issuer category code (CORP, RF, MUN, FGS, ABS, etc.). */
+  issuer_cat: string | null;
+  /** ISO-2 country of investment (e.g., "US", "GB"). */
+  country: string | null;
+
+  /**
+   * Balance / quantity. Sign convention per N-PORT spec: positive = long,
+   * negative = short. For derivatives, units of contracts.
+   */
+  balance: number | null;
+  /** "NS" number of shares, "PA" principal amount, "NC" notional contract. */
+  units: string | null;
+  /** Currency of the holding (ISO-3, e.g., "USD"). */
+  currency: string | null;
+  /** Fair value in USD. */
+  value_usd: number | null;
+  /** Percentage of fund total net assets (0-100 scale). */
+  pct_of_portfolio: number | null;
+  /** "Long" or "Short" per N-PORT spec. */
+  payoff_profile: string | null;
+  /** ASC 820 fair-value hierarchy level: 1, 2, or 3. */
+  fair_val_level: number | null;
+  is_restricted: boolean | null;
+  is_non_cash_collateral: boolean | null;
+  /** True iff this holding is on loan (security lending program). */
+  is_loaned: boolean | null;
+
+  /** When KeyVex scraped this record. */
+  scraped_at: string;
+}
+
+export interface NportHoldingsQuery {
+  filing_id?: string;
+  filer_cik?: string;
+  /** Case-insensitive substring against filer_name. */
+  filer_name?: string;
+  period_ending?: string;
+  /** Case-insensitive substring against issuer name. */
+  name?: string;
+  cusip?: string;
+  ticker?: string;
+  isin?: string;
+  /** Exact match on asset category code (EC / DBT / DE / REPO / ...). */
+  asset_cat?: string;
+  is_derivative?: boolean;
+  /** "future" | "forward" | "swap" | "option" | "warrant" | "swaption" | "other". */
+  derivative_type?: string;
+  country?: string;
+  min_value_usd?: number;
+  min_pct_of_portfolio?: number;
+  payoff_profile?: "Long" | "Short";
+  /** period_ending lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** period_ending upper bound. */
+  until?: string;
+  sort_by?: "value_usd" | "pct_of_portfolio" | "period_ending";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
+ * Product recall — a unified record covering safety recalls across five
+ * federal agencies. One row per recall, source field discriminates the
+ * agency. Pure-publisher posture: severity classification is the agency's
+ * own label (FDA Class I/II/III, NHTSA campaign severity), not a derived
+ * KeyVex score.
+ *
+ * Sources:
+ *   "fda_drug"   — openFDA /drug/enforcement.json (drug recalls)
+ *   "fda_device" — openFDA /device/enforcement.json (medical device recalls)
+ *   "fda_food"   — openFDA /food/enforcement.json (food + dietary supplements)
+ *   "nhtsa"      — NHTSA recalls API (vehicles, equipment, tires, child seats)
+ *   "cpsc"       — CPSC product recall RSS / API (consumer products)
+ *
+ * Cross-source pairing pattern: join to get_material_events (8-K Item 8.01)
+ * for the company-disclosure overlay, to get_insider_transactions for any
+ * insider activity around the recall date, and to get_enforcement_actions
+ * for FDA / DOJ follow-through.
+ */
+export interface ProductRecall {
+  /** Composite ID: `{source}-{recall_number}`. Stable across re-scrapes. */
+  id: string;
+  source: "fda_drug" | "fda_device" | "fda_food" | "nhtsa" | "cpsc";
+  /** Recall identifier as filed (e.g., FDA "D-1234-2026", NHTSA "26V-001"). */
+  recall_number: string;
+  /** Date the recall was initiated (YYYY-MM-DD). Primary chronology field. */
+  recall_initiation_date: string;
+  /** Date the recall was posted to the agency's public registry (YYYY-MM-DD). */
+  posted_date: string | null;
+  /** Manufacturer / firm / company that issued the recall. */
+  recalling_firm: string;
+  /** Plain-text product description (size, packaging, SKU range). */
+  product_description: string;
+  /** Reason the recall was initiated (hazard, defect, contamination). */
+  reason_for_recall: string;
+  /**
+   * Severity classification as filed by the agency.
+   *   FDA: "Class I" (serious / death), "Class II" (reversible), "Class III" (unlikely harm)
+   *   NHTSA: campaign severity flag or `null`
+   *   CPSC: hazard category or `null`
+   */
+  classification: string | null;
+  /** Status: "Ongoing", "Completed", "Terminated", "Recall Initiated", etc. */
+  status: string | null;
+  /** "Voluntary", "FDA Mandated", "Mandatory", or null. Source-dependent. */
+  initiator: string | null;
+  /** Geographic scope of distribution (e.g., "Nationwide", "California, Texas"). */
+  distribution_pattern: string | null;
+  /** Quantity / units affected ("10,000 bottles"). */
+  product_quantity: string | null;
+  /** Product family / category (FDA product_type, NHTSA component group, CPSC category). */
+  product_category: string | null;
+  /** Lot codes, UPC codes, NDC codes, batch numbers — free-form. */
+  product_codes: string[] | null;
+  /** NHTSA-only: vehicle make (e.g., "TOYOTA"). Null for other sources. */
+  vehicle_make: string | null;
+  /** NHTSA-only: vehicle model. */
+  vehicle_model: string | null;
+  /** NHTSA-only: affected model years as a range string ("2018-2020"). */
+  model_year_range: string | null;
+  /** NHTSA-only: affected component description ("AIR BAGS, FRONTAL"). */
+  affected_component: string | null;
+  /** Date the recall was terminated, if applicable (YYYY-MM-DD). */
+  termination_date: string | null;
+  /** URL to source-of-record recall page or API record. */
+  source_url: string;
+  /** When KeyVex scraped this record. */
+  scraped_at: string;
+}
+
+export interface ProductRecallsQuery {
+  source?: "fda_drug" | "fda_device" | "fda_food" | "nhtsa" | "cpsc";
+  recall_number?: string;
+  /** Case-insensitive substring against recalling_firm. */
+  recalling_firm?: string;
+  /** Case-insensitive substring against product_description. */
+  product_description?: string;
+  /** Exact match (e.g., "Class I", "Class II", "Class III"). */
+  classification?: string;
+  /** Exact match (e.g., "Ongoing", "Completed", "Terminated"). */
+  status?: string;
+  /** NHTSA-only filter (exact, uppercase). */
+  vehicle_make?: string;
+  /** NHTSA-only filter (substring). */
+  vehicle_model?: string;
+  /** recall_initiation_date lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** recall_initiation_date upper bound. */
+  until?: string;
+  sort_by?: "recall_initiation_date" | "posted_date";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+/**
  * Enforcement action — a public press release / litigation release from
  * the SEC or DOJ announcing charges, settlements, indictments, or other
  * enforcement activity. Unified schema for both sources via the `source`
@@ -2217,8 +2471,9 @@ export interface EconomicIndicator {
   id: string;
   /** Issuing agency. "bls" = Bureau of Labor Statistics. "fred" = Federal
    *  Reserve Economic Data (St. Louis Fed, republishes + adds many other
-   *  series from Fed/BEA/Treasury/private sources). */
-  source: "bls" | "fred";
+   *  series from Fed/BEA/Treasury/private sources). "eia" = Energy Information
+   *  Administration (oil, natural gas, gasoline, electricity prices + output). */
+  source: "bls" | "fred" | "eia";
   series_id: string;
   series_name: string;
   /** Coarse bucket: "employment" | "wages" | "inflation" | "productivity" | "hours" | "labor-force". */
@@ -2244,7 +2499,7 @@ export interface EconomicIndicator {
 }
 
 export interface EconomicIndicatorsQuery {
-  source?: "bls" | "fred";
+  source?: "bls" | "fred" | "eia";
   series_id?: string;
   category?: string;
   period_type?: "monthly" | "quarterly" | "semiannual" | "annual" | "weekly" | "daily";
@@ -2254,6 +2509,75 @@ export interface EconomicIndicatorsQuery {
   latest_only?: boolean;
   sort_by?: "period" | "value" | "year";
   sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+// ─── Government Publications (api.govinfo.gov) ────────────────────────────
+
+/**
+ * One package from the GovInfo API — a unified record covering four
+ * legislative + oversight document classes that pair naturally with
+ * congressional trades, lobbying, and enforcement signals:
+ *
+ *   "CRPT"       — Congressional Reports (committee reports on legislation,
+ *                  investigations, oversight). Strong "what's coming next"
+ *                  signal — committees draft + amend bills.
+ *   "PLAW"       — Public Laws (signed bills that became law). The "what
+ *                  actually got done" signal.
+ *   "CHRG"       — Congressional Hearings (transcripts, testimony). Real-
+ *                  time signal on what regulators / executives are being
+ *                  asked under oath.
+ *   "GAOREPORTS" — GAO reports (independent congressional oversight).
+ *                  Routes around gao.gov's WAF block by reading the same
+ *                  reports through GovInfo's API.
+ *
+ * Full text of each document lives at `package_link`. KeyVex v1A captures
+ * metadata only (title, date, congress, doc class) — agents follow the
+ * link for body content. Pure-publisher posture: no derived summaries.
+ */
+export interface GovDocument {
+  /** GovInfo packageId — globally unique across collections. */
+  id: string;
+  collection: "CRPT" | "PLAW" | "CHRG" | "GAOREPORTS";
+  /** Human-readable collection label ("Congressional Report", etc.). */
+  collection_name: string;
+  /** Same as id. Duplicated for explicit field naming. */
+  package_id: string;
+  /**
+   * Sub-class within collection (e.g., "hrpt" House report, "srpt" Senate
+   * report, "pub" public law, "pvt" private law, "hr" House hearing).
+   * Empty when GovInfo doesn't return it.
+   */
+  doc_class: string;
+  /** Congress number as string (e.g., "119"). May be null for non-legislative. */
+  congress: string | null;
+  /** Date issued (YYYY-MM-DD). */
+  date_issued: string;
+  /** Full ISO datetime of last modification at GovInfo. */
+  last_modified: string;
+  /** Document title as published. */
+  title: string;
+  /** GovInfo package metadata URL (api.govinfo.gov/packages/...). */
+  source_url: string;
+  /** Same URL as source_url, broken out for the package-link convention. */
+  package_link: string;
+  /** When KeyVex scraped this record. */
+  scraped_at: string;
+}
+
+export interface GovDocumentsQuery {
+  package_id?: string;
+  collection?: "CRPT" | "PLAW" | "CHRG" | "GAOREPORTS";
+  doc_class?: string;
+  congress?: string;
+  /** Case-insensitive substring against title. */
+  title?: string;
+  /** date_issued lower bound (YYYY-MM-DD inclusive). */
+  since?: string;
+  /** date_issued upper bound. */
+  until?: string;
+  sort_by?: "date_issued" | "last_modified";
+  sort_order?: "asc" | "desc";
   limit?: number;
 }
 
@@ -2356,6 +2680,20 @@ export interface UnifiedSearchQuery {
   bioguide_id?: string;
   company_cik?: string;
   recipient_uei?: string;
+  /**
+   * Issuer name (e.g., "Lockheed Martin", "Wells Fargo"). When set, the
+   * unified search resolves it against EDGAR's company catalog to populate
+   * ticker + company_cik (if those aren't already supplied) AND fans out to
+   * name-keyed collections that don't carry tickers (federal_contracts,
+   * lobbying_filings, enforcement_actions, product_recalls, consumer_complaints).
+   */
+  company_name?: string;
+  /**
+   * CUSIP (9-character security identifier). Fans out to collections that
+   * index by CUSIP: institutional_holdings, activist_ownership, nport_holdings,
+   * treasury_auctions.
+   */
+  cusip?: string;
   since?: string;
   until?: string;
   per_source_limit?: number;

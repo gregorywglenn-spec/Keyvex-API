@@ -16,7 +16,9 @@ import * as enforcementActions from "./enforcement-actions.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
 import * as federalRegister from "./federal-register.js";
 import * as federalContracts from "./federal-contracts.js";
+import * as fundHoldings from "./fund-holdings.js";
 import * as fundamentals from "./fundamentals.js";
+import * as governmentPublications from "./government-publications.js";
 import * as insiderTransactions from "./insider-transactions.js";
 import * as institutionalHoldings from "./institutional-holdings.js";
 import * as lobbyingFilings from "./lobbying-filings.js";
@@ -28,6 +30,7 @@ import * as oigExclusions from "./oig-exclusions.js";
 import * as otcMarketWeekly from "./otc-market-weekly.js";
 import * as plannedInsiderSales from "./planned-insider-sales.js";
 import * as privatePlacements from "./private-placements.js";
+import * as productRecalls from "./product-recalls.js";
 import * as proxyFilings from "./proxy-filings.js";
 import * as registrationStatements from "./registration-statements.js";
 import * as rollCallVotes from "./roll-call-votes.js";
@@ -57,8 +60,10 @@ export const TOOLS: ToolModule[] = [
   rollCallVotes,
   otcMarketWeekly,
   privatePlacements,
+  productRecalls,
   enforcementActions,
   nportFilings,
+  fundHoldings,
   registrationStatements,
   ofacSdn,
   federalRegister,
@@ -68,6 +73,7 @@ export const TOOLS: ToolModule[] = [
   oigExclusions,
   consumerComplaints,
   fundamentals,
+  governmentPublications,
   unifiedSearch,
 ];
 

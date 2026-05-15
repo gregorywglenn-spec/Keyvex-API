@@ -53,6 +53,9 @@ import {
   saveEnforcementActions,
   saveFederalRegisterDocuments,
   saveNportFilings,
+  saveNportHoldings,
+  saveProductRecalls,
+  saveGovDocuments,
   saveOfacSdn,
   saveOtcMarketWeekly,
   saveConsumerComplaints,
@@ -84,6 +87,8 @@ import { scrapeProxyLiveFeed } from "../../src/scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "../../src/scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "../../src/scrapers/bls.js";
 import { scrapeFredIndicators } from "../../src/scrapers/fred.js";
+import { scrapeEia } from "../../src/scrapers/eia.js";
+import { scrapeGovInfo } from "../../src/scrapers/govinfo.js";
 import { scrapeOigExclusions } from "../../src/scrapers/oig-exclusions.js";
 import { scrapeCfpbComplaints } from "../../src/scrapers/cfpb-complaints.js";
 import { scrapeAndSaveXbrlStreaming } from "../../src/scrapers/xbrl.js";
@@ -108,7 +113,12 @@ import {
 import { scrapeFinraOtcWeek } from "../../src/scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "../../src/scrapers/form-d.js";
 import { scrapeEnforcementActions } from "../../src/scrapers/enforcement-actions.js";
-import { scrapeNportLiveFeed } from "../../src/scrapers/nport.js";
+import {
+  scrapeNportHoldings,
+  scrapeNportLiveFeed,
+} from "../../src/scrapers/nport.js";
+import { scrapeAllFdaRecalls } from "../../src/scrapers/fda-recalls.js";
+import { scrapeCpscRecalls } from "../../src/scrapers/cpsc-recalls.js";
 import { scrapeRegistrationStatementsLiveFeed } from "../../src/scrapers/registration-statements.js";
 import { scrapeOfacSdn } from "../../src/scrapers/ofac-sdn.js";
 import { scrapeFederalRegister } from "../../src/scrapers/federal-register.js";
@@ -279,6 +289,81 @@ export const scrapeFredDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("fredIndicatorsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * GovInfo packages — daily 9:30 AM ET (offset from FRED 9:00 + EIA 9:15).
+ *
+ * Pulls four collections in sequence: CRPT (committee reports), PLAW
+ * (public laws), CHRG (hearings), GAOREPORTS (GAO oversight). Default
+ * 7-day lookback — committee reports + hearings often trickle in days
+ * after the actual event. ~50-150 packages/day across all four.
+ * Idempotent on packageId. Requires GOVINFO_API_KEY secret.
+ */
+const govinfoApiKey = defineSecret("GOVINFO_API_KEY");
+
+export const scrapeGovInfoDaily = onSchedule(
+  {
+    schedule: "30 9 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+    secrets: [govinfoApiKey],
+  },
+  async () => {
+    const started = Date.now();
+    process.env.GOVINFO_API_KEY = govinfoApiKey.value();
+    logger.info(
+      "[govinfo-daily] starting (7-day lookback, 4 collections: CRPT + PLAW + CHRG + GAOREPORTS)",
+    );
+    const docs = await scrapeGovInfo({ lookbackDays: 7 });
+    logger.info(`[govinfo-daily] scraper returned ${docs.length} packages`);
+    let docsWritten = 0;
+    if (docs.length > 0) {
+      const r = await saveGovDocuments(docs);
+      logger.info(`[govinfo-daily] saved ${r.saved} packages to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("govinfoSync", { started, docsWritten });
+  },
+);
+
+/**
+ * EIA energy series — daily 9:15 AM ET (offset from FRED's 9:00 to stagger).
+ *
+ * ~5-series watchlist: WTI + Brent crude (weekly), Henry Hub natural gas
+ * (weekly), US gasoline retail (weekly), US crude production (monthly).
+ * Tiny payload (~hundreds of obs total per run). Requires EIA_API_KEY secret.
+ * Idempotent on (series_id, period).
+ */
+const eiaApiKey = defineSecret("EIA_API_KEY");
+
+export const scrapeEiaDaily = onSchedule(
+  {
+    schedule: "15 9 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+    secrets: [eiaApiKey],
+  },
+  async () => {
+    const started = Date.now();
+    process.env.EIA_API_KEY = eiaApiKey.value();
+    logger.info("[eia-daily] starting (since 2018, curated watchlist)");
+    const indicators = await scrapeEia({});
+    logger.info(`[eia-daily] scraper returned ${indicators.length} observations`);
+    let docsWritten = 0;
+    if (indicators.length > 0) {
+      const r = await saveEconomicIndicators(indicators);
+      logger.info(`[eia-daily] saved ${r.saved} observations to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("eiaIndicatorsSync", { started, docsWritten });
   },
 );
 
@@ -1064,7 +1149,7 @@ export const scrapeNportDaily = onSchedule(
     schedule: "40 6 * * *",
     region: REGION,
     timeZone: TZ,
-    memory: "512MiB",
+    memory: "1GiB",
     timeoutSeconds: 540,
     retryCount: 0,
   },
@@ -1080,6 +1165,101 @@ export const scrapeNportDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("nportFilingsSync", { started, docsWritten });
+
+    // Per-holding extraction. Wrapped separately so a holdings failure or
+    // partial-fetch doesn't block the metadata writes above. Holdings rows
+    // are batched into Firestore with merge:true so partial completions are
+    // idempotent — the next run picks up where we left off.
+    try {
+      if (filings.length > 0) {
+        logger.info(
+          `[nport-holdings] starting holdings parse for ${filings.length} filings`,
+        );
+        const holdings = await scrapeNportHoldings(filings);
+        if (holdings.length > 0) {
+          const h = await saveNportHoldings(holdings);
+          logger.info(
+            `[nport-holdings] saved ${h.saved} to ${h.collection}`,
+          );
+          await writeJobMeta("nportHoldingsSync", {
+            started,
+            docsWritten: h.saved,
+          });
+        } else {
+          await writeJobMeta("nportHoldingsSync", { started, docsWritten: 0 });
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[nport-holdings] phase error — ${msg}`);
+    }
+  },
+);
+
+/**
+ * openFDA recalls (drug + device + food) — daily 6:50 AM ET.
+ *
+ * Three sub-feeds in one run (drug/device/food), unified into the
+ * product_recalls Firestore collection. No auth needed at default rate
+ * limit (240 req/min). 7-day lookback gives ~10-50 new recalls/day across
+ * all three sub-feeds — comfortable in <2 min total.
+ *
+ * NHTSA + CPSC sub-feeds layer in as additional sources without changing
+ * this scheduler — only their per-source scrapers get added.
+ */
+export const scrapeFdaRecallsDaily = onSchedule(
+  {
+    schedule: "50 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "512MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[fda-recalls] starting daily refresh (7-day lookback)");
+    const recalls = await scrapeAllFdaRecalls({ lookbackDays: 7 });
+    logger.info(`[fda-recalls] scraper returned ${recalls.length} recalls`);
+    let docsWritten = 0;
+    if (recalls.length > 0) {
+      const r = await saveProductRecalls(recalls);
+      logger.info(`[fda-recalls] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("fdaRecallsSync", { started, docsWritten });
+  },
+);
+
+/**
+ * CPSC consumer-product recalls — daily 6:55 AM ET.
+ *
+ * One-shot fetch with 30-day lookback against saferproducts.gov REST
+ * endpoint. ~20-60 recalls/month, tiny payload (<100KB), no auth, no
+ * pagination needed. Writes into the same `product_recalls` collection as
+ * the FDA sub-feeds; source discriminator is "cpsc".
+ */
+export const scrapeCpscRecallsDaily = onSchedule(
+  {
+    schedule: "55 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "256MiB",
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[cpsc-recalls] starting daily refresh (30-day lookback)");
+    const recalls = await scrapeCpscRecalls({ lookbackDays: 30 });
+    logger.info(`[cpsc-recalls] scraper returned ${recalls.length} recalls`);
+    let docsWritten = 0;
+    if (recalls.length > 0) {
+      const r = await saveProductRecalls(recalls);
+      logger.info(`[cpsc-recalls] saved ${r.saved} to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("cpscRecallsSync", { started, docsWritten });
   },
 );
 
@@ -1260,7 +1440,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.39.0";
+const SERVER_VERSION = "0.41.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.

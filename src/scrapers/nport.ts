@@ -12,7 +12,8 @@
  * across all registered investment companies — comfortable in 9 min.
  */
 
-import type { NportFiling } from "../types.js";
+import { XMLParser } from "fast-xml-parser";
+import type { NportFiling, NportHolding } from "../types.js";
 
 const CONFIG = {
   USER_AGENT:
@@ -177,5 +178,203 @@ export async function scrapeNportLiveFeed(
 
   const out = Array.from(byAccession.values());
   console.error(`[nport] TOTAL: ${out.length} unique N-PORT filings`);
+  return out;
+}
+
+// ─── Per-holding extraction (primary_doc.xml parse) ─────────────────────────
+
+const xml = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "@_",
+  parseTagValue: false,
+  parseAttributeValue: false,
+});
+
+/** Asset-category codes that mean "this row is a derivative." Repos (REPO, RP)
+ *  are categorized separately by the SEC and stay is_derivative=false. */
+const DERIV_ASSET_CATS = new Set(["DCO", "DCR", "DE", "DFE", "DIR", "DR"]);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function derivTypeFromInfo(info: any): string | null {
+  if (!info) return null;
+  if (info.futrDeriv) return "future";
+  if (info.fwdDeriv) return "forward";
+  if (info.swapDeriv) return "swap";
+  if (info.optionSwaptionWarrantDeriv) {
+    // Sub-discriminate via derivCat attribute when present:
+    //   OPT → option, WAR → warrant, SWO → swaption. Default option.
+    const sub = info.optionSwaptionWarrantDeriv;
+    const cat =
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (sub as any)?.["@_derivCat"] ?? (sub as any)?.derivCat ?? "";
+    if (cat === "WAR") return "warrant";
+    if (cat === "SWO") return "swaption";
+    return "option";
+  }
+  if (info.otherDeriv) return "other";
+  return null;
+}
+
+/**
+ * Read a possibly-wrapped XML scalar field. fast-xml-parser yields either a
+ * bare string (when no attributes) or an object `{ "#text": "value", "@_attr": ... }`
+ * (when attributes are present). This handles both. Returns "" for missing.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readScalar(node: any): string {
+  if (node === null || node === undefined) return "";
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (typeof node === "object") {
+    if (typeof node["#text"] === "string") return node["#text"];
+    // Some elements wrap the value in @_value (e.g. <ticker value="AAPL"/>)
+    if (typeof node["@_value"] === "string") return node["@_value"];
+  }
+  return "";
+}
+
+function parseNumber(s: string): number | null {
+  if (!s) return null;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseYN(s: string): boolean | null {
+  if (s === "Y" || s === "y") return true;
+  if (s === "N" || s === "n") return false;
+  return null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readIdentifier(identifiers: any, tag: string): string | null {
+  if (!identifiers) return null;
+  const node = identifiers[tag];
+  if (!node) return null;
+  // Can be a single object or an array if multiple are filed.
+  const first = Array.isArray(node) ? node[0] : node;
+  const v =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (first as any)?.["@_value"] ?? (first as any)?.value ?? readScalar(first);
+  return v || null;
+}
+
+async function fetchText(url: string): Promise<string> {
+  await sleep(CONFIG.RATE_LIMIT_MS);
+  const res = await fetch(url, {
+    headers: { "User-Agent": CONFIG.USER_AGENT },
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  }
+  return res.text();
+}
+
+/**
+ * Fetch one N-PORT primary_doc.xml and parse its `<invstOrSecs>` block into
+ * NportHolding rows. Returns an empty array on any fetch/parse error after
+ * logging — keeps the bulk run resilient.
+ */
+export async function parseNportHoldings(
+  filing: NportFiling,
+  scrapedAt: string,
+): Promise<NportHolding[]> {
+  let xmlText: string;
+  try {
+    xmlText = await fetchText(filing.primary_document_url);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[nport-holdings] ${filing.filing_id} fetch SKIP — ${msg}`);
+    return [];
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: any;
+  try {
+    parsed = xml.parse(xmlText);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[nport-holdings] ${filing.filing_id} parse SKIP — ${msg}`);
+    return [];
+  }
+
+  const formData = parsed.edgarSubmission?.formData;
+  if (!formData) return [];
+  const invstOrSecs = formData.invstOrSecs;
+  if (!invstOrSecs) return [];
+  const items = invstOrSecs.invstOrSec;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const arr: any[] = Array.isArray(items) ? items : items ? [items] : [];
+
+  const out: NportHolding[] = [];
+  let idx = 0;
+  for (const item of arr) {
+    const assetCat = readScalar(item.assetCat) || null;
+    const isDeriv = DERIV_ASSET_CATS.has(assetCat ?? "");
+    const derivType = isDeriv ? derivTypeFromInfo(item.derivativeInfo) : null;
+
+    out.push({
+      id: `${filing.filing_id}-${idx}`,
+      filing_id: filing.filing_id,
+      filing_type: filing.filing_type,
+      is_amendment: filing.is_amendment,
+      period_ending: filing.period_ending,
+      filer_name: filing.filer_name,
+      filer_cik: filing.filer_cik,
+      sec_file_number: filing.sec_file_number,
+      holding_index: idx,
+      name: readScalar(item.name) || "",
+      lei: readScalar(item.lei) || null,
+      title: readScalar(item.title) || null,
+      cusip: readScalar(item.cusip) || null,
+      ticker: readIdentifier(item.identifiers, "ticker"),
+      isin: readIdentifier(item.identifiers, "isin"),
+      asset_cat: assetCat,
+      is_derivative: isDeriv,
+      derivative_type: derivType,
+      issuer_cat: readScalar(item.issuerCat) || null,
+      country: readScalar(item.invCountry) || null,
+      balance: parseNumber(readScalar(item.balance)),
+      units: readScalar(item.units) || null,
+      currency: readScalar(item.curCd) || null,
+      value_usd: parseNumber(readScalar(item.valUSD)),
+      pct_of_portfolio: parseNumber(readScalar(item.pctVal)),
+      payoff_profile: readScalar(item.payoffProfile) || null,
+      fair_val_level: parseNumber(readScalar(item.fairValLevel)),
+      is_restricted: parseYN(readScalar(item.isRestrictedSec)),
+      is_non_cash_collateral: parseYN(
+        readScalar(item.securityLending?.isNonCashCollateral),
+      ),
+      is_loaned: parseYN(readScalar(item.securityLending?.isLoanByFund)),
+      scraped_at: scrapedAt,
+    });
+    idx++;
+  }
+  return out;
+}
+
+/**
+ * Walk a list of NportFilings and emit per-holding rows for each.
+ * Sequential to respect EDGAR's 10 req/sec ceiling. Returns whatever it
+ * successfully parsed; errors are logged and skipped per-filing.
+ */
+export async function scrapeNportHoldings(
+  filings: NportFiling[],
+): Promise<NportHolding[]> {
+  const scrapedAt = new Date().toISOString();
+  const out: NportHolding[] = [];
+  let i = 0;
+  for (const filing of filings) {
+    i++;
+    const holdings = await parseNportHoldings(filing, scrapedAt);
+    out.push(...holdings);
+    if (i % 10 === 0 || i === filings.length) {
+      console.error(
+        `[nport-holdings] ${i}/${filings.length} filings, ${out.length} holdings`,
+      );
+    }
+  }
+  console.error(
+    `[nport-holdings] TOTAL: ${out.length} holdings across ${filings.length} filings`,
+  );
   return out;
 }
