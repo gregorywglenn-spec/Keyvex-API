@@ -1656,6 +1656,13 @@ export const mcp = onRequest(
     secrets: [mcpApiKey],
     concurrency: 10,
     cors: false,
+    // Dedicated least-privilege runtime identity. This service account holds
+    // only Cloud Datastore Viewer (Firestore READ-only) + Logs Writer +
+    // Monitoring Metric Writer — NO Firestore write. The MCP server's tools
+    // are all read-only by code; this makes that true at the credential layer
+    // too, so a hypothetical bug or breach physically cannot write the DB.
+    serviceAccount:
+      "keyvex-mcp-readonly@capitaledge-api.iam.gserviceaccount.com",
   },
   async (req, res) => {
     // Health check — auth-free GET returns server status.
