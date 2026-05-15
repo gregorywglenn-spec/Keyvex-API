@@ -653,6 +653,225 @@ export interface FederalContractAwardsQuery {
   limit?: number;
 }
 
+// ─── Federal Grants (USAspending assistance awards) ────────────────────────
+
+/**
+ * One federal GRANT or cooperative agreement award. Sibling collection to
+ * federal_contracts but a completely different recipient universe —
+ * universities, non-profits, state & local agencies, healthcare research
+ * institutions, public-private partnerships.
+ *
+ * Award type codes covered (USAspending):
+ *   02 = Block Grant
+ *   03 = Formula Grant
+ *   04 = Project Grant (most common)
+ *   05 = Cooperative Agreement
+ *
+ * Grant-specific fields vs. contracts: cfda_number (Catalog of Federal
+ * Domestic Assistance program ID), no NAICS / PSC (those are contract-only).
+ */
+export interface FederalGrant {
+  /** USAspending generated_internal_id. Stable across modifications. */
+  id: string;
+  /** Award ID (typically a grant number assigned by the awarding agency). */
+  award_id: string;
+  recipient_name: string;
+  recipient_uei: string;
+  recipient_id: string;
+  /** Total obligated amount. */
+  award_amount: number;
+  /** Cumulative outlays disbursed against the grant. */
+  total_outlays: number;
+  description: string;
+  /** Award Type (e.g., "PROJECT GRANT (B)", "COOPERATIVE AGREEMENT"). */
+  award_type: string;
+  awarding_agency: string;
+  awarding_subagency: string;
+  /** CFDA program number (e.g., "89.003" = NHPRC discretionary grants). */
+  cfda_number: string;
+  /** COVID/IIJA "Disaster Emergency Fund" codes. */
+  def_codes: string[];
+  start_date: string;
+  end_date: string;
+  last_modified_date: string;
+  place_of_performance_state: string;
+  award_url: string;
+  source_url: string;
+  data_source: "USASPENDING";
+}
+
+export interface FederalGrantsQuery {
+  recipient_name?: string;
+  recipient_uei?: string;
+  awarding_agency?: string;
+  cfda_number?: string;
+  min_amount?: number;
+  since?: string;
+  until?: string;
+  sort_by?: "last_modified_date" | "start_date" | "award_amount" | "total_outlays";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+// ─── CFTC Commitments of Traders (COT) ─────────────────────────────────────
+
+/**
+ * One row from the CFTC weekly Commitments of Traders report. Each row is
+ * one contract market on one Tuesday close. Captures aggregated positioning
+ * by trader class for every regulated U.S. futures + options-on-futures
+ * contract — agricultural commodities, metals, energy, financials, FX,
+ * crypto.
+ *
+ * Trader classes (legacy futures-only report):
+ *   - Non-commercial: large speculators (hedge funds, CTAs, money managers)
+ *   - Commercial: hedgers (producers, merchants, swap dealers)
+ *   - Non-reportable: small speculators below the reporting threshold
+ *
+ * Killer-use case: identify positioning extremes that historically lead
+ * major turning points. E.g., "commercials net-short S&P at a multi-year
+ * extreme" precedes index corrections.
+ *
+ * Released every Friday 3:30 PM ET, for the prior Tuesday close.
+ */
+export interface CftcCotReport {
+  /** Composite doc ID: {contract_market_code}-{report_date YYYY-MM-DD}. */
+  id: string;
+  /** CFTC's stable code for the contract market (e.g., "13874A" = E-mini S&P 500). */
+  cftc_contract_market_code: string;
+  /** Human-readable contract name ("E-MINI S&P 500"). */
+  contract_market_name: string;
+  /** Full market + exchange string ("E-MINI S&P 500 - CHICAGO MERCANTILE EXCHANGE"). */
+  market_and_exchange_names: string;
+  /** Commodity name (e.g., "S&P 500 STOCK INDEX", "GOLD", "CRUDE OIL"). */
+  commodity_name: string;
+  /** Commodity code (3 digits). */
+  commodity_code: string;
+  /** Exchange code (e.g., "CME ", "ICE ", "NYM "). */
+  market_code: string;
+  region_code: string;
+  /** ISO date of the report (Tuesday close — published Friday). */
+  report_date: string;
+  /** "YYYY Report Week WW" string from CFTC. */
+  report_week: string;
+  open_interest: number;
+  /** Non-commercial (large speculators) — long/short/net/spread. */
+  noncomm_long: number;
+  noncomm_short: number;
+  noncomm_net: number;
+  noncomm_spread: number;
+  /** Commercial (hedgers) — long/short/net. */
+  comm_long: number;
+  comm_short: number;
+  comm_net: number;
+  /** Non-reportable (small speculators) — long/short/net. */
+  nonrept_long: number;
+  nonrept_short: number;
+  nonrept_net: number;
+  /** Week-over-week changes. */
+  change_open_interest: number;
+  change_noncomm_long: number;
+  change_noncomm_short: number;
+  change_comm_long: number;
+  change_comm_short: number;
+  change_nonrept_long: number;
+  change_nonrept_short: number;
+  /** Percent of open interest by trader class. */
+  pct_noncomm_long: number;
+  pct_noncomm_short: number;
+  pct_comm_long: number;
+  pct_comm_short: number;
+  pct_nonrept_long: number;
+  pct_nonrept_short: number;
+  /** Total trader counts. */
+  traders_total: number;
+  traders_noncomm_long: number;
+  traders_noncomm_short: number;
+  traders_comm_long: number;
+  traders_comm_short: number;
+  /** Concentration: net positions held by top 4 / top 8 traders. */
+  conc_net_le_4_long: number;
+  conc_net_le_4_short: number;
+  conc_net_le_8_long: number;
+  conc_net_le_8_short: number;
+  source_url: string;
+  scraped_at: string;
+}
+
+export interface CftcCotReportQuery {
+  /** Direct doc lookup. */
+  id?: string;
+  /** Exact contract_market_code. */
+  cftc_contract_market_code?: string;
+  /** Substring on contract_market_name (client-side). */
+  contract_market_name?: string;
+  /** Exact commodity_name. */
+  commodity_name?: string;
+  /** Inclusive lower bound on report_date (YYYY-MM-DD). */
+  since?: string;
+  /** Inclusive upper bound. */
+  until?: string;
+  /** When true, returns only the most recent week per contract. */
+  latest_only?: boolean;
+  sort_by?: "report_date" | "open_interest" | "noncomm_net" | "comm_net";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+// ─── SEC Fails-to-Deliver (FTD) ────────────────────────────────────────────
+
+/**
+ * One Fails-to-Deliver row from SEC's bi-monthly cnsfails<YYYYMM><a|b>.zip
+ * dataset. Each row = one ticker / one settlement date where a clearing
+ * member's short sale FAILED to deliver shares.
+ *
+ * Signal: persistent FTDs are a contrarian short-squeeze leading indicator
+ * — naked short pressure exceeds locate supply, or settlement / locate
+ * mechanism is breaking down on the ticker. The Reg SHO threshold list
+ * (FTDs > 0.5% of issued shares for 5+ days) is a derived view; this is
+ * the underlying daily data.
+ *
+ * Released bi-monthly, ~1 week behind the settlement period.
+ */
+export interface SecFailToDeliver {
+  /** Composite doc ID: {YYYY-MM-DD}-{cusip}. */
+  id: string;
+  /** ISO settlement date the failure occurred. */
+  settlement_date: string;
+  /** CUSIP of the security. */
+  cusip: string;
+  /** Ticker symbol (uppercase). */
+  ticker: string;
+  /** Issuer / security description from the SEC file. */
+  description: string;
+  /** Number of shares failed to deliver. */
+  quantity_fails: number;
+  /** Reference price on the settlement date. */
+  price: number;
+  /** Derived: quantity_fails * price = dollar value of the failure. */
+  fail_value: number;
+  /** YYYY-MM string for time-bucket queries. */
+  year_month: string;
+  source_url: string;
+  scraped_at: string;
+}
+
+export interface SecFailsToDeliverQuery {
+  id?: string;
+  ticker?: string;
+  cusip?: string;
+  /** Inclusive lower bound on settlement_date (YYYY-MM-DD). */
+  since?: string;
+  /** Inclusive upper bound. */
+  until?: string;
+  /** Inclusive lower bound on quantity_fails. */
+  min_quantity?: number;
+  /** Inclusive lower bound on fail_value (dollars). */
+  min_value?: number;
+  sort_by?: "settlement_date" | "quantity_fails" | "fail_value";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
 // ─── Activist / 5%+ ownership disclosures (Schedule 13D / 13G) ─────────────
 
 /**
@@ -1683,7 +1902,7 @@ export interface EnforcementAction {
    *  CFTC: "cftc-{releaseNumber}" (e.g., "cftc-9230-26"). */
   action_id: string;
   /** Issuing agency. */
-  source: "sec" | "doj" | "cftc" | "occ" | "fdic";
+  source: "sec" | "doj" | "cftc" | "occ" | "fdic" | "ftc";
   /** Title / headline of the press release. */
   title: string;
   /** Short summary (DOJ teaser field, or first sentence of SEC description). */
@@ -1712,7 +1931,7 @@ export interface EnforcementActionsQuery {
   /** Direct lookup by action_id. */
   action_id?: string;
   /** Filter to one source. */
-  source?: "sec" | "doj" | "cftc";
+  source?: "sec" | "doj" | "cftc" | "occ" | "fdic" | "ftc";
   /** Substring against title (case-insensitive). */
   title?: string;
   /** Substring against description + teaser concatenated (case-insensitive). */
@@ -2195,6 +2414,223 @@ export interface FecCommitteeQuery {
   cycle?: number;
   sort_by?: "name" | "last_file_date";
   sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+// ─── FEC Schedule A — Contributions (v1A) ───────────────────────────────────
+
+/**
+ * One Schedule A contribution row from the FEC. Schedule A is the FEC's
+ * record of money flowing INTO a committee — itemized when ≥ $200 from
+ * an individual (PACs also report all PAC-to-PAC and CCM transfers).
+ *
+ * This is the "follow the money" half of the political-alpha play. Joins:
+ *   - candidate_id → fec_candidates collection (FEC profile) and via
+ *     name-match → legislators (bioguide_id) for trade/vote/committee
+ *     cross-source queries.
+ *   - recipient_committee_id → fec_committees collection (committee
+ *     designation, type, party affiliation).
+ *   - contributor_employer (substring) → cross-reference with
+ *     lobbying_filings registrants / clients to spot lobbyist donors.
+ *
+ * Scope notes for v1A:
+ *   - Default ingestion minimum: $1,000+ contributions (signal-rich;
+ *     filters out payroll-deduction memos that dominate raw volume).
+ *   - Cycle scope: 2026 (current). Backfilling 2024/2022 requires
+ *     explicit cycle filter.
+ *   - contribution_receipt_date can be null on memo / subtotal rows;
+ *     agents using since/until filters should be aware.
+ */
+export interface FecContribution {
+  /** FEC's globally unique row ID (sub_id from API). Primary key. */
+  sub_id: string;
+  /** Dollar amount of the contribution. */
+  contribution_receipt_amount: number;
+  /** ISO date the contribution was received. Empty on memo rows. */
+  contribution_receipt_date: string;
+  /** FEC-assigned ID if the contributor is a committee (rare for SchA). */
+  contributor_id: string;
+  /** Filer-provided full name (typically "LAST, FIRST" for individuals). */
+  contributor_name: string;
+  contributor_first_name: string;
+  contributor_last_name: string;
+  /** Employer string (free-text; not normalized — see Hard Lessons). */
+  contributor_employer: string;
+  /** Occupation string (free-text). */
+  contributor_occupation: string;
+  contributor_city: string;
+  /** 2-letter state code. */
+  contributor_state: string;
+  contributor_zip: string;
+  /** Entity type code: IND (individual), COM (committee), CCM (candidate committee), PAC, PTY, CAN, ORG, UNK. */
+  entity_type: string;
+  entity_type_desc: string;
+  /** Recipient (the committee that received the money). FK → fec_committees. */
+  recipient_committee_id: string;
+  recipient_committee_name: string;
+  recipient_committee_type: string;
+  recipient_committee_org_type: string;
+  /** Designation code on recipient: P (Principal), A (Authorized), B (Lobbyist), D (Leadership PAC), J (Joint), U (Unauthorized). */
+  recipient_committee_designation: string;
+  /** Candidate the recipient committee supports (when committee is candidate-tied). FK → fec_candidates. */
+  candidate_id: string;
+  candidate_name: string;
+  /** Office sought by the candidate: H/S/P. */
+  candidate_office: string;
+  candidate_office_state: string;
+  candidate_office_district: string;
+  /** Election cycle (2-year period; e.g. 2026 = 2025+2026). */
+  two_year_transaction_period: number | null;
+  /** Election type: P (Primary), G (General), R (Runoff), S (Special), C (Convention), O (Other). */
+  election_type: string;
+  /** Receipt type code; FEC schema-specific. */
+  receipt_type: string;
+  receipt_type_desc: string;
+  /** Report type (M1-M12 monthly, Q1-Q3 quarterly, YE year-end, etc.). */
+  report_type: string;
+  report_year: number | null;
+  file_number: number | null;
+  transaction_id: string;
+  /** FEC image number — links to the original filing scan. */
+  image_number: string;
+  /** Direct PDF URL on docquery.fec.gov. */
+  pdf_url: string;
+  /** Memo text (free-text comments from the filer). */
+  memo_text: string;
+  memo_code: string;
+  /** True when this row is a memo subtotal (not a real new contribution). */
+  memoed_subtotal: boolean;
+  /** True when the contributor is an individual (entity_type = IND). */
+  is_individual: boolean;
+  /** Contributor's year-to-date cumulative giving to this committee. */
+  contributor_aggregate_ytd: number | null;
+  /** Date FEC loaded the row into their warehouse (NOT contribution date). */
+  load_date: string;
+  /** "A" = amended record; "N" = new (or null). */
+  amendment_indicator: string;
+  /** Filing form code (F3, F3X, F3P, F24, etc.). */
+  filing_form: string;
+  /** Provenance URL — agents can verify against the source. */
+  source_url: string;
+  /** When KeyVex scraped this record (ISO 8601). */
+  scraped_at: string;
+}
+
+export interface FecContributionQuery {
+  /** Direct doc lookup by FEC sub_id (fastest). */
+  sub_id?: string;
+  /** Filter by recipient committee. */
+  recipient_committee_id?: string;
+  /** Filter by candidate the recipient committee supports. */
+  candidate_id?: string;
+  /** Case-insensitive substring on contributor_name. */
+  contributor_name?: string;
+  /** Case-insensitive substring on contributor_employer. */
+  contributor_employer?: string;
+  /** Exact 2-letter state code. */
+  contributor_state?: string;
+  /** Entity type code (IND, COM, PAC, etc.). */
+  entity_type?: string;
+  /** Inclusive lower bound on contribution_receipt_amount. */
+  min_amount?: number;
+  /** Inclusive upper bound on contribution_receipt_amount. */
+  max_amount?: number;
+  /** Inclusive lower bound on contribution_receipt_date (YYYY-MM-DD). */
+  since?: string;
+  /** Inclusive upper bound on contribution_receipt_date (YYYY-MM-DD). */
+  until?: string;
+  /** Election cycle year (2026, 2024, 2022). */
+  cycle?: number;
+  /** Skip rows flagged as memo subtotals (FEC's noise rows). Default false. */
+  exclude_memos?: boolean;
+  sort_by?: "contribution_receipt_date" | "contribution_receipt_amount";
+  sort_order?: "asc" | "desc";
+  limit?: number;
+}
+
+// ─── FEC Schedule E — Independent Expenditures (v1A) ───────────────────────
+
+/**
+ * One Schedule E independent expenditure. Money spent BY a super PAC or
+ * IE-only committee uncoordinatedly FOR or AGAINST a federal candidate
+ * (the hallmark vehicle for political ad warfare since Citizens United).
+ *
+ * Distinct from Schedule A (money flowing INTO a committee). Same FEC
+ * cursor-pagination quirks. F24 (24-hour notices within 20 days of an
+ * election) and F5 (quarterly IE reports) both flow through schedule_e.
+ *
+ * Critical signal: support_oppose_indicator — "S" = support, "O" = oppose.
+ * A single candidate can have dozens of S and O entries from different
+ * super PACs across one cycle.
+ */
+export interface FecIndependentExpenditure {
+  /** FEC's globally unique sub_id. Primary key. */
+  sub_id: string;
+  /** Committee that made the expenditure (super PAC / IE-only PAC). */
+  committee_id: string;
+  committee_name: string;
+  committee_type: string;
+  committee_designation: string;
+  /** Target candidate (the politician being supported or opposed). */
+  candidate_id: string;
+  candidate_name: string;
+  candidate_office: string;
+  candidate_office_state: string;
+  candidate_office_district: string;
+  candidate_party: string;
+  /** "S" = support, "O" = oppose. Empty when missing on row. */
+  support_oppose_indicator: string;
+  expenditure_amount: number;
+  /** Date the expenditure was made (YYYY-MM-DD; can be a future / typo'd
+   *  date in FEC filings — we preserve as-is per pure-publisher posture). */
+  expenditure_date: string;
+  /** Date the ad / mailer / phone bank was disseminated to the public. */
+  dissemination_date: string;
+  /** Free-text description of what the money was spent on. */
+  disbursement_description: string;
+  /** FEC category code (e.g., "001" = Media). */
+  category_code: string;
+  category_code_full: string;
+  /** Vendor / contractor that received the payment (ad agency, media buyer, etc.). */
+  payee_name: string;
+  payee_city: string;
+  payee_state: string;
+  payee_zip: string;
+  election_type: string;
+  report_type: string;
+  report_year: number | null;
+  file_number: number | null;
+  transaction_id: string;
+  image_number: string;
+  /** Filing form: F24 (24-hour notice) or F5 (quarterly). */
+  filing_form: string;
+  memoed_subtotal: boolean;
+  amendment_indicator: string;
+  two_year_transaction_period: number | null;
+  source_url: string;
+  scraped_at: string;
+}
+
+export interface FecIndependentExpenditureQuery {
+  sub_id?: string;
+  committee_id?: string;
+  candidate_id?: string;
+  /** "S" = support only, "O" = oppose only. */
+  support_oppose?: "S" | "O";
+  /** Substring on payee_name. */
+  payee_name?: string;
+  /** Substring on disbursement_description. */
+  description?: string;
+  candidate_office?: string;
+  candidate_office_state?: string;
+  min_amount?: number;
+  max_amount?: number;
+  since?: string;
+  until?: string;
+  cycle?: number;
+  exclude_memos?: boolean;
+  sort_by?: "expenditure_date" | "expenditure_amount";
+  sort_order?: "asc" | "desc";
   limit?: number;
 }
 

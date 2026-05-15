@@ -31,6 +31,7 @@ const CONFIG = {
   OCC_INDEX_URL_TEMPLATE:
     "https://www.occ.treas.gov/news-issuances/news-releases/{year}/index-news-releases-{year}.html",
   FDIC_INDEX_URL: "https://www.fdic.gov/news/press-releases",
+  FTC_RSS_URL: "https://www.ftc.gov/feeds/press-release.xml",
   /** Browser-style UA — FDIC and OCC are Drupal-fronted and reject bare bot UAs. */
   BROWSER_UA: "Mozilla/5.0 (compatible; KeyVexBot/1.0; +https://keyvex.com)",
   RATE_LIMIT_MS: 200,
@@ -529,6 +530,67 @@ export async function scrapeFdicEnforcementHtml(): Promise<EnforcementAction[]> 
   return out;
 }
 
+// ─── FTC RSS ───────────────────────────────────────────────────────────────
+
+/**
+ * FTC press release RSS feed. Structurally identical to SEC RSS — just a
+ * different URL and namespace. Volume is ~5-15 items per week (focused on
+ * antitrust, deceptive practices, merger reviews, and consumer protection
+ * enforcement). Ideal cross-source pair with lobbying_filings (LDA HCR/MMM
+ * issue codes) for merger-review tracking.
+ */
+export async function scrapeFtcEnforcementRss(): Promise<EnforcementAction[]> {
+  const scrapedAt = new Date().toISOString();
+  console.error("[ftc enforcement] Fetching RSS feed...");
+  await sleep(CONFIG.RATE_LIMIT_MS);
+
+  const res = await fetch(CONFIG.FTC_RSS_URL, {
+    headers: {
+      "User-Agent": CONFIG.USER_AGENT,
+      Accept: "application/rss+xml, application/xml, text/xml",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(
+      `FTC RSS HTTP ${res.status} ${res.statusText} — ${CONFIG.FTC_RSS_URL}`,
+    );
+  }
+  const xml = await res.text();
+  const parsed = rssParser.parse(xml) as RssEnvelope;
+  const itemsRaw = parsed.rss?.channel?.item;
+  const items = Array.isArray(itemsRaw) ? itemsRaw : itemsRaw ? [itemsRaw] : [];
+  console.error(`[ftc enforcement] Parsed ${items.length} RSS items`);
+
+  const out: EnforcementAction[] = [];
+  for (const item of items) {
+    const link = item.link ?? "";
+    const guid =
+      typeof item.guid === "string"
+        ? item.guid
+        : (item.guid?.["#text"] ?? "");
+    // Use the FTC's url slug as the action_id (stable across re-pulls).
+    const slug = link
+      ? link.split("/").filter(Boolean).slice(-1)[0] ?? ""
+      : guid;
+    if (!slug) continue;
+    const desc = stripHtml(item.description ?? "");
+    out.push({
+      action_id: `ftc-${slug}`,
+      source: "ftc",
+      title: (item.title ?? "").trim(),
+      teaser: desc.slice(0, 300),
+      description: desc.slice(0, CONFIG.BODY_MAX_CHARS),
+      published_date: toIsoDate(item.pubDate ?? ""),
+      url: link,
+      agency_component: "",
+      release_number: slug,
+      topics: [],
+      scraped_at: scrapedAt,
+    });
+  }
+  return out;
+}
+
 // ─── Combined entry point ──────────────────────────────────────────────────
 
 export interface ScrapeEnforcementOptions {
@@ -544,6 +606,8 @@ export interface ScrapeEnforcementOptions {
   skipOcc?: boolean;
   /** When true, skip the FDIC HTML index fetch. Default false. */
   skipFdic?: boolean;
+  /** When true, skip the FTC RSS fetch. Default false. */
+  skipFtc?: boolean;
 }
 
 export async function scrapeEnforcementActions(
@@ -597,8 +661,17 @@ export async function scrapeEnforcementActions(
       console.error(`[enforcement] FDIC HTML FAILED — ${msg}`);
     }
   }
+  if (!options.skipFtc) {
+    try {
+      const ftc = await scrapeFtcEnforcementRss();
+      all.push(...ftc);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[enforcement] FTC RSS FAILED — ${msg}`);
+    }
+  }
   console.error(
-    `[enforcement] TOTAL: ${all.length} actions across SEC / DOJ / CFTC / OCC / FDIC`,
+    `[enforcement] TOTAL: ${all.length} actions across SEC / DOJ / CFTC / OCC / FDIC / FTC`,
   );
   return all;
 }

@@ -79,7 +79,12 @@ import {
   saveCongressionalTrades,
   saveFecCandidates,
   saveFecCommittees,
+  saveFecContributions,
+  saveFecIndependentExpenditures,
+  saveCftcCotReports,
+  saveSecFailsToDeliver,
   saveFederalContractAwards,
+  saveFederalGrants,
   saveForm144Filings,
   saveForm278Filings,
   saveEnforcementActions,
@@ -151,9 +156,17 @@ import {
   scrapeContractsLiveFeed,
 } from "./scrapers/usaspending.js";
 import {
+  scrapeGrantsByRecipient,
+  scrapeGrantsLiveFeed,
+} from "./scrapers/usaspending-grants.js";
+import {
   scrapeFecCandidates,
   scrapeFecCommittees,
 } from "./scrapers/fec.js";
+import { scrapeFecScheduleA } from "./scrapers/fec-schedule-a.js";
+import { scrapeFecScheduleE } from "./scrapers/fec-schedule-e.js";
+import { scrapeCftcCot } from "./scrapers/cftc-cot.js";
+import { scrapeSecFailsToDeliver } from "./scrapers/sec-ftd.js";
 import {
   scrapeTenderOffersByTicker,
   scrapeTenderOffersLiveFeed,
@@ -669,6 +682,45 @@ const COMMANDS: Record<string, CliCommand> = {
       return awards;
     },
   },
+  "usaspending-grants": {
+    description:
+      "Scrape federal GRANTS (Block / Formula / Project / Cooperative) by recipient. Usage: usaspending-grants <RECIPIENT> [days] [--save]. Different universe than contracts — universities, non-profits, state agencies.",
+    run: async (args) => {
+      const positional = args.filter((a) => !a.startsWith("--"));
+      const recipient = positional[0];
+      if (!recipient) throw new Error("Usage: usaspending-grants <RECIPIENT> [days] [--save]");
+      const days = positional[1] ? parseInt(positional[1], 10) : 365;
+      const grants = await scrapeGrantsByRecipient(recipient, days);
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${grants.length} federal grants to Firestore...`,
+        );
+        const result = await saveFederalGrants(grants);
+        console.error(`[save] Saved ${result.saved} grants to ${result.collection}`);
+      }
+      return grants;
+    },
+  },
+  "usaspending-grants-feed": {
+    description:
+      "Scrape recent federal grants across all recipients for the last N days (default 7; add --save).",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 7;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const grants = await scrapeGrantsLiveFeed(days);
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${grants.length} federal grants to Firestore...`,
+        );
+        const result = await saveFederalGrants(grants);
+        console.error(`[save] Saved ${result.saved} grants to ${result.collection}`);
+      }
+      return grants;
+    },
+  },
   "13d-13g": {
     description:
       "Scrape Schedule 13D / 13G beneficial-ownership disclosures for a single issuer (add --save to write to Firestore). 13D = activist (intent to influence control); 13G = passive institutional. Both filed when a holder crosses 5%.",
@@ -1056,6 +1108,149 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return committees;
+    },
+  },
+  "fec-contributions": {
+    description:
+      "Scrape FEC Schedule A contributions (money flowing INTO committees) from api.open.fec.gov. Defaults: rolling 7-day window, min_amount=$1000, cycle=2026. Optional: --days=N, --min-amount=N, --max-amount=N, --min-date=YYYY-MM-DD, --max-date=YYYY-MM-DD, --cycle=YYYY, --committee=C0XXXXXXX, --candidate=[HSP]0XXXXXXXX, --contributor-state=AA, --contributor-employer='COMPANY NAME', --max-pages=N. Add --save to write to fec_contributions Firestore collection. Requires FEC_API_KEY env var for >30 req/hr.",
+    run: async (args) => {
+      const flag = (name: string): string | undefined => {
+        const found = args.find((a) => a.startsWith(`--${name}=`));
+        return found ? found.slice(name.length + 3) : undefined;
+      };
+      const days = flag("days") ? parseInt(flag("days") as string, 10) : undefined;
+      const minAmount = flag("min-amount") ? parseFloat(flag("min-amount") as string) : undefined;
+      const maxAmount = flag("max-amount") ? parseFloat(flag("max-amount") as string) : undefined;
+      const minDate = flag("min-date");
+      const maxDate = flag("max-date");
+      const cycle = flag("cycle") ? parseInt(flag("cycle") as string, 10) : undefined;
+      const committeeId = flag("committee");
+      const candidateId = flag("candidate");
+      const contributorState = flag("contributor-state");
+      const contributorEmployer = flag("contributor-employer");
+      const maxPages = flag("max-pages") ? parseInt(flag("max-pages") as string, 10) : undefined;
+      if (cycle !== undefined && (Number.isNaN(cycle) || cycle < 1976)) {
+        throw new Error("--cycle must be a year >= 1976");
+      }
+      const contributions = await scrapeFecScheduleA({
+        ...(minAmount !== undefined && { minAmount }),
+        ...(maxAmount !== undefined && { maxAmount }),
+        ...(days !== undefined && { lookbackDays: days }),
+        ...(minDate !== undefined && { minDate }),
+        ...(maxDate !== undefined && { maxDate }),
+        ...(cycle !== undefined && { cycle }),
+        ...(committeeId !== undefined && { committeeId }),
+        ...(candidateId !== undefined && { candidateId }),
+        ...(contributorState !== undefined && { contributorState }),
+        ...(contributorEmployer !== undefined && { contributorEmployer }),
+        ...(maxPages !== undefined && { maxPages }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${contributions.length} FEC contributions to Firestore...`,
+        );
+        const result = await saveFecContributions(contributions);
+        console.error(
+          `[save] Saved ${result.saved} contributions to ${result.collection}`,
+        );
+      }
+      return contributions;
+    },
+  },
+  "fec-ie": {
+    description:
+      "Scrape FEC Schedule E independent expenditures (super PAC ad spending FOR or AGAINST candidates). Defaults: 7-day window, $1000+, cycle 2026. Optional: --days=N, --min-amount=N, --cycle=YYYY, --committee=C0XXXXXXX, --candidate=[HSP]0XXXXXXXX, --support-oppose=S|O, --max-pages=N. Add --save to write to fec_independent_expenditures Firestore collection.",
+    run: async (args) => {
+      const flag = (name: string): string | undefined => {
+        const found = args.find((a) => a.startsWith(`--${name}=`));
+        return found ? found.slice(name.length + 3) : undefined;
+      };
+      const days = flag("days") ? parseInt(flag("days") as string, 10) : undefined;
+      const minAmount = flag("min-amount") ? parseFloat(flag("min-amount") as string) : undefined;
+      const cycle = flag("cycle") ? parseInt(flag("cycle") as string, 10) : undefined;
+      const committeeId = flag("committee");
+      const candidateId = flag("candidate");
+      const supportOpposeStr = flag("support-oppose");
+      const supportOppose =
+        supportOpposeStr === "S" || supportOpposeStr === "O"
+          ? supportOpposeStr
+          : undefined;
+      const maxPages = flag("max-pages") ? parseInt(flag("max-pages") as string, 10) : undefined;
+      if (cycle !== undefined && (Number.isNaN(cycle) || cycle < 1976)) {
+        throw new Error("--cycle must be a year >= 1976");
+      }
+      const ies = await scrapeFecScheduleE({
+        ...(minAmount !== undefined && { minAmount }),
+        ...(days !== undefined && { lookbackDays: days }),
+        ...(cycle !== undefined && { cycle }),
+        ...(committeeId !== undefined && { committeeId }),
+        ...(candidateId !== undefined && { candidateId }),
+        ...(supportOppose !== undefined && { supportOppose }),
+        ...(maxPages !== undefined && { maxPages }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${ies.length} FEC independent expenditures to Firestore...`,
+        );
+        const result = await saveFecIndependentExpenditures(ies);
+        console.error(
+          `[save] Saved ${result.saved} IEs to ${result.collection}`,
+        );
+      }
+      return ies;
+    },
+  },
+  "cftc-cot": {
+    description:
+      "Scrape CFTC Commitments of Traders (COT) reports. Weekly futures + options-on-futures positioning by trader class. Optional: --weeks=N (default 12), --contract=CODE (e.g., 13874A for E-mini S&P), --commodity='SUBSTRING'. Add --save to write to cftc_cot_reports.",
+    run: async (args) => {
+      const flag = (name: string): string | undefined => {
+        const found = args.find((a) => a.startsWith(`--${name}=`));
+        return found ? found.slice(name.length + 3) : undefined;
+      };
+      const weeks = flag("weeks") ? parseInt(flag("weeks") as string, 10) : undefined;
+      const contractCode = flag("contract");
+      const commodityName = flag("commodity");
+      const reports = await scrapeCftcCot({
+        ...(weeks !== undefined && { lookbackWeeks: weeks }),
+        ...(contractCode !== undefined && { contractCode }),
+        ...(commodityName !== undefined && { commodityName }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${reports.length} CFTC COT reports to Firestore...`,
+        );
+        const result = await saveCftcCotReports(reports);
+        console.error(`[save] Saved ${result.saved} reports to ${result.collection}`);
+      }
+      return reports;
+    },
+  },
+  "sec-ftd": {
+    description:
+      "Scrape SEC Fails-to-Deliver bi-monthly zip. Defaults to most recent published half-month. Optional: --year=YYYY --month=N --half=a|b. Add --save to write to sec_fails_to_deliver.",
+    run: async (args) => {
+      const flag = (name: string): string | undefined => {
+        const found = args.find((a) => a.startsWith(`--${name}=`));
+        return found ? found.slice(name.length + 3) : undefined;
+      };
+      const year = flag("year") ? parseInt(flag("year") as string, 10) : undefined;
+      const month = flag("month") ? parseInt(flag("month") as string, 10) : undefined;
+      const halfStr = flag("half");
+      const half = halfStr === "a" || halfStr === "b" ? halfStr : undefined;
+      const rows = await scrapeSecFailsToDeliver({
+        ...(year !== undefined && { year }),
+        ...(month !== undefined && { month }),
+        ...(half !== undefined && { half }),
+      });
+      if (hasSaveFlag(args)) {
+        console.error(
+          `[save] Writing ${rows.length} SEC FTD rows to Firestore...`,
+        );
+        const result = await saveSecFailsToDeliver(rows);
+        console.error(`[save] Saved ${result.saved} rows to ${result.collection}`);
+      }
+      return rows;
     },
   },
   "federal-register": {

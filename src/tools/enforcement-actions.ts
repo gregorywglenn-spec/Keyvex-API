@@ -91,8 +91,9 @@ export const definition: Tool = {
       },
       source: {
         type: "string",
-        enum: ["sec", "doj", "cftc", "occ", "fdic"],
-        description: "Filter to one source.",
+        enum: ["sec", "doj", "cftc", "occ", "fdic", "ftc"],
+        description:
+          "Filter to one issuing agency: sec (SEC), doj (DOJ), cftc (CFTC), occ (OCC bank-regulator), fdic (FDIC bank-regulator), ftc (FTC antitrust + consumer protection).",
       },
       title: {
         type: "string",
@@ -166,7 +167,7 @@ function validateAndNormalize(raw: unknown): EnforcementActionsQuery {
   }
 
   if (args.source !== undefined) {
-    const validSources = ["sec", "doj", "cftc", "occ", "fdic"];
+    const validSources = ["sec", "doj", "cftc", "occ", "fdic", "ftc"];
     if (!validSources.includes(args.source as string)) {
       throw new Error(
         `INVALID source: '${String(args.source)}' — expected one of ${validSources.join(", ")}`,
