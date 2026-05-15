@@ -13,6 +13,25 @@ This is the day-1 reading for any AI agent (Claude or otherwise) opening this pr
 
 References below to "Capital Edge" generally point to the dashboard project unless they appear in product-name contexts (server name, package name, MCP `serverInfo.name`). Those product-name contexts have all moved to KeyVex.
 
+## Session Bootstrap — DO THIS FIRST, EVERY SESSION
+
+Before writing any code, run these and read the output. This is not optional — skipping it is what caused the Day 10 parallel-worktree divergence (two sessions both built "Day 10," both claimed v0.41.0, neither saw the other).
+
+```
+git fetch origin
+git branch -a            # see EVERY branch — sibling sessions live here
+git worktree list        # see every worktree — parallel work lives here
+git log origin/main -8   # the real, authoritative recent history
+```
+
+Rules that follow from this:
+
+1. **Other branches / worktrees are other sessions. Check for them before starting.** If a `claude/*` branch or a sibling worktree has recent commits touching what you're about to build, STOP and reconcile with Greg before duplicating it.
+2. **Version numbers are claimed by checking, never assumed.** The next version is `(latest version on origin/main) + 1`. Run `git show origin/main:package.json | grep version` — do not guess "0.41.0" because the last thing you remember was 0.40.
+3. **Anchor history to facts, not narrative.** Use the real date (it's in your context every session — e.g. `2026-05-15`), the version number, and the commit hash. Do NOT invent "Day N" — "Day N" is a vibe, it can't enforce uniqueness, and two sessions will both pick the same N. The `### Day N` headers below are legacy; keep them for continuity but never let a "Day" label be load-bearing.
+4. **"Done" means three checkable facts: committed + pushed + deployed-and-verified.** Never tell Greg something is "done" because you remember doing it — confirm with `git log origin/main` and a live `curl https://mcp.keyvex.com`. Narrative memory is unreliable across compaction and restarts; git and the live endpoint are not.
+5. **Don't narrate wall-clock time.** You cannot reliably feel how long passed between messages or sessions. No "sleep well" / "good morning" guessing. State the date and move on.
+
 ## Hard Lessons — Read This First
 
 - **Tell the ugly truth.** Especially about whether something will actually work. The instinct to confirm what's flattering is the failure mode. Push back, run actual diagnostics, report the true picture even when it complicates the plan. Tonight that rule caught a real divergence between the on-disk handoff and Greg's verbal direction; flagging it surfaced a real architectural decision instead of plowing past it.
