@@ -27,7 +27,6 @@ import {
   queryForm3Holdings,
   queryInsiderTransactions,
   queryInstitutionalHoldings,
-  queryLobbyingFilings,
   queryMaterialEvents,
   queryNportFilings,
   queryNportHoldings,
@@ -72,11 +71,13 @@ export const definition: Tool = {
     "    proxy_filings, xbrl_fundamentals, private_placements, registration_statements,",
     "    nport_filings)",
     "  - recipient_uei → 1 collection (federal_contracts)",
-    "  - company_name → 5 name-keyed collections (federal_contracts, lobbying_filings,",
+    "  - company_name → 4 name-keyed collections (federal_contracts,",
     "    enforcement_actions, consumer_complaints, product_recalls) AND auto-",
     "    resolves to ticker + company_cik via EDGAR's catalog, cascading into",
     "    every ticker/CIK adapter above. The unlock for 'tell me everything about",
-    "    Wells Fargo' hitting 17+ collections in one call.",
+    "    Wells Fargo' hitting 16+ collections in one call. (lobbying_filings is",
+    "    excluded from the fan-out — its 51K-record substring scan is too slow",
+    "    for parallel federation; call get_lobbying_filings directly instead.)",
     "  - cusip → 4 collections (institutional_holdings, activist_ownership,",
     "    nport_holdings, treasury_auctions)",
     "",
@@ -128,7 +129,7 @@ export const definition: Tool = {
       company_name: {
         type: "string",
         description:
-          "Issuer name (e.g., 'Lockheed Martin', 'Wells Fargo'). Resolves to ticker + CIK via EDGAR catalog (if US-listed) AND substring-filters name-keyed collections (federal_contracts, lobbying_filings, enforcement_actions, consumer_complaints, product_recalls).",
+          "Issuer name (e.g., 'Lockheed Martin', 'Wells Fargo'). Resolves to ticker + CIK via EDGAR catalog (if US-listed) AND substring-filters name-keyed collections (federal_contracts, enforcement_actions, consumer_complaints, product_recalls). For a company's lobbying activity, call get_lobbying_filings directly — it is excluded here for fan-out latency.",
       },
       cusip: {
         type: "string",
@@ -383,23 +384,15 @@ const ADAPTERS: SourceAdapter[] = [
       });
     },
   },
-  {
-    name: "lobbying_filings",
-    call: (q, limit) => {
-      if (!q.company_name) return null;
-      // The same company can appear as either the client (the buyer of
-      // lobbying services) or the registrant (the lobbying firm itself).
-      // We default to client_name match since that's the "who paid for
-      // influence" angle — agents asking about Wells Fargo usually want
-      // Wells-as-client, not Wells-as-lobbyist.
-      return queryLobbyingFilings({
-        client_name: q.company_name,
-        ...(q.since !== undefined && { since: q.since }),
-        ...(q.until !== undefined && { until: q.until }),
-        limit,
-      });
-    },
-  },
+  // NOTE: lobbying_filings is deliberately NOT a unified_search adapter.
+  // The lobbying_filings collection is ~51K records and its only company
+  // filter is a client_name / registrant_name SUBSTRING — which Firestore
+  // can't index, so a match requires pulling a 20K-record window and
+  // filtering client-side (~30-40s). That's fine as a dedicated-tool call
+  // but far too slow for a parallel fan-out. Agents wanting a company's
+  // lobbying activity should call get_lobbying_filings directly.
+  // Revisit once lobbying_filings gets a normalized-name + array-contains
+  // index (tracked as a v1.1 perf item).
   {
     name: "enforcement_actions",
     call: (q, limit) => {

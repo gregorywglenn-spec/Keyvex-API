@@ -149,7 +149,11 @@ export async function scrapeFdaRecalls(
   // openFDA caps `skip` at 25,000 (anything beyond returns 400). For deeper
   // historical needs, use date-window slicing — out of scope for v1A.
   while (out.length < maxRecords && skip < 25000) {
-    const searchExpr = `recall_initiation_date:[${startStr}+TO+${endStr}]`;
+    // openFDA date-range syntax: `[start TO end]` with SPACES around TO.
+    // encodeURIComponent turns the spaces into %20, which openFDA parses
+    // correctly. Using a literal `+` here would encode to %2B (literal
+    // plus char) and openFDA returns HTTP 500 on the malformed query.
+    const searchExpr = `recall_initiation_date:[${startStr} TO ${endStr}]`;
     const url =
       `${CONFIG.BASE_URL}${path}` +
       `?search=${encodeURIComponent(searchExpr)}` +
