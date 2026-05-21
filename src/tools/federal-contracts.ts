@@ -26,6 +26,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_federal_contracts",
+  annotations: {
+    title: "Federal Contracts (USAspending)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns federal contract awards from USAspending.gov — government",
     "spending data sourced from Treasury/GSA. Each record is one prime",

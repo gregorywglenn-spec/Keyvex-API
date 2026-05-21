@@ -29,6 +29,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_foreign_agents",
+  annotations: {
+    title: "Foreign Agents (FARA)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns FARA registrations — US persons and firms registered with the",
     "DOJ as agents of a foreign principal under the Foreign Agents",

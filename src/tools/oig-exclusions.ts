@@ -18,6 +18,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_oig_exclusions",
+  annotations: {
+    title: "HHS-OIG Exclusions List",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns entries on the HHS Office of Inspector General 'List of",
     "Excluded Individuals/Entities' (LEIE). Anyone on this list is barred",

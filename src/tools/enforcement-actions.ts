@@ -28,6 +28,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_enforcement_actions",
+  annotations: {
+    title: "Regulatory Enforcement Actions",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns SEC + DOJ + CFTC + OCC + FDIC enforcement-related press",
     "releases. Five regulators, one tool. Use this when the user asks about:",

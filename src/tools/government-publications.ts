@@ -29,6 +29,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_government_publications",
+  annotations: {
+    title: "Government Publications (GovInfo)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns recent congressional + oversight publications from GovInfo",
     "across four collections. Use this when the user asks about:",

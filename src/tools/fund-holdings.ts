@@ -28,6 +28,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_fund_holdings",
+  annotations: {
+    title: "Fund Holdings (SEC Form N-PORT)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns per-security holdings from SEC Form N-PORT primary documents",
     "— one row per investment-or-security line in a mutual fund / ETF /",

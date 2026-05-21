@@ -32,6 +32,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_member_profile",
+  annotations: {
+    title: "Congressional Member Profile",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Congressional member profiles from the unitedstates/",
     "congress-legislators catalog. Each record is one current House",

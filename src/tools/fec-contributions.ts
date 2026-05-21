@@ -33,6 +33,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_fec_contributions",
+  annotations: {
+    title: "FEC Campaign Contributions",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns FEC Schedule A contributions — itemized records of money",
     "flowing INTO a federal committee. This is the 'follow the money'",

@@ -19,6 +19,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_federal_register_documents",
+  annotations: {
+    title: "Federal Register Documents",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Federal Register documents — the daily-published collection of",
     "US executive branch regulatory + administrative actions. Use this for:",

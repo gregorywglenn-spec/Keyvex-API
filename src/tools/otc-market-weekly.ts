@@ -31,6 +31,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_otc_market_weekly",
+  annotations: {
+    title: "FINRA OTC / Dark-Pool Volume",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns FINRA OTC Transparency weekly summary records — off-exchange",
     "(ATS / OTC) volume by security × venue × week. Use this for: dark-",

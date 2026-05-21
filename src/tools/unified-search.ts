@@ -50,6 +50,11 @@ import type {
 
 export const definition: Tool = {
   name: "unified_search",
+  annotations: {
+    title: "Unified Cross-Source Search",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Identifier-driven cross-collection fan-out search. Pass one or more entity",
     "identifiers — ticker, bioguide_id, company_cik, recipient_uei, company_name,",

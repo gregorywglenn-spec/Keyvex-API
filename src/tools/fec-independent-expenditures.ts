@@ -26,6 +26,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_fec_independent_expenditures",
+  annotations: {
+    title: "FEC Independent Expenditures",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns FEC Schedule E independent expenditures — money spent BY a",
     "super PAC (or IE-only PAC) uncoordinatedly FOR or AGAINST a federal",

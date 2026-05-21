@@ -21,6 +21,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_congressional_trades",
+  annotations: {
+    title: "Congressional Trades",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns trade records disclosed by U.S. members of Congress under the",
     "STOCK Act — Senate eFD and House Clerk Periodic Transaction Reports",

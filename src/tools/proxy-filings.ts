@@ -32,6 +32,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_proxy_filings",
+  annotations: {
+    title: "Proxy Filings (SEC DEF 14A)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Schedule 14A proxy filings — the document public companies",
     "send shareholders ahead of annual or special meetings. Each record is",

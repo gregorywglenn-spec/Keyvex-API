@@ -27,6 +27,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_lobbying_filings",
+  annotations: {
+    title: "Lobbying Filings (LDA)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Lobbying Disclosure Act (LDA) filings — quarterly LD-2",
     "reports filed by registered lobbyist firms with the Senate Office",

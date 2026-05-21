@@ -22,6 +22,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_cftc_cot_reports",
+  annotations: {
+    title: "CFTC Commitments of Traders",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns CFTC Commitments of Traders (COT) report rows — weekly",
     "aggregated futures + options-on-futures positioning by trader class.",

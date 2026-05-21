@@ -24,6 +24,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_treasury_auctions",
+  annotations: {
+    title: "US Treasury Auctions",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Treasury security auctions — Bills (≤1yr), Notes (2-10yr),",
     "Bonds (20-30yr), TIPS (inflation-protected), and FRNs (floating-rate).",

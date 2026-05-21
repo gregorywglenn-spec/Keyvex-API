@@ -25,6 +25,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_screening_list",
+  annotations: {
+    title: "Consolidated Screening List",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns entries from the US Consolidated Screening List (CSL) — the",
     "combined feed of twelve federal export-screening lists. Use this when",

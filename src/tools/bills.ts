@@ -19,6 +19,11 @@ import type { Bill, BillsQuery, ResultEnvelope } from "../types.js";
 
 export const definition: Tool = {
   name: "get_bills",
+  annotations: {
+    title: "Congressional Bills",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns congressional bill metadata from api.congress.gov. Use this",
     "when the user asks about: bills introduced this Congress, the status",

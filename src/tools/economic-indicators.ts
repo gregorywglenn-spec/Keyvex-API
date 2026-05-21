@@ -20,6 +20,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_economic_indicators",
+  annotations: {
+    title: "Economic Indicators (BLS / FRED / EIA)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns observations of key US macro + energy indicators from three sources:",
     "  - BLS (Bureau of Labor Statistics): the canonical labor + price",

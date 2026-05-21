@@ -26,6 +26,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_private_placements",
+  annotations: {
+    title: "Private Placements (SEC Form D)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns SEC Form D filings — Reg D / Rule 506 private placement",
     "offering notices. Use this when the user asks about: who's raising",

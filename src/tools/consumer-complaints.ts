@@ -16,6 +16,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_consumer_complaints",
+  annotations: {
+    title: "CFPB Consumer Complaints",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns consumer complaints filed with the Consumer Financial Protection",
     "Bureau (CFPB). Each record is one filing against a bank, credit reporting",

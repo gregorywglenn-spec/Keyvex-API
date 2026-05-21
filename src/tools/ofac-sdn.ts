@@ -21,6 +21,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_ofac_sdn",
+  annotations: {
+    title: "OFAC Sanctions List (SDN)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns OFAC Specially Designated Nationals (SDN) sanctions list",
     "entries. Use this for: compliance screening, KYC, sanctions-program",

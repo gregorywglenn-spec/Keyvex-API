@@ -10,7 +10,7 @@ Congressional trades, executive insider transactions, institutional holdings, ac
 
 ## Why KeyVex
 
-Every other financial-data MCP today wraps a pre-existing REST API and ends up with 100–250 tools that overflow agent context windows. KeyVex starts from the agent: 28 entity-based tools, rich filter parameters, no separate `get_X` and `get_X_by_ticker` and `get_recent_X` variants. One of those tools — `unified_search` — fans out across the entire disclosure surface in one call (the demo above is real).
+Every other financial-data MCP today wraps a pre-existing REST API and ends up with 100–250 tools that overflow agent context windows. KeyVex starts from the agent: 38 entity-based tools, rich filter parameters, no separate `get_X` and `get_X_by_ticker` and `get_recent_X` variants. One of those tools — `unified_search` — fans out across the entire disclosure surface in one call (the demo above is real).
 
 **The wedge — one conversation, every source that matters:**
 
@@ -69,9 +69,19 @@ Six separate disclosure sources joined by `ticker` + `bioguide_id` + `recipient_
 | `get_oig_exclusions` | HHS-OIG List of Excluded Individuals/Entities (LEIE) | Monthly 5th |
 | `get_consumer_complaints` | CFPB Consumer Complaint Database | Daily 8 AM |
 | `get_fundamentals` | SEC EDGAR XBRL — income statement / balance sheet / cash flow per 10-K + 10-Q | Weekly Sunday 4 AM |
+| `get_federal_grants` | USAspending.gov (federal grant + assistance awards) | Daily 6 AM ET |
+| `get_fec_contributions` | FEC Schedule A (itemized campaign contributions) | Daily 7:30 AM |
+| `get_fec_independent_expenditures` | FEC Schedule E (super-PAC independent expenditures) | Daily 7:45 AM |
+| `get_product_recalls` | FDA (drug / device / food) + CPSC consumer-product recalls | Daily ~6:50 AM |
+| `get_fund_holdings` | SEC Form N-PORT primary-document XML (per-security fund holdings + derivatives) | Daily |
+| `get_sec_fails_to_deliver` | SEC bi-monthly Fails-to-Deliver settlement data | Bi-monthly (1st + 16th) 5 AM |
+| `get_cftc_cot_reports` | CFTC Commitments of Traders (futures + options positioning) | Weekly Saturday 7 AM |
+| `get_government_publications` | GovInfo (committee reports, public laws, hearings, GAO reports) | Daily 9:30 AM |
+| `get_foreign_agents` | DOJ FARA (foreign agent registrations) | Weekly Sunday 5:30 AM |
+| `get_screening_list` | US Consolidated Screening List (12 export-control / sanctions lists) | Daily 5:50 AM |
 | `unified_search` | Cross-collection fan-out by ticker / bioguide_id / company_cik / recipient_uei | (federated, hits other tools' data) |
 
-**28 tools, 28+ distinct disclosure sources.** All refresh autonomously on cron — no human in the loop.
+**38 tools, 30+ distinct disclosure sources.** All refresh autonomously on cron — no human in the loop.
 
 ### Notable tool extensions
 
@@ -186,7 +196,7 @@ npx tsx src/scrape.ts 8k-feed 1 --save
 npx tsx src/scrape.ts ofac-sdn --save
 npx tsx src/scrape.ts federal-register 3 --save
 
-# Run a battle test across all 28 MCP tools:
+# Run a battle test across all 38 MCP tools:
 npx tsx scripts/battle-test.ts
 
 # Run the stdio MCP server (for Claude Desktop wiring):
@@ -201,7 +211,7 @@ For Firestore connectivity locally, drop a service account JSON at `secrets/serv
 
 ```
 src/
-├── tools/                 — one file per MCP tool (28 tools — definition + handler)
+├── tools/                 — one file per MCP tool (38 tools — definition + handler)
 ├── scrapers/              — one file per data source (SEC EDGAR forms, congress.gov, FEC, FINRA, OFAC, Federal Register, ...)
 ├── server-setup.ts        — shared MCP-server tool-registration logic (used by both stdio and HTTP entries)
 ├── firestore.ts           — data layer with stub/live mode auto-detection
@@ -219,7 +229,7 @@ functions/
 └── tsconfig.json          — extends parent, includes ../src
 
 scripts/
-├── battle-test.ts         — 59-query battle test across all 28 MCP tools (re-runnable QA harness)
+├── battle-test.ts         — battle test across all 38 MCP tools (re-runnable QA harness)
 ├── smoke-*.ts             — per-tool smoke tests using real-data IDs
 ├── count-*.ts             — per-collection Firestore counters
 └── inspect-*.ts           — diagnostic scripts for data-state debugging
@@ -237,9 +247,9 @@ The Firebase project ID `capitaledge-api` is permanent infrastructure (Google do
 
 ## Status
 
-Production. **28 MCP tools, 20+ autonomous scrapers** running on cron. MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
+Production. **38 MCP tools, 30+ autonomous scrapers** running on cron. MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
 
-A 59-query battle test across all 28 tools currently passes 0-error, 0-empty. Re-runnable via `npx tsx scripts/battle-test.ts`.
+A battle test across all 38 tools currently passes 0-error, 0-empty. Re-runnable via `npx tsx scripts/battle-test.ts`.
 
 Custom domain (`mcp.keyvex.com`), public registry submissions (Anthropic / Smithery / Awesome-MCP / PulseMCP), and self-serve API key issuance are the next milestones. SEC Form 13H (large trader registration) is intentionally NOT covered — it's filed confidentially under SEA Rule 13h-1 with FOIA-exempt status and is not publicly indexed by EDGAR.
 
