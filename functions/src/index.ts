@@ -78,6 +78,7 @@ import {
   writeJobMeta,
 } from "../../src/firestore.js";
 import { runHealthCheck } from "./health-check.js";
+import { authenticate, protectedResourceMetadata } from "./oauth.js";
 import {
   applyToolHandlers,
   createMcpServer,
@@ -1730,7 +1731,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.44.0";
+const SERVER_VERSION = "0.45.0";
 
 /**
  * The bearer token clients send in `Authorization: Bearer <key>` headers.
@@ -1771,14 +1772,29 @@ export const mcp = onRequest(
       "keyvex-mcp-readonly@capitaledge-api.iam.gserviceaccount.com",
   },
   async (req, res) => {
-    // Health check — auth-free GET returns server status.
+    // Path-aware GET routing.
     if (req.method === "GET") {
+      const path = req.path || "/";
+
+      // RFC 9728 Protected Resource Metadata. No auth required — MCP clients
+      // hit this BEFORE having a token to discover where to authenticate.
+      if (
+        path === "/.well-known/oauth-protected-resource" ||
+        path.endsWith("/.well-known/oauth-protected-resource")
+      ) {
+        res.setHeader("Cache-Control", "public, max-age=300");
+        res.json(protectedResourceMetadata());
+        return;
+      }
+
+      // Default GET → health check.
       res.json({
         status: "ok",
         service: SERVER_NAME,
         version: SERVER_VERSION,
         tools: TOOLS.length,
         tool_names: TOOLS.map((t) => t.definition.name),
+        auth_methods: ["static_bearer", "workos_oauth_jwt"],
       });
       return;
     }
@@ -1789,14 +1805,29 @@ export const mcp = onRequest(
       return;
     }
 
-    // Bearer-token auth.
+    // Dual-auth: legacy static MCP_API_KEY OR WorkOS-issued OAuth JWT.
+    // See functions/src/oauth.ts for full validation logic.
     const authHeader = req.header("authorization") ?? "";
     const m = authHeader.match(/^Bearer\s+(.+)$/i);
-    const expected = mcpApiKey.value();
-    if (!m || m[1] !== expected) {
-      res.status(401).json({ error: "Unauthorized" });
+    const token = m ? m[1] : "";
+    const authResult = await authenticate(token, mcpApiKey.value());
+    if (!authResult.ok) {
+      res.setHeader(
+        "WWW-Authenticate",
+        `Bearer realm="mcp.keyvex.com", resource_metadata="https://mcp.keyvex.com/.well-known/oauth-protected-resource"`,
+      );
+      res.status(401).json({ error: "Unauthorized", reason: authResult.reason });
       return;
     }
+
+    // Log the tier for now (no per-tool gating yet — that's a separate
+    // refactor of the tool handlers). Verifying the OAuth flow end-to-end
+    // is enough for this layer.
+    logger.info("[mcp] authenticated", {
+      authMethod: authResult.context.authMethod,
+      tier: authResult.context.tier,
+      workosUserId: authResult.context.workosUserId,
+    });
 
     // Build a fresh server + stateless transport per request.
     let server: ReturnType<typeof createMcpServer> | null = null;

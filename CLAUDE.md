@@ -1317,6 +1317,107 @@ Verified live before deploy: FARA (558 registrants, per-registrant iteration wor
 
 **Deferred with reasoning:** FARA v1A captures the registrant↔principal linkage but not per-document filing detail or compensation figures — agents follow `source_url` to FARA eFile. If FARA ever fixes its `ForeignPrincipals` list endpoint, the scraper could drop the per-registrant iteration; not worth tracking until it does.
 
+### 🌙 Session 2026-05-17 → 2026-05-19 — Anthropic prep + Stripe sandbox build
+
+Multi-day commercial / launch-foundations session. **No scraper or MCP-tool runtime changes.** Branch `claude/gifted-ptolemy-cd665c` (worktree `gifted-ptolemy-cd665c`). All output sits **uncommitted on this branch at session close** — Greg paused commits with "leave as is for now" and never came back to authorize them.
+
+**What shipped (uncommitted on branch):**
+- All 38 MCP tools gained `annotations: { title, readOnlyHint: true, openWorldHint: true }` — hard requirement for the Anthropic Connectors Directory submission (~30% of rejections come from missing annotations). Mechanical insertion via a one-shot script (`scripts/_add-annotations.mjs`, deleted after use). Typecheck clean.
+- `marketing/registry-submissions.md` rewritten. The Anthropic submission process is **a Google Form (`https://clau.de/mcp-directory-submission`), not a GitHub PR** to `anthropics/mcp-servers` as the prior doc claimed. All counts updated to 38 tools. OAuth blocker documented explicitly. Submission-order recommendation inverted — Anthropic is the *hardest* of the four registries, not the easiest.
+- `README.md` tool counts corrected `28 → 38` in five places, plus the tools table extended with the 10 missing rows (federal_grants, fec_contributions, fec_independent_expenditures, product_recalls, fund_holdings, sec_fails_to_deliver, cftc_cot_reports, government_publications, foreign_agents, screening_list).
+- `KeyVex-CPA-Interview-Sheet.pdf` (worktree root) — printable two-page CPA interview sheet. Generated via the `anthropic-skills:pdf` skill with reportlab. Greg + Derek will use it to interview ≥3 CPA candidates this week.
+
+**Decisions locked (do NOT relitigate):**
+- **Anthropic Connectors Directory** = deferred until OAuth 2.0 ships. The directory requires OAuth 2.0 *with user-consent flow* + tool annotations. Annotations now done; OAuth is bank-account-gated. **The other three registries (Smithery, Awesome-MCP, PulseMCP) accept Bearer auth and can fire anytime** — paperwork-only.
+- **OAuth provider = WorkOS AuthKit** (managed authorization server, NOT self-hosted). KeyVex's MCP Cloud Function becomes an OAuth 2.1 *resource server*; it does not mint tokens. WorkOS account created. Staging AuthKit domain in hand: `mystical-respect-33-staging.authkit.app`. **Production environment blocked on WorkOS billing → KeyVex business bank account.** Captured separately in memory file `project_anthropic_directory_oauth.md`.
+- **No permanent free tier.** Greg's call, instinct correct. Replaced with **14-day Pro-tier trial requiring card upfront.** Filters out tire-kickers; everyone using KeyVex is on a revenue path.
+- **Pricing tiers (final):**
+  - **Builder** — $29 / mo or **$290 / yr (= 2 months free)**. Core ~14 tools. 50K calls/mo.
+  - **Pro** — $199 / mo or **$1,990 / yr (= 2 months free)**. All 38 tools. 500K calls/mo. 14-day trial, card on file.
+  - **Enterprise** — Contact Sales. No Stripe product yet.
+- **Trial mechanism:** customers sign up on **Pro with a 14-day trial regardless of intended tier.** During trial they can downgrade to Builder via Stripe Customer Portal. At day 14: silence = keep Pro (industry standard for B2B at this price point).
+- **Annual discount = "2 months free"** — clean currency that *pairs with the referral reward* (also 2 months), giving one consistent value-token across the product.
+- **Referral program:** 2 months credit per annual signup, **no cap for v1**. Stripe-side structure reserved (promo codes). Enforcement code (webhook listener that detects referral signup and credits the referrer's balance) ships with the customer-identity layer.
+- **Trial is set in the Checkout Session code, NOT on the Stripe Price.** The dashboard's price-level "Trial period days" field is marked **Legacy** and not editable after creation. When the Checkout integration is wired (bank-account-gated), set `subscription_data.trial_period_days: 14` on Pro Checkout Sessions.
+- **Books live in real accounting software** (Wave free / QuickBooks Online), **not Airtable.** Bank feeds the accounting software directly via secure native connection. **Airtable stays the operations cockpit** — deadlines, accounts list, tasks. **No bookkeeping in Airtable; no bank credentials in Airtable; no SSN / account numbers in Airtable, ever.**
+- **Stripe Tax:** product accepted (reserves capability), configuration **deferred to CPA conversation**. SaaS sales tax varies by state — CPA decision, not a Claude decision.
+- **Hyperagent for promotion:** pushed back. Autonomous-agent promotion *backfires* for dev-tool launches (MCP / indie-dev communities treat automated promotion as spam, downvote, flag). Use Hyperagent for safe legwork — tracking, research, drafts. Keep a human (Greg) hitting "post."
+
+**Stripe sandbox built (Keyvex LLC sandbox, account `acct_1TYw9pLQfk9leLGn`):**
+- Business description filled in (plain-English description, public-record posture, explicit "does not provide financial advice" line).
+- Pricing model: Flat rate · Recurring · Prebuilt Checkout (Stripe-hosted).
+- **Builder product** (`prod_UY4Ggn9XMeQEoE`): $29.00/month (Default price) + $290.00/year. K-mark logo. No trial.
+- **Pro product** (`prod_UY4NELcDq4pldC`): $199.00/month + $1,990.00/year. K-mark logo. Trial **deferred** to Checkout Session config (Legacy field on Stripe Price is not editable post-creation).
+- **Customer Portal:** Invoices · Customer information · Payment methods · Cancellations (effective at period end) · Subscriptions with **plan-switching between Builder ↔ Pro enabled** — this is what makes the "downgrade from Pro to Builder during trial" flow work. Retention coupons skipped (premature pre-launch). Business Information section deferred.
+- Statement descriptor + Branding: deferred to live-account activation.
+
+**Bank-account-gated chain (single gate that unblocks the whole launch sequence):**
+1. WorkOS Production environment billing → production AuthKit domain.
+2. OAuth 2.1 resource-server code on the `mcp` Cloud Function: `/.well-known/oauth-protected-resource` metadata endpoint + JWT validation against WorkOS JWKS + **dual-auth with the existing `MCP_API_KEY` as a legacy fallback** so current access doesn't break.
+3. Per-customer Bearer-token issuance + tier metadata + revocation flow. **Same customer-identity layer that closes the security gaps** (per-customer revocation, per-customer rate-limiting, per-customer audit).
+4. Stripe sandbox → live (LLC + EIN + SSN-of-principal + bank for payouts; LLC + EIN are upstream of the bank account itself).
+5. Stripe Checkout integration in `functions/`: webhook listener for `customer.subscription.created / updated / deleted` and `invoice.payment_failed`; checkout-session creation with `subscription_data.trial_period_days: 14` for Pro.
+6. Per-customer rate-limiting + audit logging by customer ID — **same customer-identity layer as #3** (one foundation, multiple problems closed).
+7. Statement descriptor (`KEYVEX MCP`) + Branding + Customer Portal Business Information.
+8. Submit to Anthropic MCP Connectors Directory (Google Form at `https://clau.de/mcp-directory-submission`).
+
+**Not bank-gated (can do anytime):**
+- Submit Smithery, Awesome-MCP, PulseMCP — all accept Bearer auth. Copy-paste content ready in `marketing/registry-submissions.md`.
+- Interview CPA candidates (Greg + Derek, this week; use `KeyVex-CPA-Interview-Sheet.pdf`).
+- Set up Airtable as operations cockpit (Greg's signup; once CPA-confirmed filing dates arrive, build the Compliance & Filings table).
+- Pick accounting software (Wave free / QuickBooks Online) — bless with the CPA when they sign on.
+
+**Security review delivered to Greg this session:**
+- *Already solid:* TLS, Bearer auth at the door, secrets in Google Secret Manager (not in code), **read-only service account on the `mcp` function** (cannot write Firestore even if breached — the May 15 hardening pays for itself here), no customer data in the served dataset, gitignored credentials, stateless transport.
+- *Real gaps, all in one bucket:* single shared `MCP_API_KEY` → no per-customer revocation, no per-customer rate-limiting, no per-customer audit. **All solved by the WorkOS / OAuth / per-customer-key work already on the bank-account-gated chain** (items #2-3 above). One foundation, multiple problems closed.
+
+**Memory written this session:** `project_anthropic_directory_oauth.md` — captures the WorkOS AuthKit decision, the staging-domain value, and the live blocker.
+
+**Open at session close (for the next session pick-up):**
+- 40 files uncommitted on branch `claude/gifted-ptolemy-cd665c`: 38 tool files with annotations + `marketing/registry-submissions.md` + `README.md`. Plus the `KeyVex-CPA-Interview-Sheet.pdf` artifact. Greg paused commits earlier ("leave as is for now"); commit when he returns.
+- Everything else queues behind the KeyVex business bank account opening.
+
+### 🔐 2026-05-21 — v0.45.0: OAuth 2.1 resource server live + WorkOS Production fully wired
+
+Same session as the 2026-05-17 → 2026-05-19 work above (Greg's personal card unblocked WorkOS Production billing, the bank-account-gated chain partially unlocked itself).
+
+**What shipped (committed in this session):**
+- **WorkOS Production fully configured.** MCP Auth (CIMD + DCR) enabled. `https://mcp.keyvex.com` registered as the OAuth Resource Indicator. JWT Template configured to inject `keyvex_tier` claim from `user.metadata.tier` (or `'free'` default).
+- **OAuth endpoints discovered + documented.** Issuer `https://api.workos.com/user_management/client_01KRV0ZQ4NAEQP995NJ088TTQ4`, JWKS at `/sso/jwks/{client_id}`. The OIDC discovery doc clarified that **AuthKit's `.authkit.app` subdomain is NOT what KeyVex needs** — it's the user-facing login UI, NOT the OAuth endpoints. All OAuth surfaces are at `api.workos.com`. This was a meaningful correction to assumptions made earlier in the architecture work.
+- **`functions/src/oauth.ts`** (new, ~130 lines) — JWT validation against WorkOS JWKS via `jose@^5.10.0`, dual-auth (legacy `MCP_API_KEY` first, JWT fallback), constant-time string compare, RFC 9728 protected-resource-metadata builder. Hard-coded the WorkOS Client ID + issuer (config, not secrets).
+- **`functions/src/index.ts`** modified — `mcp` Cloud Function now serves `/.well-known/oauth-protected-resource` (no auth required, per spec), POST handler runs dual-auth, returns `WWW-Authenticate` header on 401 per the MCP authorization spec, logs authenticated tier + WorkOS user ID.
+- **Server version 0.44.0 → 0.45.0** across `src/index.ts`, `functions/src/index.ts`, root `package.json`.
+- **`adm-zip` re-installed in root node_modules** as a side-effect of the build (pre-existing missing dep that was blocking `npm run build` in this worktree).
+- **Deployed to `mcp.keyvex.com`.** Verified live with five checks: (1) health-check advertises v0.45.0 + `auth_methods` array; (2) `/.well-known/oauth-protected-resource` returns RFC 9728 JSON; (3) unauthed POST → 401 with WWW-Authenticate header pointing to discovery; (4) bad Bearer → 401 with `invalid_token` reason; (5) **existing static-Bearer key path still works** — real `tools/list` and `get_congressional_trades` calls succeed against live endpoint. Backwards-compat preserved.
+- **`WORKOS_API_KEY` stored in Google Secret Manager** (version 1) for future Stripe webhook handler.
+- **`secrets/.env`** (local-dev only, gitignored) holds WORKOS_API_KEY + WORKOS_CLIENT_ID + WORKOS_ENVIRONMENT_ID for the load-secrets.ts pattern.
+- **`docs/architecture-billing-and-auth.md`** committed — canonical reference for the OAuth + Stripe architecture with verified citations to WorkOS docs (not self-asserted `[VERIFIED]` tags).
+- **Tool annotations on all 38 tools, registry-submissions.md rewrite, README count corrections, KeyVex-CPA-Interview-Sheet.pdf** — all the documentation + groundwork work from earlier this session-chain finally lands in the same commit set.
+
+**Architecture corrections made along the way (worth knowing for future sessions):**
+- Gemini's first proposal (Firebase Stripe extension + OIDC federation into Firebase Auth) was rejected as architecturally wrong for a WorkOS-as-identity stack. Documented in `docs/architecture-billing-and-auth.md` Section 4.
+- The "AuthKit `.authkit.app` domain" hunt was a red herring — what KeyVex actually needs for OAuth resource-server validation is the **issuer + JWKS URI**, both at `api.workos.com`. The `.authkit.app` subdomain is the human-facing login UI URL, which WorkOS handles for KeyVex; KeyVex's MCP server never references it directly.
+- $99/mo custom-domain fee for AuthKit confirmed as **purely optional/vanity** — KeyVex doesn't need it. WorkOS card-on-file requirement remains a "payment method, not recurring bill" until KeyVex crosses 1M MAU.
+
+**Bank-account-gated chain — partially unlocked:**
+- ✅ WorkOS Production billing (Greg used personal card; can swap to business card via WorkOS dashboard when bank lands)
+- ✅ Production AuthKit configured for MCP
+- ✅ OAuth resource-server code live on `mcp.keyvex.com`
+- ✅ Per-customer keys + tier metadata structurally ready (WorkOS user metadata API + JWT Template both in place)
+- 🟦 Stripe sandbox → live (still needs LLC + EIN + business bank account)
+- 🟦 Stripe webhook handler (Stripe → WorkOS metadata update) — code not yet written
+- 🟦 Per-tool tier gating in MCP function — tier is logged from JWT but NOT yet enforced per-tool (Pro-only tools currently accessible to all authed users)
+- 🟦 Submit to Anthropic MCP Connectors Directory Google Form (after Stripe-live + tier gating)
+
+**Next session pickup options:**
+- Stripe webhook handler that updates WorkOS user metadata on subscription change (can prototype against Stripe Sandbox even without live activation)
+- Per-tool tier gating refactor (touches each tool handler to take a tier-context arg)
+- Submit Smithery / Awesome-MCP / PulseMCP registries (none gated on anything remaining)
+
 **Last Updated**
 
-May 15, 2026 — v0.44.0. **38 MCP tools at `mcp.keyvex.com`.** This session: read-only-SA hardening of the MCP function, then the final three scrapers (FARA foreign agents, Form 5 annual insider filings, Consolidated Screening List). FARA and CSL are new tools (`get_foreign_agents`, `get_screening_list`); Form 5 feeds the existing `get_insider_transactions`. Building phase is now closed — next focus is promotion and launch (MCP registry submissions, launch posts). Earlier this session: Day 10 Track A + Track B were reconciled into v0.43.0 (two parallel worktrees merged — see the Session Bootstrap section for the process fix).
+May 21, 2026 — v0.45.0 live at `https://mcp.keyvex.com`. **OAuth 2.1 resource server with dual-auth (legacy static `MCP_API_KEY` + WorkOS-issued JWT) deployed and verified end-to-end.** RFC 9728 protected-resource-metadata endpoint live at `/.well-known/oauth-protected-resource`. WorkOS Production environment fully configured: MCP Auth (CIMD + DCR) enabled, Resource Indicator `https://mcp.keyvex.com` registered, JWT Template injects `keyvex_tier` claim from user metadata. `WORKOS_API_KEY` stored in Google Secret Manager. The OAuth foundation Anthropic Connectors Directory submission needs is **structurally complete**; remaining work is per-tool tier gating + the Stripe webhook that flips a customer's tier when their subscription changes. Earlier this session: tool annotations on all 38 tools, `marketing/registry-submissions.md` rewritten with accurate Google-Form submission process, README tool counts corrected 28 → 38, `KeyVex-CPA-Interview-Sheet.pdf` generated, `docs/architecture-billing-and-auth.md` written with verified WorkOS citations.
+
+**Earlier "Last Updated" snapshots (kept for history):**
+- May 19, 2026 — Anthropic-prep + Stripe-sandbox build session (multi-day, 2026-05-17 → 2026-05-19). **38 MCP tools at `mcp.keyvex.com` v0.44.0** (no runtime changes; tool annotation files uncommitted at the time on branch `claude/gifted-ptolemy-cd665c`). Stripe sandbox built: Builder + Pro products with monthly + annual prices each, K-logo, Customer Portal configured for Builder ↔ Pro plan-switching. OAuth provider locked as **WorkOS AuthKit**; account created, staging domain `mystical-respect-33-staging.authkit.app` in hand, Production blocked on KeyVex business bank account. CPA interview sheet PDF generated. (All the items in this snapshot subsequently committed and the WorkOS Production gate was unblocked on 2026-05-21 — see the May 21 entry above for the v0.45.0 follow-through.)
+- May 15, 2026 — v0.44.0. **38 MCP tools at `mcp.keyvex.com`.** Session shipped: read-only-SA hardening of the MCP function + the final three scrapers (FARA foreign agents, Form 5 annual insider filings, Consolidated Screening List). FARA and CSL are new tools (`get_foreign_agents`, `get_screening_list`); Form 5 feeds the existing `get_insider_transactions`. Building phase closed — focus shifted to promotion and launch. Earlier in that session: Day 10 Track A + Track B were reconciled into v0.43.0 (two parallel worktrees merged — see the Session Bootstrap section for the process fix).
