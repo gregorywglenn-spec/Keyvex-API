@@ -158,6 +158,48 @@ This commit applies (i) to `queryInstitutionalHoldings` only (the function Greg 
 
 ---
 
+## 7. Full-text search architecture — build vs. buy (v1.1, Greg's call)
+
+**Surfaced by Greg's 2026-05-22 AI-query bug.** Naive substring matching (`.toLowerCase().includes()`) on short query tokens produces ~93% false positives — "AI" matched inside maintaining, Chairman, training, Air, aiding, against, remain, claiming, etc. Confirmed across two unrelated collections (bills, enforcement_actions) — treat as a server-wide architectural property.
+
+**Shipped today as INTERIM mitigation** (`matchesSubstringSafe` helper, commit `<this commit>`):
+  - Short needles (≤3 chars, including 2–3 char acronyms): require word-boundary match (regex `\b`)
+  - Long needles (≥4 chars): unchanged substring behavior
+  - Applied to all 62 substring filter sites in `firestore.ts`
+  - Reproducible smoketest at `scripts/smoketest-substring-tokenization.ts` (43/43 PASS)
+  - End-to-end repro: enforcement_actions text="AI" went 15→2, bills title="AI" went 243→5
+
+**The interim is good for v1, NOT good for v1.1+.** Limitations baked in:
+  - Word-boundary still misses "AI" inside glued compounds (RoboticAI → no match) — acceptable false-negative for the false-positive win, but not great UX
+  - Long-needle substring still has rare collisions (e.g. "Trump" inside "trumped-up" matches)
+  - No relevance ranking (alphabetical / chronological surface ordering)
+  - No fuzzy / typo tolerance ("AAPL" vs "APPL")
+  - No phrase ranking ("artificial intelligence" as a 2-word concept gets no special treatment vs random co-occurrence)
+  - No language analysis (stemming, stopwords, synonyms — "AI" and "machine learning" are searched separately)
+
+**Two real solutions, Greg's call**:
+
+**(a) Build: precomputed keyword arrays per document at ingestion** (~1-2 weeks)
+  - Run a tokenizer (split on whitespace + punctuation, lowercase, dedupe, strip stopwords) on each ingested doc
+  - Store as a `keywords: string[]` field
+  - Query via Firestore's native `array-contains` — no external system, no extra cost
+  - Limitations: still no fuzzy / phrase / ranking, but token-level matches become indexable + fast
+  - Estimated cost: ~10-20% storage increase, ~1 hr per scraper to wire in the tokenizer pass + a backfill run per collection
+  - Suits the pure-publisher posture well — every transform is reproducible, no third-party retains your data
+
+**(b) Buy: third-party search service (Typesense / Meili / Algolia / Elastic)** (~3-5 days integration)
+  - Dual-write each ingested doc to both Firestore and the search service
+  - Substring queries delegate to the search service via REST
+  - Get fuzzy / phrase / ranking / suggest / etc. for free
+  - Cost: ranges from free (self-hosted Meili) to $80-500/mo (Algolia at moderate volume)
+  - Operational footprint: extra service to monitor + reconcile if dual-write desyncs
+
+**Recommendation**: (a) for v1.1 — fits the architecture's idempotent-recompute philosophy, no recurring cost, no external data dependency. (b) becomes attractive only if/when fuzzy + ranking become real customer asks; revisit on signal.
+
+**Status**: Greg's recommendation in the bug report was "ship the word-boundary interim now; SHELVE the full-text-search infra decision to REVIEW_QUEUE.md for me (it's a build vs buy call + cost)." Done as specified.
+
+---
+
 ## Tracking signal for v1.1
 
 Each item above has a known fix. None are launch blockers — the v0.47.0 fix

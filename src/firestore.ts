@@ -672,6 +672,55 @@ function checkKnownGap(
 }
 
 /**
+ * Substring match with word-boundary protection for short queries.
+ *
+ * Greg's 2026-05-22 finding: naive .includes() on short query tokens
+ * produces mostly false positives.
+ *
+ *   "AI" matches inside maintaining, Chairman, training, Air, aiding,
+ *   against, remain, claiming, etc.
+ *   "EV" matches inside event, level, sever, every, eleven, behavioral.
+ *   "ML" matches inside HTML, Hamilton, simulated, formally.
+ *
+ * For short needles (≤3 chars) — including 2-3-char acronyms like AI,
+ * ML, EV, CEO, USA, API, EPA — require a WORD-BOUNDARY match: the
+ * needle must appear as a whole token, with non-word characters
+ * (whitespace, punctuation, hyphens, string boundaries) on both sides.
+ * This catches "AI-powered" (✓), "AI." (✓), "AI's" (✓), drops "Air"
+ * (✗), "Chairman" (✗), "RoboticAI" (✗ — accepted trade-off: false
+ * negatives on glued compounds are better than the current 90%+ false-
+ * positive rate on short queries).
+ *
+ * For longer needles (≥4 chars), substring matching is reliable
+ * enough — collision risk is low (e.g. "trump" inside another word is
+ * essentially never coincidental). Keeps the current behavior to avoid
+ * regressing accepted matches.
+ *
+ * Empty / undefined inputs return false (never match).
+ *
+ * INTERIM FIX. The proper solution is tokenized full-text search —
+ * Typesense/Algolia/Meili/Elastic OR pre-computed keyword arrays on
+ * each document at ingestion (matched server-side via array-contains).
+ * The build-vs-buy call is Greg's; tracked in REVIEW_QUEUE.md.
+ */
+function matchesSubstringSafe(
+  haystack: string | null | undefined,
+  needle: string | null | undefined,
+): boolean {
+  if (!haystack || !needle) return false;
+  const h = haystack.toLowerCase();
+  const n = needle.toLowerCase();
+  if (n.length === 0) return false;
+  if (n.length <= 3) {
+    // Regex escape every special char in the needle, then \b-anchor.
+    const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\b`);
+    return re.test(h);
+  }
+  return h.includes(n);
+}
+
+/**
  * Apply orderBy(sortField, sortOrder) ONLY when at least one is true:
  *   - the caller explicitly requested a sort (hasExplicitSort=true), OR
  *   - the query already includes an inequality where clause that forces
@@ -776,7 +825,7 @@ async function queryInsiderTransactionsLive(
   if (query.officer_name) {
     const needle = query.officer_name.toLowerCase();
     docs = docs.filter((t) =>
-      (t.officer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(t.officer_name, needle),
     );
   }
 
@@ -904,7 +953,7 @@ export async function queryInstitutionalHoldings(
   if (query.fund_name) {
     const needle = query.fund_name.toLowerCase();
     docs = docs.filter((h) =>
-      (h.fund_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(h.fund_name, needle),
     );
   }
 
@@ -999,7 +1048,7 @@ export async function queryCongressionalTrades(
   if (query.member_name) {
     const needle = query.member_name.toLowerCase();
     docs = docs.filter((t) =>
-      (t.member_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(t.member_name, needle),
     );
   }
 
@@ -1090,7 +1139,7 @@ export async function queryForm144Filings(
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.filer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.filer_name, needle),
     );
   }
 
@@ -1182,7 +1231,7 @@ export async function queryForm3Holdings(
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.filer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.filer_name, needle),
     );
   }
 
@@ -1281,7 +1330,7 @@ export async function queryActivistOwnership(
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.filer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.filer_name, needle),
     );
   }
 
@@ -1378,7 +1427,7 @@ export async function queryFederalContractAwards(
   if (query.recipient_name) {
     const needle = query.recipient_name.toLowerCase();
     docs = docs.filter((c) =>
-      (c.recipient_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(c.recipient_name, needle),
     );
   }
   if (query.min_amount !== undefined) {
@@ -1465,7 +1514,7 @@ export async function queryFederalGrants(
   if (query.recipient_name) {
     const needle = query.recipient_name.toLowerCase();
     docs = docs.filter((g) =>
-      (g.recipient_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(g.recipient_name, needle),
     );
   }
   if (query.min_amount !== undefined) {
@@ -1591,7 +1640,7 @@ export async function queryCftcCotReports(
   if (query.contract_market_name) {
     const needle = query.contract_market_name.toLowerCase();
     docs = docs.filter((c) =>
-      (c.contract_market_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(c.contract_market_name, needle),
     );
   }
   if (query.since) {
@@ -1839,20 +1888,20 @@ export async function queryLobbyingFilings(
   if (query.registrant_name) {
     const needle = query.registrant_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.registrant_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.registrant_name, needle),
     );
   }
   if (query.client_name) {
     const needle = query.client_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.client_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.client_name, needle),
     );
   }
   if (query.government_entity) {
     const needle = query.government_entity.toLowerCase();
     docs = docs.filter((f) =>
       (f.government_entities ?? []).some((g) =>
-        g.toLowerCase().includes(needle),
+        matchesSubstringSafe(g, needle),
       ),
     );
   }
@@ -2559,11 +2608,11 @@ export async function queryConsumerComplaints(
 
   if (query.company) {
     const needle = query.company.toLowerCase();
-    docs = docs.filter((c) => c.company.toLowerCase().includes(needle));
+    docs = docs.filter((c) => matchesSubstringSafe(c.company, needle));
   }
   if (query.issue) {
     const needle = query.issue.toLowerCase();
-    docs = docs.filter((c) => c.issue.toLowerCase().includes(needle));
+    docs = docs.filter((c) => matchesSubstringSafe(c.issue, needle));
   }
 
   const has_more = docs.length > userLimit;
@@ -2652,21 +2701,21 @@ export async function queryOigExclusions(
 
   if (query.name) {
     const needle = query.name.toLowerCase();
-    docs = docs.filter((e) => e.full_name.toLowerCase().includes(needle));
+    docs = docs.filter((e) => matchesSubstringSafe(e.full_name, needle));
   }
   if (query.business_name) {
     const needle = query.business_name.toLowerCase();
     docs = docs.filter((e) =>
-      e.business_name.toLowerCase().includes(needle),
+      matchesSubstringSafe(e.business_name, needle),
     );
   }
   if (query.city) {
     const needle = query.city.toLowerCase();
-    docs = docs.filter((e) => e.city.toLowerCase().includes(needle));
+    docs = docs.filter((e) => matchesSubstringSafe(e.city, needle));
   }
   if (query.specialty) {
     const needle = query.specialty.toLowerCase();
-    docs = docs.filter((e) => e.specialty.toLowerCase().includes(needle));
+    docs = docs.filter((e) => matchesSubstringSafe(e.specialty, needle));
   }
   if (query.is_reinstated !== undefined) {
     docs = docs.filter((e) =>
@@ -2915,7 +2964,7 @@ export async function queryLegislators(
 
   if (query.member_name) {
     const needle = query.member_name.toLowerCase();
-    docs = docs.filter((l) => (l.full_name ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((l) => matchesSubstringSafe(l.full_name, needle));
   }
 
   if (query.committee_id) {
@@ -3039,7 +3088,7 @@ export async function queryForm278Filings(
   if (query.member_name) {
     const needle = query.member_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.member_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.member_name, needle),
     );
   }
 
@@ -3123,21 +3172,21 @@ export async function queryFederalRegisterDocuments(
 
   if (query.title) {
     const needle = query.title.toLowerCase();
-    docs = docs.filter((d) => (d.title ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((d) => matchesSubstringSafe(d.title, needle));
   }
   if (query.text) {
     const needle = query.text.toLowerCase();
     docs = docs.filter(
       (d) =>
-        (d.title ?? "").toLowerCase().includes(needle) ||
-        (d.abstract ?? "").toLowerCase().includes(needle) ||
-        (d.excerpts ?? "").toLowerCase().includes(needle),
+        matchesSubstringSafe(d.title, needle) ||
+        matchesSubstringSafe(d.abstract, needle) ||
+        matchesSubstringSafe(d.excerpts, needle),
     );
   }
   if (query.agency_name) {
     const needle = query.agency_name.toLowerCase();
     docs = docs.filter((d) =>
-      (d.agency_names ?? []).some((n) => n.toLowerCase().includes(needle)),
+      (d.agency_names ?? []).some((n) => matchesSubstringSafe(n, needle)),
     );
   }
   if (query.since) {
@@ -3238,18 +3287,18 @@ export async function queryOfacSdn(
 
   if (query.name) {
     const needle = query.name.toLowerCase();
-    docs = docs.filter((e) => (e.name ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((e) => matchesSubstringSafe(e.name, needle));
   }
   if (query.program) {
     const needle = query.program.toLowerCase();
     docs = docs.filter((e) =>
-      (e.program ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(e.program, needle),
     );
   }
   if (query.remarks) {
     const needle = query.remarks.toLowerCase();
     docs = docs.filter((e) =>
-      (e.remarks ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(e.remarks, needle),
     );
   }
 
@@ -3354,7 +3403,7 @@ export async function queryRegistrationStatements(
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((r) =>
-      (r.filer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.filer_name, needle),
     );
   }
   // s1_only / s3_only filters are applied client-side to avoid composite index
@@ -3453,7 +3502,7 @@ export async function queryNportFilings(
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((f) =>
-      (f.filer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(f.filer_name, needle),
     );
   }
   if (query.since) docs = docs.filter((f) => f.file_date >= query.since!);
@@ -3567,12 +3616,12 @@ export async function queryNportHoldings(
 
   if (query.name) {
     const needle = query.name.toLowerCase();
-    docs = docs.filter((h) => (h.name ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((h) => matchesSubstringSafe(h.name, needle));
   }
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((h) =>
-      (h.filer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(h.filer_name, needle),
     );
   }
   if (query.since) {
@@ -3699,19 +3748,19 @@ export async function queryProductRecalls(
   if (query.recalling_firm) {
     const needle = query.recalling_firm.toLowerCase();
     docs = docs.filter((r) =>
-      (r.recalling_firm ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.recalling_firm, needle),
     );
   }
   if (query.product_description) {
     const needle = query.product_description.toLowerCase();
     docs = docs.filter((r) =>
-      (r.product_description ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.product_description, needle),
     );
   }
   if (query.vehicle_model) {
     const needle = query.vehicle_model.toLowerCase();
     docs = docs.filter((r) =>
-      (r.vehicle_model ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.vehicle_model, needle),
     );
   }
 
@@ -3792,7 +3841,7 @@ export async function queryGovDocuments(
   if (query.title) {
     const needle = query.title.toLowerCase();
     docs = docs.filter((d) =>
-      (d.title ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(d.title, needle),
     );
   }
 
@@ -3874,13 +3923,13 @@ export async function queryForeignAgents(
   if (query.registrant_name) {
     const needle = query.registrant_name.toLowerCase();
     docs = docs.filter((r) =>
-      (r.registrant_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.registrant_name, needle),
     );
   }
   if (query.foreign_principal_name) {
     const needle = query.foreign_principal_name.toLowerCase();
     docs = docs.filter((r) =>
-      (r.foreign_principal_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.foreign_principal_name, needle),
     );
   }
 
@@ -3952,16 +4001,16 @@ export async function queryScreeningList(
   if (query.name) {
     const needle = query.name.toLowerCase();
     docs = docs.filter((e) => {
-      if ((e.name ?? "").toLowerCase().includes(needle)) return true;
+      if (matchesSubstringSafe(e.name, needle)) return true;
       return (e.alt_names ?? []).some((n) =>
-        n.toLowerCase().includes(needle),
+        matchesSubstringSafe(n, needle),
       );
     });
   }
   if (query.program) {
     const needle = query.program.toLowerCase();
     docs = docs.filter((e) =>
-      (e.programs ?? []).some((p) => p.toLowerCase().includes(needle)),
+      (e.programs ?? []).some((p) => matchesSubstringSafe(p, needle)),
     );
   }
 
@@ -4041,21 +4090,21 @@ export async function queryEnforcementActions(
 
   if (query.title) {
     const needle = query.title.toLowerCase();
-    docs = docs.filter((a) => (a.title ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((a) => matchesSubstringSafe(a.title, needle));
   }
   if (query.text) {
     const needle = query.text.toLowerCase();
     docs = docs.filter(
       (a) =>
-        (a.title ?? "").toLowerCase().includes(needle) ||
-        (a.teaser ?? "").toLowerCase().includes(needle) ||
-        (a.description ?? "").toLowerCase().includes(needle),
+        matchesSubstringSafe(a.title, needle) ||
+        matchesSubstringSafe(a.teaser, needle) ||
+        matchesSubstringSafe(a.description, needle),
     );
   }
   if (query.agency_component) {
     const needle = query.agency_component.toLowerCase();
     docs = docs.filter((a) =>
-      (a.agency_component ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(a.agency_component, needle),
     );
   }
   if (query.since) docs = docs.filter((a) => a.published_date >= query.since!);
@@ -4167,25 +4216,25 @@ export async function queryPrivatePlacements(
   if (query.issuer_name) {
     const needle = query.issuer_name.toLowerCase();
     docs = docs.filter((p) =>
-      (p.issuer_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(p.issuer_name, needle),
     );
   }
   if (query.industry_group_type) {
     const needle = query.industry_group_type.toLowerCase();
     docs = docs.filter((p) =>
-      (p.industry_group_type ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(p.industry_group_type, needle),
     );
   }
   if (query.investment_fund_type) {
     const needle = query.investment_fund_type.toLowerCase();
     docs = docs.filter((p) =>
-      (p.investment_fund_type ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(p.investment_fund_type, needle),
     );
   }
   if (query.jurisdiction_of_inc) {
     const needle = query.jurisdiction_of_inc.toLowerCase();
     docs = docs.filter((p) =>
-      (p.jurisdiction_of_inc ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(p.jurisdiction_of_inc, needle),
     );
   }
   if (query.min_amount_sold !== undefined) {
@@ -4299,13 +4348,13 @@ export async function queryOtcMarketWeekly(
   if (query.issue_name) {
     const needle = query.issue_name.toLowerCase();
     docs = docs.filter((r) =>
-      (r.issue_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.issue_name, needle),
     );
   }
   if (query.market_participant_name) {
     const needle = query.market_participant_name.toLowerCase();
     docs = docs.filter((r) =>
-      (r.market_participant_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(r.market_participant_name, needle),
     );
   }
   if (query.since) {
@@ -4402,7 +4451,7 @@ export async function queryBills(
 
   if (query.title) {
     const needle = query.title.toLowerCase();
-    docs = docs.filter((b) => (b.title ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((b) => matchesSubstringSafe(b.title, needle));
   }
   // since/until ALWAYS apply to latest_action_date (the canonical "this bill
   // is currently moving" date). For "when was this bill introduced," use the
@@ -4514,7 +4563,7 @@ export async function queryRollCallVotes(
 
   if (query.result) {
     const needle = query.result.toLowerCase();
-    docs = docs.filter((v) => (v.result ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((v) => matchesSubstringSafe(v.result, needle));
   }
   if (query.since) {
     docs = docs.filter((v) => v.start_date >= query.since!);
@@ -4623,13 +4672,13 @@ export async function queryTenderOffers(
   if (query.target_name) {
     const needle = query.target_name.toLowerCase();
     docs = docs.filter((o) =>
-      (o.target_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(o.target_name, needle),
     );
   }
   if (query.bidder_name) {
     const needle = query.bidder_name.toLowerCase();
     docs = docs.filter((o) =>
-      (o.bidder_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(o.bidder_name, needle),
     );
   }
   if (query.since) docs = docs.filter((o) => o.filing_date >= query.since!);
@@ -4729,7 +4778,7 @@ export async function queryFecCandidates(
 
   if (query.candidate_name) {
     const needle = query.candidate_name.toLowerCase();
-    docs = docs.filter((c) => (c.name ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((c) => matchesSubstringSafe(c.name, needle));
   }
 
   const sortField = query.sort_by ?? "last_file_date";
@@ -4829,7 +4878,7 @@ export async function queryFecCommittees(
 
   if (query.committee_name) {
     const needle = query.committee_name.toLowerCase();
-    docs = docs.filter((c) => (c.name ?? "").toLowerCase().includes(needle));
+    docs = docs.filter((c) => matchesSubstringSafe(c.name, needle));
   }
 
   const sortField = query.sort_by ?? "last_file_date";
@@ -4946,13 +4995,13 @@ export async function queryFecContributions(
   if (query.contributor_name) {
     const needle = query.contributor_name.toLowerCase();
     docs = docs.filter((c) =>
-      (c.contributor_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(c.contributor_name, needle),
     );
   }
   if (query.contributor_employer) {
     const needle = query.contributor_employer.toLowerCase();
     docs = docs.filter((c) =>
-      (c.contributor_employer ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(c.contributor_employer, needle),
     );
   }
   if (query.min_amount !== undefined) {
@@ -5098,13 +5147,13 @@ export async function queryFecIndependentExpenditures(
   if (query.payee_name) {
     const needle = query.payee_name.toLowerCase();
     docs = docs.filter((c) =>
-      (c.payee_name ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(c.payee_name, needle),
     );
   }
   if (query.description) {
     const needle = query.description.toLowerCase();
     docs = docs.filter((c) =>
-      (c.disbursement_description ?? "").toLowerCase().includes(needle),
+      matchesSubstringSafe(c.disbursement_description, needle),
     );
   }
   if (query.support_oppose && !["candidate_id", "committee_id"].some((k) => (query as Record<string, unknown>)[k])) {
