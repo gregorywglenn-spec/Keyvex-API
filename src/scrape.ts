@@ -484,9 +484,20 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   cfpb: {
     description:
-      "Scrape CFPB consumer complaints (rolling 2-day window, capped at 2000 records). Add --save to write to Firestore.",
+      "Scrape CFPB consumer complaints. Default: rolling 2-day window (matches daily cron). Add --since=YYYY-MM-DD to backfill from a specific date (e.g., --since=2026-02-21 for ~90 days). Add --save to write to Firestore.",
     run: async (args) => {
-      const complaints = await scrapeCfpbComplaints({});
+      const sinceFlag = args.find((a) => a.startsWith("--since="));
+      const dateReceivedMin = sinceFlag
+        ? sinceFlag.slice("--since=".length)
+        : undefined;
+      if (dateReceivedMin && !/^\d{4}-\d{2}-\d{2}$/.test(dateReceivedMin)) {
+        throw new Error(
+          `--since must be YYYY-MM-DD, got: ${dateReceivedMin}`,
+        );
+      }
+      const complaints = await scrapeCfpbComplaints(
+        dateReceivedMin ? { dateReceivedMin } : {},
+      );
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${complaints.length} CFPB complaints to Firestore...`,
