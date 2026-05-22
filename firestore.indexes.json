@@ -1505,6 +1505,152 @@
         { "fieldPath": "cik", "order": "ASCENDING" },
         { "fieldPath": "period_end", "order": "DESCENDING" }
       ]
+    },
+
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipient_committee_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipient_committee_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "entity_type", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "entity_type", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contributor_state", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_contributions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contributor_state", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "committee_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "committee_id", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "support_oppose_indicator", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "support_oppose_indicator", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_office_state", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "candidate_office_state", "order": "ASCENDING" },
+        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
+        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

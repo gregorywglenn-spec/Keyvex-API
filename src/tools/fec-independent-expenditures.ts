@@ -123,7 +123,7 @@ export const definition: Tool = {
       },
       exclude_memos: {
         type: "boolean",
-        description: "When true, filters out memoed_subtotal rows. Default false.",
+        description: "When true, filters out memoed_subtotal rows. FEC sometimes back-fills sentinel future dates onto memo rows, causing them to sort to TOP under default date-desc. STRONGLY recommend exclude_memos=true for any 'recent expenditures' or 'top expenditures' query. Default false (backward-compat only).",
       },
       sort_by: {
         type: "string",
