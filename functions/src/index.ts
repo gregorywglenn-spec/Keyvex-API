@@ -1790,7 +1790,12 @@ export const mcp = onRequest(
     // = a knowable upper bound on a bad day. Tune up if legitimate load
     // approaches the ceiling; tune down if abuse is suspected.
     maxInstances: 50,
-    cors: false,
+    // CORS enabled to allow browser-origin calls (some MCP clients connect
+    // directly from the browser rather than through a server-side proxy).
+    // `true` means firebase-functions adds permissive Access-Control-*
+    // headers. Safe for our authless public endpoint — there's no
+    // credential-bearing flow that CORS could compromise.
+    cors: true,
     // Dedicated least-privilege runtime identity. This service account holds
     // only Cloud Datastore Viewer (Firestore READ-only) + Logs Writer +
     // Monitoring Metric Writer — NO Firestore write. The MCP server's tools

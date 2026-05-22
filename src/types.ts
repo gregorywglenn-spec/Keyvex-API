@@ -2212,6 +2212,14 @@ export interface Bill {
   origin_chamber: string;
   /** Originating chamber code: "H" | "S". */
   origin_chamber_code: string;
+  /**
+   * ISO date the bill was originally introduced (referred to first committee).
+   * Distinct from `latest_action_date`, which moves with floor/committee
+   * activity over time. Use this for "introduced in the last N months" queries.
+   * Empty string if not yet populated (older scraper runs may not have it;
+   * backfill via a re-scrape of the affected Congress).
+   */
+  introduction_date: string;
   /** ISO date of the most recent floor / committee / status action. */
   latest_action_date: string;
   /** Human-readable description of the latest action. */
@@ -2240,7 +2248,16 @@ export interface BillsQuery {
   since?: string;
   /** Latest-action date upper bound (ISO YYYY-MM-DD inclusive). */
   until?: string;
-  sort_by?: "latest_action_date" | "update_date";
+  /**
+   * Introduction-date lower bound (ISO YYYY-MM-DD inclusive). Use this to
+   * answer "bills introduced in the last N months" — `since`/`until` filter
+   * the *most recent* action date, which can move with floor activity even
+   * on bills introduced over a year ago.
+   */
+  introduced_since?: string;
+  /** Introduction-date upper bound (ISO YYYY-MM-DD inclusive). */
+  introduced_until?: string;
+  sort_by?: "latest_action_date" | "update_date" | "introduction_date";
   sort_order?: "asc" | "desc";
   limit?: number;
 }

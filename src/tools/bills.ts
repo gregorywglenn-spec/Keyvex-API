@@ -82,17 +82,26 @@ export const definition: Tool = {
       since: {
         type: "string",
         description:
-          "Latest-action date lower bound (ISO YYYY-MM-DD inclusive). Useful for 'what's moved recently'.",
+          "Latest-action date lower bound (ISO YYYY-MM-DD inclusive). Useful for 'what's moved recently'. NOTE: this filters the most-recent floor/committee action, which can move with activity even on a bill introduced a year ago. For 'introduced in the last N months' questions, use introduced_since instead.",
       },
       until: {
         type: "string",
         description: "Latest-action date upper bound (ISO YYYY-MM-DD inclusive).",
       },
+      introduced_since: {
+        type: "string",
+        description:
+          "Introduction-date lower bound (ISO YYYY-MM-DD inclusive). The right filter for 'bills introduced in the last N months' — distinct from since/until, which track latest action. Older bill records may have an empty introduction_date if they were ingested before that field was added; those will be excluded from introduced_since/introduced_until results until the bill is re-scraped.",
+      },
+      introduced_until: {
+        type: "string",
+        description: "Introduction-date upper bound (ISO YYYY-MM-DD inclusive).",
+      },
       sort_by: {
         type: "string",
-        enum: ["latest_action_date", "update_date"],
+        enum: ["latest_action_date", "update_date", "introduction_date"],
         description:
-          "Sort key. Default: latest_action_date (most recently active first).",
+          "Sort key. Default: latest_action_date (most recently active first). Use introduction_date to sort by when the bill was originally introduced.",
       },
       sort_order: {
         type: "string",
@@ -196,14 +205,36 @@ function validateAndNormalize(raw: unknown): BillsQuery {
     }
     out.until = args.until;
   }
+  if (args.introduced_since !== undefined) {
+    if (
+      typeof args.introduced_since !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(args.introduced_since)
+    ) {
+      throw new Error(
+        `INVALID introduced_since: '${String(args.introduced_since)}' — expected YYYY-MM-DD`,
+      );
+    }
+    out.introduced_since = args.introduced_since;
+  }
+  if (args.introduced_until !== undefined) {
+    if (
+      typeof args.introduced_until !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(args.introduced_until)
+    ) {
+      throw new Error(
+        `INVALID introduced_until: '${String(args.introduced_until)}' — expected YYYY-MM-DD`,
+      );
+    }
+    out.introduced_until = args.introduced_until;
+  }
 
   if (args.sort_by !== undefined) {
     if (
       typeof args.sort_by !== "string" ||
-      !["latest_action_date", "update_date"].includes(args.sort_by)
+      !["latest_action_date", "update_date", "introduction_date"].includes(args.sort_by)
     ) {
       throw new Error(
-        `INVALID sort_by: '${String(args.sort_by)}' — expected latest_action_date | update_date`,
+        `INVALID sort_by: '${String(args.sort_by)}' — expected latest_action_date | update_date | introduction_date`,
       );
     }
     out.sort_by = args.sort_by as BillsQuery["sort_by"];

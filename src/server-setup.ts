@@ -31,6 +31,14 @@ export function createMcpServer(name: string, version: string): Server {
  * with a "CODE: message" prefix (the convention in the input-validation
  * helpers), the code is extracted and surfaced separately so agents can
  * branch on it.
+ *
+ * Error messages are passed through `sanitizeErrorMessage()` before being
+ * returned to the client. This strips Google Cloud Console URLs, the GCP
+ * project identifier, and other infrastructure details that should never
+ * leak to API consumers. Required for compliance with Anthropic Software
+ * Directory Policy Section 5A (MCP servers must gracefully handle errors
+ * and provide helpful feedback rather than generic error messages — but
+ * "helpful" must not include internal infrastructure details).
  */
 export function applyToolHandlers(server: Server): void {
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -55,11 +63,26 @@ export function applyToolHandlers(server: Server): void {
         ],
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const codeMatch = /^([A-Z][A-Z0-9_]+):\s*/.exec(message);
-      const code = codeMatch ? codeMatch[1]! : "INTERNAL_ERROR";
-      const cleanMessage = codeMatch ? message.slice(codeMatch[0].length) : message;
-      return errorResult(code, cleanMessage);
+      // Log the full original error server-side so we can debug — this
+      // shows up in Cloud Functions logs but never reaches the caller.
+      const rawMessage = err instanceof Error ? err.message : String(err);
+      const rawStack = err instanceof Error ? err.stack : undefined;
+      console.error(
+        `[mcp] tool '${request.params.name}' threw:`,
+        rawMessage,
+        rawStack ? `\n${rawStack}` : "",
+      );
+
+      // Extract any "CODE: message" prefix per the in-house convention.
+      const codeMatch = /^([A-Z][A-Z0-9_]+):\s*/.exec(rawMessage);
+      const code = codeMatch ? codeMatch[1]! : classifyError(rawMessage);
+      const cleanMessage = codeMatch
+        ? rawMessage.slice(codeMatch[0].length)
+        : rawMessage;
+
+      // Strip infrastructure details before returning to caller.
+      const sanitized = sanitizeErrorMessage(cleanMessage);
+      return errorResult(code, sanitized);
     }
   });
 }
@@ -74,4 +97,79 @@ function errorResult(code: string, message: string) {
     ],
     isError: true,
   };
+}
+
+/**
+ * Classify a raw backend error message into a high-level code that an
+ * agent can branch on without parsing message text.
+ */
+function classifyError(rawMessage: string): string {
+  if (/FAILED_PRECONDITION.*requires an index/i.test(rawMessage)) {
+    return "INDEX_MISSING";
+  }
+  if (/PERMISSION_DENIED/i.test(rawMessage)) {
+    return "BACKEND_PERMISSION_DENIED";
+  }
+  if (/DEADLINE_EXCEEDED|TIMEOUT/i.test(rawMessage)) {
+    return "BACKEND_TIMEOUT";
+  }
+  if (/UNAVAILABLE/i.test(rawMessage)) {
+    return "BACKEND_UNAVAILABLE";
+  }
+  if (/RESOURCE_EXHAUSTED|QUOTA/i.test(rawMessage)) {
+    return "BACKEND_QUOTA_EXCEEDED";
+  }
+  if (/NOT_FOUND/i.test(rawMessage)) {
+    return "BACKEND_NOT_FOUND";
+  }
+  if (/INVALID_ARGUMENT/i.test(rawMessage)) {
+    return "INVALID_ARGUMENT";
+  }
+  return "INTERNAL_ERROR";
+}
+
+/**
+ * Strip infrastructure details from an error message before sending to
+ * the client. Specifically:
+ *
+ *   - Firebase Console URLs (contain GCP project IDs + index-creation links)
+ *   - The GCP project identifier (`capitaledge-api`) anywhere it appears
+ *   - Other `*.googleapis.com` / `*.google.com` URLs
+ *   - Verbose Firestore/gRPC framing (numeric status codes, internal phrases)
+ *   - Specific known failure shapes get replaced with user-friendly text
+ *
+ * Replaces with friendly synonyms or `[redacted]` so the message stays
+ * informative without leaking implementation details.
+ */
+export function sanitizeErrorMessage(message: string): string {
+  let out = message;
+
+  // Replace the index-required FAILED_PRECONDITION shape with a clear,
+  // actionable message. This is the most common backend error a caller
+  // can hit when combining filters that lack a composite index.
+  out = out.replace(
+    /\d+\s*FAILED_PRECONDITION:?\s*The query requires an index\.[\s\S]*/i,
+    "Query requires a composite index that has not yet been provisioned for this filter combination. Try a simpler filter (e.g. drop one filter or one sort dimension), or contact contact@keyvex.com to request the index.",
+  );
+
+  // Strip Google Cloud Console URLs (these can carry GCP project IDs).
+  out = out.replace(
+    /https?:\/\/console\.(?:firebase|cloud)\.google\.com\/[^\s)\]]*/gi,
+    "[redacted]",
+  );
+
+  // Strip any *.googleapis.com URL.
+  out = out.replace(/https?:\/\/[a-z0-9.-]*\.googleapis\.com\/[^\s)\]]*/gi, "[redacted]");
+
+  // Strip the GCP project ID anywhere it leaks (defense in depth).
+  out = out.replace(/\bcapitaledge-api\b/g, "[project]");
+
+  // Strip numeric gRPC status prefixes ("9 FAILED_PRECONDITION", etc.)
+  // that the Firestore SDK includes; keep the descriptive symbol.
+  out = out.replace(/^\d+\s+([A-Z_]+):?\s*/, "$1: ");
+
+  // Collapse runs of whitespace introduced by redactions.
+  out = out.replace(/\s+/g, " ").trim();
+
+  return out;
 }

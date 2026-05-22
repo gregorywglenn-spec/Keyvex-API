@@ -3845,11 +3845,26 @@ export async function queryBills(
     const needle = query.title.toLowerCase();
     docs = docs.filter((b) => (b.title ?? "").toLowerCase().includes(needle));
   }
+  // since/until ALWAYS apply to latest_action_date (the canonical "this bill
+  // is currently moving" date). For "when was this bill introduced," use the
+  // separate introduced_since / introduced_until filters below — those let
+  // callers answer "introduced in the last N months" without conflating
+  // recent floor activity with original introduction.
   if (query.since) {
-    docs = docs.filter((b) => b.latest_action_date >= query.since!);
+    docs = docs.filter((b) => (b.latest_action_date ?? "") >= query.since!);
   }
   if (query.until) {
-    docs = docs.filter((b) => b.latest_action_date <= query.until!);
+    docs = docs.filter((b) => (b.latest_action_date ?? "") <= query.until!);
+  }
+  if (query.introduced_since) {
+    docs = docs.filter(
+      (b) => (b.introduction_date ?? "") >= query.introduced_since!,
+    );
+  }
+  if (query.introduced_until) {
+    docs = docs.filter(
+      (b) => (b.introduction_date ?? "") <= query.introduced_until!,
+    );
   }
 
   const sortField = query.sort_by ?? "latest_action_date";

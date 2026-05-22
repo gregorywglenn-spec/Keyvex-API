@@ -77,6 +77,8 @@ interface RawBill {
   title?: string;
   originChamber?: string;
   originChamberCode?: string;
+  /** ISO date the bill was originally introduced (referred to first committee). */
+  introducedDate?: string;
   latestAction?: {
     actionDate?: string;
     text?: string;
@@ -282,6 +284,10 @@ function normalizeBill(raw: RawBill, scrapedAt: string): Bill | null {
     title: raw.title ?? "",
     origin_chamber: raw.originChamber ?? "",
     origin_chamber_code: raw.originChamberCode ?? "",
+    // congress.gov v3 returns `introducedDate` on the bill list endpoint.
+    // Older scraper runs (pre-2026-05-22) did not extract this; re-running
+    // the scraper backfills it idempotently (same bill_id, merge on write).
+    introduction_date: raw.introducedDate ?? "",
     latest_action_date: raw.latestAction?.actionDate ?? "",
     latest_action_text: raw.latestAction?.text ?? "",
     update_date: raw.updateDateIncludingText ?? raw.updateDate ?? "",
