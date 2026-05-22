@@ -411,6 +411,20 @@ async function withCoverageWarning<T>(
     return { ...base, coverage_warning: gapNotice };
   }
 
+  // ── Case 5: SHALLOW-COVERAGE collection (Greg's 2026-05-22 federal_contracts diagnosis) ──
+  // Fires on EVERY query against a known-shallow collection (empty or
+  // non-empty), because the agent's "completeness" assumption is wrong
+  // regardless of how many rows came back. The rolling-window scrapers
+  // simply do not see historical non-recently-modified records. Higher
+  // priority than the empty/coverage messaging below — the shallow
+  // notice is the single most useful piece of context for the agent.
+  // INVALID_QUERY and KNOWN_GAP still take precedence (those represent
+  // structural query mistakes; this represents a data-coverage caveat).
+  const shallowNotice = SHALLOW_COVERAGE_NOTICES[collection];
+  if (shallowNotice) {
+    return { ...base, coverage_warning: shallowNotice };
+  }
+
   const dateFilterFields = COLLECTION_DATE_FILTER_FIELDS[collection] ?? [
     "since",
     "until",
@@ -670,6 +684,35 @@ function checkKnownGap(
   }
   return undefined;
 }
+
+/**
+ * Collections that hold a recency-limited / shallow slice of a deeper
+ * external dataset. The agent might assume completeness on an entity
+ * query ("show me Lockheed's federal contracts") but the underlying
+ * scraper only ingests a rolling window — so any result count, even
+ * non-zero, can be a small sliver of the true upstream universe.
+ *
+ * For these collections, attach a notice to EVERY response (empty or
+ * non-empty). The notice tells the agent what the scraper actually
+ * covers + where to go for full history.
+ *
+ * Surfaced by Greg's 2026-05-22 federal_contracts diagnosis: querying
+ * by indexed recipient_uei returned only 3 records max $42M for
+ * Lockheed Martin — a "completeness" answer that's structurally wrong
+ * because LMT's billions in historical defense contracts simply
+ * aren't in the rolling 7-day action window the scraper pulls.
+ *
+ * Today's registry covers only collections where the limitation has
+ * been confirmed and the source-of-truth fallback is clear. Add new
+ * entries conservatively — over-warning is also dishonest (an
+ * informative-deep collection getting a "shallow!" notice is wrong).
+ */
+const SHALLOW_COVERAGE_NOTICES: Record<string, string> = {
+  federal_contracts:
+    "Coverage note: federal_contracts holds a rolling slice of recently-modified contract actions (scraper runs daily on a 7-day action_date window via USAspending API). Historical multi-year mega-contracts that haven't had a recent modification will NOT be in this collection regardless of recipient size — e.g. a Lockheed Martin F-35 contract signed in 2018 won't appear unless a recent obligation/modification was filed against it. Top results by award_amount in this collection are the largest among recently-modified actions, not the largest overall. For full historical coverage of a recipient or program, use the USAspending advanced search at https://www.usaspending.gov/search. v1.1 will add a recipient-backfill mode.",
+  federal_grants:
+    "Coverage note: federal_grants holds a rolling slice of recently-modified grant actions (scraper runs daily on a 7-day action_date window via USAspending API). Historical multi-year awards that haven't been modified recently will NOT be in this collection. For full historical coverage of a recipient or CFDA program, use https://www.usaspending.gov/search. v1.1 will add a recipient-backfill mode.",
+};
 
 /**
  * Substring match with word-boundary protection for short queries.

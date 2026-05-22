@@ -200,6 +200,44 @@ This commit applies (i) to `queryInstitutionalHoldings` only (the function Greg 
 
 ---
 
+## 8. federal_contracts + federal_grants — backfill the historical universe (HARD-FLAG)
+
+**Surfaced by Greg's 2026-05-22 Lockheed Martin diagnosis.** `get_federal_contracts(recipient_name="Lockheed")` returned 6 records, max $42M, has_more=false. Greg correctly retracted his earlier "truncation" hypothesis and traced it to scraper COVERAGE: the indexed `recipient_uei` path returned the same shallow data, proving the prefetch window is not the limit — the data simply isn't there.
+
+**Confirmed root cause** (verified in code today): `src/scrapers/usaspending.ts:scrapeContractsLiveFeed(lookbackDays=7)` posts a `time_period: [{start_date: <today-7>, end_date: today}]` filter to USAspending's `/api/v2/search/spending_by_award/` endpoint. That filter is interpreted as `action_date` window — only contract actions (new awards, modifications, options exercise) whose `action_date` falls in the last 7 days come back. The daily cron at 6:10 AM ET ingests up to 1,000 records per run (10 pages × 100). Same shape on `scrapeUSAspendingGrantsDaily` for grants.
+
+**Direct probe of the live collection** (`scripts/diag-fc-coverage.ts`):
+  - Date range stored: **2026-04-29 → 2026-05-20** (~22 days as residue of recent crons; older records get displaced as the rolling window advances)
+  - Top awards in entire collection: $35B Triad National Security, $30B Battelle Memorial, $27B Savannah River, $25B Battelle Energy, $22B Boeing — all big contracts that *happened* to have a recent modification
+  - Lockheed Martin entries: 6 records, max $42M — coincidence that LMT had no big mods this window; the underlying F-35 / SR-71 multi-billion contracts aren't surfaced because they weren't modified recently
+
+**Today's honesty fix** (commit `<this commit>`): added `SHALLOW_COVERAGE_NOTICES` registry to `withCoverageWarning`. Every query against `federal_contracts` or `federal_grants` now returns a `coverage_warning` describing the rolling-window limitation + pointing to https://www.usaspending.gov/search for full history. Fires whether results are empty or non-empty. Verified by `scripts/smoketest-shallow-coverage.ts` (5/5 PASS).
+
+**v1.1 real fix (scraper-side)**: add a recipient-backfill mode that, when a query targets a specific recipient_uei / recipient_name, kicks off a one-shot deep pull via USAspending's `/api/v2/search/spending_by_award/` with NO time_period filter for that entity. Cache the result. Triggers + storage to be designed.
+
+---
+
+## 9. Latent: client-side-substring-after-prefetch may silently truncate on DEEP collections (verify-before-fix)
+
+**Greg's 2026-05-22 caveat**: the pattern in many query functions is *fetch wider Firestore window → client-side substring filter → client-side sort → trim to limit*. On THIN collections (today's federal_contracts) this is fine because the prefetch window contains everything. On DEEP collections (fec_contributions, lobbying_filings, congressional_trades, bills) it COULD produce partial-window rankings: the top-N by amount within the prefetch window may not be the true top-N by amount across the full collection.
+
+**Greg's explicit instruction**: "verify, do NOT assert". Don't fix until confirmed.
+
+**Verification plan** (next session can run):
+  1. Pick a deep collection with substring filter — `lobbying_filings.client_name` is the natural candidate (51K records, $5M+ income range, substring is heavy use case)
+  2. Run a TIGHT client-side substring (expected to return < 5000 rows) sorted by income DESC — confirm top-3 has the largest incomes
+  3. Run a LOOSE client-side substring (expected to return > 5000 rows) sorted by income DESC — capture the top-3
+  4. Bump the fetchLimit ceiling locally (say from 5000 → 20000), re-run #3 — if the top-3 by income changes, truncation is real
+
+If confirmed real, the fix is one of:
+  - (a) Raise fetchLimit dynamically based on observed prefetch density
+  - (b) Use the result-set-streaming pattern (paginate Firestore cursor, accumulate matches, sort at end)
+  - (c) Document the upper bound on substring queries + recommend tighter filters for ranking
+
+This is NOT scoped for v1 because no customer report has confirmed it bites. Keep it on the radar for the v1.1 architecture pass that's already on this list as item 6 (default-orderBy sweep).
+
+---
+
 ## Tracking signal for v1.1
 
 Each item above has a known fix. None are launch blockers — the v0.47.0 fix
