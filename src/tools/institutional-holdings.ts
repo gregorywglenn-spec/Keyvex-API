@@ -18,6 +18,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_institutional_holdings",
+  annotations: {
+    title: "Institutional Holdings (SEC Form 13F)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns 13F holdings — quarterly snapshots of equity positions held by",
     "institutional investment managers with $100M+ AUM, filed with the SEC.",

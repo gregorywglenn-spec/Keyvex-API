@@ -36,6 +36,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_annual_financial_disclosures",
+  annotations: {
+    title: "Annual Financial Disclosures (Form 278)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Form 278 (Public Financial Disclosure / Annual Financial",
     "Disclosure) filings — the annual snapshot members of Congress file",

@@ -26,6 +26,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_federal_grants",
+  annotations: {
+    title: "Federal Grants (USAspending)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns federal GRANTS and cooperative agreements from USAspending.",
     "Distinct universe from get_federal_contracts — recipients here are",

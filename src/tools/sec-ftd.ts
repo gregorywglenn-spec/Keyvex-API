@@ -25,6 +25,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_sec_fails_to_deliver",
+  annotations: {
+    title: "SEC Fails-to-Deliver",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns SEC Fails-to-Deliver (FTD) rows — daily settlement failures",
     "by ticker / CUSIP / date. Each row is one ticker on one settlement",

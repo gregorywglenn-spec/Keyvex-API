@@ -20,6 +20,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_activist_stakes",
+  annotations: {
+    title: "Activist Stakes (SEC Schedule 13D/13G)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Schedule 13D / 13G beneficial-ownership disclosures —",
     "filings made by anyone holding ≥5% of a class of registered equity",

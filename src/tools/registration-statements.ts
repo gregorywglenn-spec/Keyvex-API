@@ -21,6 +21,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_registration_statements",
+  annotations: {
+    title: "Registration Statements (SEC S-1/S-3)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns SEC Form S-1 / S-3 registration statements — securities",
     "offering registrations filed with the SEC. Use this when the user",

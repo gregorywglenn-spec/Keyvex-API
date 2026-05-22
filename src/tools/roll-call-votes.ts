@@ -23,6 +23,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_roll_call_votes",
+  annotations: {
+    title: "Congressional Roll-Call Votes",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns congressional roll-call vote metadata (House + Senate) from",
     "api.congress.gov. Use this when the user asks about: recent votes",

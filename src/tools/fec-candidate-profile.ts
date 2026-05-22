@@ -37,6 +37,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_fec_candidate_profile",
+  annotations: {
+    title: "FEC Candidate Profile",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns FEC-registered candidate profiles (House, Senate, President)",
     "and — when include_committees=true (default) — each candidate's",

@@ -27,6 +27,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_insider_transactions",
+  annotations: {
+    title: "Insider Transactions (SEC Form 4/5)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns executive insider transactions filed on SEC Form 4 — open-market",
     "purchases and sales by officers, directors, and 10%-owners of public",

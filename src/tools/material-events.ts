@@ -27,6 +27,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_material_events",
+  annotations: {
+    title: "Material Events (SEC Form 8-K)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Form 8-K filings — the SEC's 'current report' form, filed",
     "within 4 business days of any material event at a publicly-traded",

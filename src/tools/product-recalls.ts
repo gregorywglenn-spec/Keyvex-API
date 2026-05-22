@@ -33,6 +33,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_product_recalls",
+  annotations: {
+    title: "Product Recalls (FDA / CPSC)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns safety recalls from federal agencies — drug recalls (FDA),",
     "medical device recalls (FDA), food/dietary supplement recalls (FDA),",

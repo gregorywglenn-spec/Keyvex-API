@@ -24,6 +24,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_nport_filings",
+  annotations: {
+    title: "Fund Filings (SEC Form N-PORT)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns SEC Form N-PORT filings — monthly portfolio reports from",
     "registered investment companies (mutual funds, ETFs, closed-end",

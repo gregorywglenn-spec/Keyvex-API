@@ -22,6 +22,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_planned_insider_sales",
+  annotations: {
+    title: "Planned Insider Sales (SEC Form 144)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns Form 144 filings — notices of proposed sale by corporate insiders",
     "(officers, directors, 10%+ holders) under Rule 144 of the Securities Act.",

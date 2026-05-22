@@ -19,6 +19,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_fundamentals",
+  annotations: {
+    title: "Company Fundamentals (SEC XBRL)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns XBRL-tagged financial fundamentals from public-company 10-K",
     "and 10-Q filings, sourced from SEC EDGAR's company-facts API. Each",

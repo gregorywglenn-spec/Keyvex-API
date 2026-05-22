@@ -35,6 +35,11 @@ import type {
 
 export const definition: Tool = {
   name: "get_tender_offers",
+  annotations: {
+    title: "Tender Offers (SEC Schedule TO)",
+    readOnlyHint: true,
+    openWorldHint: true,
+  },
   description: [
     "Returns SEC Schedule TO filings — public tender offer disclosures.",
     "Use this when the user asks about: who's bidding to acquire company",
