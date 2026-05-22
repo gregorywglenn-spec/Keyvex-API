@@ -2,6 +2,24 @@
 
 This is the day-1 reading for any AI agent (Claude or otherwise) opening this project cold. Read this first, then follow the cross-references at the bottom for deeper context.
 
+---
+
+## ⚠️ CORE PROTOCOL — READ BEFORE ANY OTHER LINE OF THIS FILE
+
+**DO NOT ASSUME. VERIFY EVERY LOAD-BEARING FACT WITH A TOOL CALL BEFORE STATING IT.**
+
+This rule is absolute and overrides every preference, optimization, and convention below. Full text in memory at `feedback_verify_facts_dont_assume.md`. Anchored here so it's impossible to miss.
+
+**The canonical failure (2026-05-20 → 2026-05-22, 14 hours of Greg's life):** a prior session drafted `docs/architecture-billing-and-auth.md` asserting "OAuth 2.1 + DCR is required for the Anthropic Connectors Directory" without ever fetching `https://claude.com/docs/connectors/building/authentication.md`. That single missing 30-second fetch cascaded into WorkOS abandoned ($99/mo gate), Descope abandoned after 12 hours of flow-editor pain, then a Clerk plan that started today's session. When the raw doc was finally fetched verbatim, it revealed **five supported auth types including `none` (authless) — which is the cleanest fit for KeyVex.** The entire 14-hour OAuth chase was solving a requirement that didn't exist.
+
+**Operational rule:** for any fact that drives a decision, plan, recommendation, or code change — verify with a tool call first. WebFetch summaries are paraphrases that drop nuance and table entries; for load-bearing docs, fetch raw markdown at `<url>.md` (Anthropic, Stripe, Linear, Vercel, and many others publish these) or `curl` the HTML and parse it yourself. Training-data recall and "common conventions" are not verification.
+
+**Trigger phrases that mean STOP and verify:** "I think the API requires...", "Typically that library...", "Based on common OAuth conventions...", "From the WebFetch summary...", "I recall from training...", "Prior Claude sessions concluded...", "The cron must be...", "Their pricing is around..."
+
+The cost of verifying: ~30 seconds. The cost of not verifying: documented at 14 hours and counting.
+
+---
+
 **Brand:** the public-facing name is **KeyVex** (decided 2026-05-04). Domain `keyvex.com` registered. Earlier doc references to "Capital Edge MCP" or "capital-edge-mcp" as the product's name are pre-rebrand history — the product is now KeyVex everywhere customer-facing.
 
 **Infra-side names that look like the old brand are NOT the brand and stay unchanged forever:**

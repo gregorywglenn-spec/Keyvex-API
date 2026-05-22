@@ -32,3 +32,6 @@ yarn-error.log*
 # Test coverage
 coverage/
 .nyc_output/
+
+# Research scratch space (raw doc fetches, exploration outputs)
+.research-tmp/
