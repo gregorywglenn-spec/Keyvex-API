@@ -2762,9 +2762,24 @@ export async function queryOfacSdn(
   }
 
   const userLimit = query.limit ?? 50;
+  const sortFieldForFetch = query.sort_by ?? "ent_num";
+  const hasSubstringFilter = !!(query.name || query.program || query.remarks);
+  // Bug #9 fix (2026-05-22): when sorting by `ent_num` (the default sort
+  // field), we MUST pull the entire collection before sorting client-side.
+  // Reason: doc ID = ent_num is stored as a STRING ("26503"), so Firestore's
+  // default document-ID ordering is lexicographic. Without an explicit
+  // orderBy clause (we can't use one because ent_num strings sort wrong
+  // alphabetically), Firestore returns the first N docs in string order —
+  // and our in-memory numeric sort below only sees that subset. Result was
+  // a confirmed compliance-grade bug: query "highest ent_num" returned
+  // 11598 while a filtered query found 26503 sitting in the same dataset.
+  // Bumping fetchLimit to 30000 covers the full OFAC SDN list (~25K
+  // currently) so the numeric sort sees every candidate. Long-term fix
+  // (v1.1): store an `ent_num_int` numeric companion field and use a real
+  // Firestore-side orderBy.
   const fetchLimit =
-    query.name || query.program || query.remarks
-      ? 5000
+    hasSubstringFilter || sortFieldForFetch === "ent_num"
+      ? 30000
       : Math.max(userLimit * 4, 500);
   q = q.limit(fetchLimit);
 
