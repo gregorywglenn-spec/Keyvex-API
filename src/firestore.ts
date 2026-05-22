@@ -399,6 +399,18 @@ async function withCoverageWarning<T>(
   collection: string,
 ): Promise<QueryResult<T>> {
   const q = query as Record<string, unknown>;
+
+  // ── Case 2: KNOWN-UNSUPPORTED filter value (Greg's 4-case spec) ────────
+  // Fires regardless of result count, regardless of date filter. Static
+  // notice — no Firestore round-trip. This intentionally REPLACES any
+  // downstream coverage_warning that would have been emitted for the
+  // same query, because the gap notice is the more informative message
+  // (tells the agent exactly which version supports the path).
+  const gapNotice = checkKnownGap(collection, q);
+  if (gapNotice) {
+    return { ...base, coverage_warning: gapNotice };
+  }
+
   const dateFilterFields = COLLECTION_DATE_FILTER_FIELDS[collection] ?? [
     "since",
     "until",
@@ -409,7 +421,34 @@ async function withCoverageWarning<T>(
     const v = q[f];
     if (typeof v === "string" && v.length > 0) setFilters.push([f, v]);
   }
-  if (setFilters.length === 0) return base; // no date filter → no warning
+
+  // ── Case 3.b: VALID + empty WITHOUT a date filter ─────────────────────
+  // The agent's filter values matched 0 records but they didn't ask about
+  // a date window. Surface the collection's actual coverage so the agent
+  // knows whether to suspect "filter combination matches nothing" vs
+  // "data hasn't been ingested yet for this entity." Skip when the
+  // collection isn't mapped in COLLECTION_DATE_FIELD (no coverage to
+  // report) or when results are non-empty.
+  if (setFilters.length === 0) {
+    if (base.results.length === 0) {
+      const df = COLLECTION_DATE_FIELD[collection];
+      if (df) {
+        try {
+          const cov = await getCollectionCoverage(collection, df);
+          if (cov.min_date && cov.max_date) {
+            return {
+              ...base,
+              coverage_warning: `Returned 0 results for this query. The collection currently holds records spanning ${cov.min_date} to ${cov.max_date}; the filter values you supplied match no records. Either no entity matches those values, or the relevant data hasn't been ingested yet. Try removing filters one at a time. Email contact@keyvex.com for exact coverage info.`,
+            };
+          }
+        } catch {
+          // Coverage fetch failed — fall through to bare base; better
+          // silence than an alarmist message we can't substantiate.
+        }
+      }
+    }
+    return base; // no date filter, non-empty results → no warning needed
+  }
 
   const dateField = COLLECTION_DATE_FIELD[collection];
   if (!dateField) return base; // unmapped collection → silently skip
@@ -583,6 +622,53 @@ function rejectNumericSortWithDateFilter(
   throw new Error(
     `INVALID_QUERY: since/until cannot be combined with sort_by="${sortField}" because that field is numeric, not a date. A date-string filter on a numeric field would silently return zero results. Two ways to fix: (1) drop the since/until filter, OR (2) keep the date filter and use a date sort_by (each tool's default sort_by is a date — omit sort_by to use it). To find the largest by ${sortField} within a date window, fetch with sort_by="${sortField}" and no date filter, then post-filter on the date field client-side.`,
   );
+}
+
+/**
+ * KNOWN-UNSUPPORTED filter values per Greg's 4-case empty-result spec
+ * (2026-05-22):
+ *
+ *   1. INVALID_QUERY   — handled by rejectNumericSortWithDateFilter above.
+ *   2. KNOWN-UNSUPPORTED filter value — handled here. Static notice, no
+ *      coverage computation, no Firestore round-trip. Replaces the bare-
+ *      empty response when an agent passes a documented gap value.
+ *   3. VALID + empty   — handled by withCoverageWarning's date-window
+ *      logic + the new empty-without-date-filter notice.
+ *   4. VALID + results — passes through unchanged.
+ *
+ * Each gap entry is a (collection, filterField, matchFn, notice) tuple.
+ * Add new ones as documented gaps surface — keep notices honest and
+ * action-oriented (tell the agent what version DOES support it, or
+ * what alternative path covers the question).
+ */
+type KnownGap = {
+  collection: string;
+  filterField: string;
+  matches: (value: unknown) => boolean;
+  notice: string;
+};
+
+const KNOWN_GAPS: KnownGap[] = [
+  {
+    collection: "annual_financial_disclosures",
+    filterField: "chamber",
+    matches: (v) => v === "house",
+    notice:
+      "House Form 278 filings are not yet available — v1A covers Senate eFD filings only. House Clerk Form 278 coverage lands in v1.1. This is a documented gap, not a missing-data condition. Use chamber='senate' or omit the chamber filter for Senate-only results.",
+  },
+];
+
+function checkKnownGap(
+  collection: string,
+  query: Record<string, unknown>,
+): string | undefined {
+  for (const gap of KNOWN_GAPS) {
+    if (gap.collection !== collection) continue;
+    const v = query[gap.filterField];
+    if (v === undefined) continue;
+    if (gap.matches(v)) return gap.notice;
+  }
+  return undefined;
 }
 
 /**
