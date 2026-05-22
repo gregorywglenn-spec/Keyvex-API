@@ -1732,7 +1732,7 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.46.0";
+const SERVER_VERSION = "0.47.0";
 
 /**
  * MCP_API_KEY is intentionally kept defined-but-unused after the 2026-05-22

@@ -484,30 +484,59 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   cfpb: {
     description:
-      "Scrape CFPB consumer complaints. Default: rolling 2-day window (matches daily cron). Add --since=YYYY-MM-DD to backfill from a specific date (e.g., --since=2026-02-21 for ~90 days). Add --save to write to Firestore.",
+      "Scrape CFPB consumer complaints. Default: rolling 2-day window. --since=YYYY-MM-DD overrides the start; --max=N caps records per run (default 2000). For >2 weeks of backfill use --chunk-days=N (default 14) to split into smaller windows and avoid V8 string-length limits on huge API responses. --save writes to Firestore.",
     run: async (args) => {
       const sinceFlag = args.find((a) => a.startsWith("--since="));
-      const dateReceivedMin = sinceFlag
-        ? sinceFlag.slice("--since=".length)
-        : undefined;
-      if (dateReceivedMin && !/^\d{4}-\d{2}-\d{2}$/.test(dateReceivedMin)) {
-        throw new Error(
-          `--since must be YYYY-MM-DD, got: ${dateReceivedMin}`,
-        );
+      const startDate = sinceFlag ? sinceFlag.slice("--since=".length) : undefined;
+      if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+        throw new Error(`--since must be YYYY-MM-DD, got: ${startDate}`);
       }
-      const complaints = await scrapeCfpbComplaints(
-        dateReceivedMin ? { dateReceivedMin } : {},
-      );
-      if (hasSaveFlag(args)) {
-        console.error(
-          `[save] Writing ${complaints.length} CFPB complaints to Firestore...`,
+      const maxFlag = args.find((a) => a.startsWith("--max="));
+      const maxRecords = maxFlag ? parseInt(maxFlag.slice("--max=".length), 10) : undefined;
+      const chunkFlag = args.find((a) => a.startsWith("--chunk-days="));
+      const chunkDays = chunkFlag
+        ? parseInt(chunkFlag.slice("--chunk-days=".length), 10)
+        : 14;
+
+      // If no --since, use the scraper's default (2-day window) — single call.
+      if (!startDate) {
+        const complaints = await scrapeCfpbComplaints(
+          maxRecords !== undefined ? { maxRecords } : {},
         );
-        const result = await saveConsumerComplaints(complaints);
-        console.error(
-          `[save] Saved ${result.saved} complaints to ${result.collection}`,
-        );
+        if (hasSaveFlag(args)) {
+          console.error(`[save] Writing ${complaints.length} CFPB complaints to Firestore...`);
+          const result = await saveConsumerComplaints(complaints);
+          console.error(`[save] Saved ${result.saved} complaints to ${result.collection}`);
+        }
+        return complaints;
       }
-      return complaints;
+
+      // With --since: chunk the window so each scrape call hits a manageable
+      // API response size. Each chunk runs sequentially; per-chunk records
+      // accumulate and are saved at the end (or per chunk if --save is set).
+      const startMs = Date.parse(startDate);
+      const endMs = Date.now();
+      const chunkMs = chunkDays * 86400000;
+      let allComplaints: Awaited<ReturnType<typeof scrapeCfpbComplaints>> = [];
+      let totalSaved = 0;
+      for (let s = startMs; s < endMs; s += chunkMs) {
+        const chunkStart = new Date(s).toISOString().split("T")[0]!;
+        console.error(`[cfpb-chunk] window starting ${chunkStart} (${chunkDays}d)`);
+        const chunkOpts: Parameters<typeof scrapeCfpbComplaints>[0] = {
+          dateReceivedMin: chunkStart,
+        };
+        if (maxRecords !== undefined) chunkOpts.maxRecords = maxRecords;
+        const chunk = await scrapeCfpbComplaints(chunkOpts);
+        allComplaints = allComplaints.concat(chunk);
+        if (hasSaveFlag(args) && chunk.length > 0) {
+          console.error(`[save] Writing ${chunk.length} complaints from chunk to Firestore...`);
+          const result = await saveConsumerComplaints(chunk);
+          totalSaved += result.saved;
+          console.error(`[save]   chunk saved: ${result.saved} (running total ${totalSaved})`);
+        }
+      }
+      console.error(`[cfpb] TOTAL across all chunks: ${allComplaints.length} complaints`);
+      return allComplaints;
     },
   },
   xbrl: {
