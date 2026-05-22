@@ -33,6 +33,8 @@ import { defineSecret } from "firebase-functions/params";
 import { logger } from "firebase-functions/v2";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
+import { checkRateLimit, RATE_LIMIT_CONFIG } from "./rate-limit.js";
+
 import {
   getLiveDb,
   saveActivistOwnership,
@@ -1730,37 +1732,64 @@ export const scheduledHealthCheck = onSchedule(
 // ─── MCP HTTP server (remote-reachable tool API) ──────────────────────────
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.44.0";
+const SERVER_VERSION = "0.46.0";
 
 /**
- * The bearer token clients send in `Authorization: Bearer <key>` headers.
- * Stored in Google Secret Manager via `firebase functions:secrets:set
- * MCP_API_KEY`. Rotate with the same command.
+ * MCP_API_KEY is intentionally kept defined-but-unused after the 2026-05-22
+ * switch to authless mode (Anthropic Connectors Directory auth type `none`).
+ *
+ * Why keep it: the secret value still lives in Google Secret Manager and may
+ * be re-mounted on a future *paid-tier* endpoint (e.g., mcp.keyvex.com/v2 or
+ * a separate enterprise function) where per-customer gating is required.
+ * Removing the `defineSecret` declaration would not delete the secret, but
+ * keeping it here documents the intent. To re-enable, add `secrets: [mcpApiKey]`
+ * to a function's onRequest options and read `mcpApiKey.value()` at runtime.
+ *
+ * Authless rationale: KeyVex serves 38 read-only tools over US public-record
+ * data. There are no per-user accounts; the prior shared bearer key was a
+ * rate-limit / abuse token, not a tenant identifier. Anthropic's Connectors
+ * Directory explicitly supports `none` out of the box; the documented auth
+ * doc is at https://claude.com/docs/connectors/building/authentication.md
+ * and the project memory entry is project_anthropic_directory_oauth.md.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mcpApiKey = defineSecret("MCP_API_KEY");
 
 /**
  * MCP server exposed as an HTTPS endpoint at /mcp. Stateless (each request
  * spins up a fresh Server + transport pair, runs the request, tears down).
  *
- * Auth: bearer token in the Authorization header. The token is read from
- * Secret Manager via the firebase-functions/params helper.
+ * Auth: NONE (`none` type per the Anthropic Connectors Directory auth
+ * vocabulary). Abuse prevention has two layers:
+ *
+ *   1. `maxInstances` caps the worst-case Cloud Run bill — even under a
+ *      coordinated flood, no more than this many containers ever exist.
+ *   2. Per-IP sliding-window rate limit in `./rate-limit.ts` rejects a
+ *      single IP that exceeds the cap (default 60 req/min). See that file
+ *      for the trade-off note on multi-instance amplification.
+ *
+ * The health check at GET / remains auth-free and rate-limit-free so uptime
+ * monitors can hit it freely.
  *
  * Cold-start: ~5-10 seconds on the bundled 14 MB function. After the first
  * request, the container stays warm for ~15 minutes of idle. Acceptable
  * for v1; can split into a dedicated MCP-only function later if it
  * becomes user-facing latency.
- *
- * Health-check: GET /mcp returns JSON with version + tool count, NO auth
- * required. Useful for uptime monitoring.
  */
 export const mcp = onRequest(
   {
     region: REGION,
     memory: "1GiB",
     timeoutSeconds: 300,
-    secrets: [mcpApiKey],
+    // NOTE: `secrets: [mcpApiKey]` intentionally NOT mounted — server is
+    // authless after 2026-05-22 (Anthropic Directory auth type `none`).
+    // The secret stays in Secret Manager for the future paid-tier endpoint.
     concurrency: 10,
+    // Bill-cap backstop: even if a flood of IPs slips past per-IP limits,
+    // total concurrent containers stops here. 50 instances × $X/instance-hr
+    // = a knowable upper bound on a bad day. Tune up if legitimate load
+    // approaches the ceiling; tune down if abuse is suspected.
+    maxInstances: 50,
     cors: false,
     // Dedicated least-privilege runtime identity. This service account holds
     // only Cloud Datastore Viewer (Firestore READ-only) + Logs Writer +
@@ -1771,7 +1800,7 @@ export const mcp = onRequest(
       "keyvex-mcp-readonly@capitaledge-api.iam.gserviceaccount.com",
   },
   async (req, res) => {
-    // Health check — auth-free GET returns server status.
+    // Health check — auth-free, rate-limit-free GET returns server status.
     if (req.method === "GET") {
       res.json({
         status: "ok",
@@ -1779,6 +1808,7 @@ export const mcp = onRequest(
         version: SERVER_VERSION,
         tools: TOOLS.length,
         tool_names: TOOLS.map((t) => t.definition.name),
+        auth: "none",
       });
       return;
     }
@@ -1789,12 +1819,25 @@ export const mcp = onRequest(
       return;
     }
 
-    // Bearer-token auth.
-    const authHeader = req.header("authorization") ?? "";
-    const m = authHeader.match(/^Bearer\s+(.+)$/i);
-    const expected = mcpApiKey.value();
-    if (!m || m[1] !== expected) {
-      res.status(401).json({ error: "Unauthorized" });
+    // Per-IP rate limit. Prefer the leftmost entry of X-Forwarded-For (the
+    // original client) over req.ip (which on Cloud Run reflects the load
+    // balancer hop). Fall back to a sentinel so the limiter still buckets
+    // unknown-source requests.
+    const ip =
+      req.header("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.ip ||
+      "unknown";
+    if (!checkRateLimit(ip)) {
+      res.setHeader(
+        "Retry-After",
+        String(Math.ceil(RATE_LIMIT_CONFIG.windowMs / 1000)),
+      );
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        limit_per_window: RATE_LIMIT_CONFIG.maxRequestsPerWindow,
+        window_seconds: RATE_LIMIT_CONFIG.windowMs / 1000,
+        retry_after_seconds: Math.ceil(RATE_LIMIT_CONFIG.windowMs / 1000),
+      });
       return;
     }
 
