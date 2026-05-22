@@ -243,6 +243,68 @@ export interface QueryResult<T> {
   has_more: boolean;
 }
 
+/**
+ * Fields known to be NUMERIC across this codebase's collections. When one of
+ * these is used as `sort_by` AND the caller also passes `since` / `until`,
+ * the prior code applied the date filter to the numeric field — Firestore
+ * would compare the date STRING against the numeric value and silently
+ * return zero results. That silent-wrong-answer bug bit a real Claude.ai
+ * test on 2026-05-22 (planned_insider_sales sorted by aggregate_market_value
+ * with a since filter returned empty).
+ *
+ * `rejectNumericSortWithDateFilter()` throws a clear, actionable error
+ * before issuing the bad query, so an agent gets useful feedback instead
+ * of misleading empty results.
+ *
+ * Trade-off documented intentionally: this rejects the "find largest by
+ * value within a date window" pattern. Callers must either drop the date
+ * filter or post-filter on the date field client-side after fetching by
+ * value sort. v1.1 polish can introduce an in-memory hybrid (pull a wider
+ * Firestore window sorted by the numeric field, then filter dates in
+ * memory) to preserve that use case without composite indexes.
+ */
+const NUMERIC_SORT_FIELDS = new Set<string>([
+  // Form 144 / planned insider sales
+  "aggregate_market_value",
+  "shares_to_be_sold",
+  // Form 4 / insider transactions
+  "total_value",
+  "shares",
+  // 13D/G / activist ownership
+  "percent_of_class",
+  "shares_owned",
+  // USAspending federal contracts + grants
+  "award_amount",
+  "total_outlays",
+  // Lobbying disclosure (income is numeric; filing_year reads numeric)
+  "income",
+  // XBRL fundamentals
+  "value",
+  // OFAC SDN
+  "ent_num",
+  // 13F institutional holdings
+  "market_value",
+  // N-PORT holdings
+  "value_usd",
+  "pct_of_portfolio",
+  // Generic
+  "amount",
+  "amount_min",
+  "amount_max",
+]);
+
+function rejectNumericSortWithDateFilter(
+  sortField: string,
+  since: string | undefined,
+  until: string | undefined,
+): void {
+  if (!since && !until) return;
+  if (!NUMERIC_SORT_FIELDS.has(sortField)) return;
+  throw new Error(
+    `INVALID_QUERY: since/until cannot be combined with sort_by="${sortField}" because that field is numeric, not a date. A date-string filter on a numeric field would silently return zero results. Two ways to fix: (1) drop the since/until filter, OR (2) keep the date filter and use a date sort_by (each tool's default sort_by is a date — omit sort_by to use it). To find the largest by ${sortField} within a date window, fetch with sort_by="${sortField}" and no date filter, then post-filter on the date field client-side.`,
+  );
+}
+
 export async function queryInsiderTransactions(
   query: InsiderTransactionsQuery,
 ): Promise<QueryResult<InsiderTransaction>> {
@@ -281,6 +343,7 @@ async function queryInsiderTransactionsLive(
   const sortOrder = query.sort_order ?? "desc";
 
   // Date-range filters apply to the active sort field
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -477,6 +540,7 @@ export async function queryCongressionalTrades(
   const sortField = query.sort_by ?? "disclosure_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -567,6 +631,7 @@ export async function queryForm144Filings(
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -658,6 +723,7 @@ export async function queryForm3Holdings(
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -756,6 +822,7 @@ export async function queryActivistOwnership(
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -844,6 +911,7 @@ export async function queryFederalContractAwards(
   const sortField = query.sort_by ?? "last_modified_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -1288,6 +1356,7 @@ export async function queryLobbyingFilings(
   const sortField = query.sort_by ?? "dt_posted";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -1771,6 +1840,7 @@ export async function queryMaterialEvents(
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -1850,6 +1920,7 @@ export async function queryProxyFilings(
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -1925,6 +1996,7 @@ export async function queryXbrlFundamentals(
   const sortField = query.sort_by ?? "period_end";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -2018,6 +2090,7 @@ export async function queryConsumerComplaints(
   const sortField = query.sort_by ?? "date_received";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -2103,6 +2176,7 @@ export async function queryOigExclusions(
   const sortField = query.sort_by ?? "exclusion_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -2306,6 +2380,7 @@ export async function queryTreasuryAuctions(
   const sortField = query.sort_by ?? "auction_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -2498,6 +2573,7 @@ export async function queryForm278Filings(
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -3137,6 +3213,7 @@ export async function queryProductRecalls(
   const sortField = query.sort_by ?? "recall_initiation_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
@@ -3234,6 +3311,7 @@ export async function queryGovDocuments(
 
   const sortField = query.sort_by ?? "date_issued";
   const sortOrder = query.sort_order ?? "desc";
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
   q = q.orderBy(sortField, sortOrder);
@@ -3315,6 +3393,7 @@ export async function queryForeignAgents(
 
   const sortField = query.sort_by ?? "registration_date";
   const sortOrder = query.sort_order ?? "desc";
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
   q = q.orderBy(sortField, sortOrder);
