@@ -117,11 +117,12 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<CftcCotReport>> {
   const query = validateAndNormalize(args);
-  const { results, has_more } = await queryCftcCotReports(query);
+  const { results, has_more, coverage_warning } = await queryCftcCotReports(query);
   return {
     results,
     count: results.length,
     has_more,
+    ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
   };
 }

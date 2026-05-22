@@ -165,7 +165,7 @@ export async function handler(
     ? fetchMatchingBaselines(query)
     : Promise.resolve([]);
 
-  const [{ results, has_more }, baselines] = await Promise.all([
+  const [{ results, has_more, coverage_warning }, baselines] = await Promise.all([
     tradesPromise,
     baselinesPromise,
   ]);
@@ -174,6 +174,7 @@ export async function handler(
     results,
     count: results.length,
     has_more,
+    ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
   };
 

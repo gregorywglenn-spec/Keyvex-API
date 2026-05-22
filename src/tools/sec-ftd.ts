@@ -119,11 +119,12 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<SecFailToDeliver>> {
   const query = validateAndNormalize(args);
-  const { results, has_more } = await querySecFailsToDeliver(query);
+  const { results, has_more, coverage_warning } = await querySecFailsToDeliver(query);
   return {
     results,
     count: results.length,
     has_more,
+    ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
   };
 }

@@ -133,11 +133,12 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<OigExclusion>> {
   const query = validateAndNormalize(args);
-  const { results, has_more } = await queryOigExclusions(query);
+  const { results, has_more, coverage_warning } = await queryOigExclusions(query);
   return {
     results,
     count: results.length,
     has_more,
+    ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
   };
 }

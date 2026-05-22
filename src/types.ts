@@ -16,6 +16,16 @@ export interface ResultEnvelope<T> {
   results: T[];
   count: number;
   has_more: boolean;
+  /**
+   * Bug #6 fix (2026-05-22): when results is empty AND a date filter was
+   * passed (since/until), this carries a friendly message explaining that
+   * KeyVex's data depth varies by collection. Absent when not applicable
+   * (results came back, or no date filter was set). The fix prevents the
+   * "silent empty = no data" misinterpretation that bit the Wells Fargo
+   * CFPB query during the bug-hunt — agents now see explicit guidance
+   * instead of a quiet zero.
+   */
+  coverage_warning?: string;
   query: Record<string, unknown>;
 }
 

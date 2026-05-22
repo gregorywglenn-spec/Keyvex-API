@@ -130,11 +130,12 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<FederalContractAward>> {
   const query = validateAndNormalize(args);
-  const { results, has_more } = await queryFederalContractAwards(query);
+  const { results, has_more, coverage_warning } = await queryFederalContractAwards(query);
   return {
     results,
     count: results.length,
     has_more,
+    ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
   };
 }

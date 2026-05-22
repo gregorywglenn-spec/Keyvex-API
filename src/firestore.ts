@@ -241,6 +241,65 @@ export async function writeJobMeta(
 export interface QueryResult<T> {
   results: T[];
   has_more: boolean;
+  /**
+   * Bug #6 fix (2026-05-22): when a query returns 0 results AND the caller
+   * passed a since/until date filter, populate this field with a friendly
+   * message explaining that KeyVex's data depth varies by collection. This
+   * prevents the silent-empty-equals-no-data misinterpretation that bit
+   * Claude.ai's Wells Fargo CFPB query (collection only had 8 days of data
+   * but query asked for 90; the empty response felt definitive). The
+   * "transparency-as-differentiator" fix.
+   */
+  coverage_warning?: string;
+}
+
+/**
+ * Helper for Bug #6 — generate a coverage-warning string when a query
+ * returned zero results while a date filter was active. Returns undefined
+ * when the warning is not applicable (results were returned, or no date
+ * filter was set).
+ *
+ * The text is intentionally generic across collections — agents can read it
+ * and decide whether to widen the window. The contact@keyvex.com pointer
+ * gives a real escape hatch for users who need exact coverage info per
+ * collection (we'll formalize that into a /coverage endpoint in v1.1).
+ */
+function maybeCoverageWarning(
+  resultCount: number,
+  since: string | undefined,
+  until: string | undefined,
+): string | undefined {
+  if (resultCount > 0) return undefined;
+  if (!since && !until) return undefined;
+  const window =
+    since && until
+      ? `${since} to ${until}`
+      : since
+        ? `since ${since}`
+        : `until ${until}`;
+  return `Returned 0 results in the requested date range (${window}). KeyVex's data depth varies by collection — some are deep-historical (congressional trades, FEC contributions, SEC Form 4, XBRL fundamentals), others are rolling-recent windows that accumulate over time as the daily scrapers run (CFPB complaints, Federal Register, 8-K material events, Form D, proxy filings). If you expected non-empty data, try widening the date range or omit since/until to see the full collection; for exact coverage info on this collection email contact@keyvex.com.`;
+}
+
+/**
+ * Wraps a QueryResult, attaching `coverage_warning` if the query returned
+ * zero results while a since/until filter was active. Accepts any Query
+ * type that may or may not declare since/until — pulls them defensively
+ * via Record<string, unknown> cast. Single-line replacement for the
+ * `return { results, has_more }` shape in every query function.
+ */
+function withCoverageWarning<T>(
+  base: { results: T[]; has_more: boolean },
+  query: Record<string, unknown> | unknown,
+): QueryResult<T> {
+  const q = query as Record<string, unknown>;
+  const since = typeof q.since === "string" ? q.since : undefined;
+  const until = typeof q.until === "string" ? q.until : undefined;
+  const coverage_warning = maybeCoverageWarning(
+    base.results.length,
+    since,
+    until,
+  );
+  return coverage_warning ? { ...base, coverage_warning } : base;
 }
 
 /**
@@ -373,7 +432,7 @@ async function queryInsiderTransactionsLive(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -471,7 +530,7 @@ export async function queryInstitutionalHoldings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -566,7 +625,7 @@ export async function queryCongressionalTrades(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -657,7 +716,7 @@ export async function queryForm144Filings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -749,7 +808,7 @@ export async function queryForm3Holdings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -848,7 +907,7 @@ export async function queryActivistOwnership(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -948,7 +1007,7 @@ export async function queryFederalContractAwards(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -1067,7 +1126,7 @@ export async function queryFederalGrants(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveFederalGrants(
@@ -1183,7 +1242,7 @@ export async function queryCftcCotReports(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveCftcCotReports(
@@ -1293,7 +1352,7 @@ export async function querySecFailsToDeliver(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveSecFailsToDeliver(
@@ -1409,7 +1468,7 @@ export async function queryLobbyingFilings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -1854,7 +1913,7 @@ export async function queryMaterialEvents(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -1934,7 +1993,7 @@ export async function queryProxyFilings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveProxyFilings(
@@ -2027,7 +2086,7 @@ export async function queryXbrlFundamentals(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveXbrlFundamentals(
@@ -2118,7 +2177,7 @@ export async function queryConsumerComplaints(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveConsumerComplaints(
@@ -2228,7 +2287,7 @@ export async function queryOigExclusions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveOigExclusions(
@@ -2317,7 +2376,7 @@ export async function queryEconomicIndicators(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveEconomicIndicators(
@@ -2394,7 +2453,7 @@ export async function queryTreasuryAuctions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveTreasuryAuctions(
@@ -2479,7 +2538,7 @@ export async function queryLegislators(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -2595,7 +2654,7 @@ export async function queryForm278Filings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -2706,7 +2765,7 @@ export async function queryFederalRegisterDocuments(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveFederalRegisterDocuments(
@@ -2820,7 +2879,7 @@ export async function queryOfacSdn(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveOfacSdn(
@@ -2926,7 +2985,7 @@ export async function queryRegistrationStatements(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveRegistrationStatements(
@@ -3021,7 +3080,7 @@ export async function queryNportFilings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveNportFilings(
@@ -3152,7 +3211,7 @@ export async function queryNportHoldings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveNportHoldings(
@@ -3267,7 +3326,7 @@ export async function queryProductRecalls(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveProductRecalls(
@@ -3348,7 +3407,7 @@ export async function queryGovDocuments(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveGovDocuments(
@@ -3436,7 +3495,7 @@ export async function queryForeignAgents(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveForeignAgents(
@@ -3523,7 +3582,7 @@ export async function queryScreeningList(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveScreeningList(
@@ -3620,7 +3679,7 @@ export async function queryEnforcementActions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveEnforcementActions(
@@ -3752,7 +3811,7 @@ export async function queryPrivatePlacements(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function savePrivatePlacements(
@@ -3862,7 +3921,7 @@ export async function queryOtcMarketWeekly(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveOtcMarketWeekly(
@@ -3973,7 +4032,7 @@ export async function queryBills(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveBills(
@@ -4070,7 +4129,7 @@ export async function queryRollCallVotes(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveRollCallVotes(
@@ -4179,7 +4238,7 @@ export async function queryTenderOffers(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveTenderOffers(
@@ -4279,7 +4338,7 @@ export async function queryFecCandidates(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -4379,7 +4438,7 @@ export async function queryFecCommittees(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveFecCommittees(
@@ -4528,7 +4587,7 @@ export async function queryFecContributions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 /**
@@ -4680,7 +4739,7 @@ export async function queryFecIndependentExpenditures(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more };
+  return withCoverageWarning({ results, has_more }, query);
 }
 
 export async function saveFecIndependentExpenditures(
