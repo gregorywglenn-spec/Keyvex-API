@@ -294,6 +294,14 @@
       ]
     },
     {
+      "collectionGroup": "planned_insider_sales",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "aggregate_market_value", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
@@ -1098,6 +1106,16 @@
         { "fieldPath": "filing_year", "order": "ASCENDING" },
         { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
         { "fieldPath": "dt_posted", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lobbying_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filing_period", "order": "ASCENDING" },
+        { "fieldPath": "filing_year", "order": "ASCENDING" },
+        { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "income", "order": "DESCENDING" }
       ]
     },
     {

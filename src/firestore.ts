@@ -264,42 +264,236 @@ export interface QueryResult<T> {
  * gives a real escape hatch for users who need exact coverage info per
  * collection (we'll formalize that into a /coverage endpoint in v1.1).
  */
-function maybeCoverageWarning(
-  resultCount: number,
-  since: string | undefined,
-  until: string | undefined,
-): string | undefined {
-  if (resultCount > 0) return undefined;
-  if (!since && !until) return undefined;
-  const window =
-    since && until
-      ? `${since} to ${until}`
-      : since
-        ? `since ${since}`
-        : `until ${until}`;
-  return `Returned 0 results in the requested date range (${window}). KeyVex's data depth varies by collection — some are deep-historical (congressional trades, FEC contributions, SEC Form 4, XBRL fundamentals), others are rolling-recent windows that accumulate over time as the daily scrapers run (CFPB complaints, Federal Register, 8-K material events, Form D, proxy filings). If you expected non-empty data, try widening the date range or omit since/until to see the full collection; for exact coverage info on this collection email contact@keyvex.com.`;
+/**
+ * Per-collection map of the canonical "date field" used to define coverage.
+ * Used by withCoverageWarning() v2 to look up the actual min/max date the
+ * collection holds when building a coverage notice.
+ *
+ * For most collections this is the same as the default sort_by date. For
+ * collections with multiple date dimensions (e.g., bills has latest_action_date
+ * + update_date + introduction_date) the value is the field that most agents
+ * mean when they say "the date" for that data — usually the one that drives
+ * the daily-cron ingestion window.
+ */
+const COLLECTION_DATE_FIELD: Record<string, string> = {
+  insider_trades: "disclosure_date",
+  congressional_trades: "disclosure_date",
+  planned_insider_sales: "filing_date",
+  initial_ownership_baselines: "filing_date",
+  activist_ownership: "filing_date",
+  federal_contracts: "last_modified_date",
+  federal_grants: "last_modified_date",
+  cftc_cot_reports: "report_date",
+  sec_fails_to_deliver: "settlement_date",
+  lobbying_filings: "dt_posted",
+  material_events: "filing_date",
+  proxy_filings: "filing_date",
+  xbrl_fundamentals: "period_end",
+  consumer_complaints: "date_received",
+  oig_exclusions: "exclusion_date",
+  economic_indicators: "period",
+  treasury_auctions: "auction_date",
+  annual_financial_disclosures: "filing_date",
+  federal_register_documents: "publication_date",
+  registration_statements: "filing_date",
+  nport_filings: "file_date",
+  nport_holdings: "period_ending",
+  product_recalls: "recall_initiation_date",
+  gov_documents: "date_issued",
+  foreign_agents: "registration_date",
+  screening_list: "scraped_at",
+  enforcement_actions: "file_date",
+  private_placements: "filing_date",
+  otc_market_weekly: "week_start_date",
+  bills: "latest_action_date",
+  roll_call_votes: "start_date",
+  tender_offers: "filing_date",
+  fec_candidates: "last_file_date",
+  fec_committees: "last_file_date",
+  fec_contributions: "contribution_receipt_date",
+  fec_independent_expenditures: "expenditure_date",
+};
+
+/**
+ * Per-collection map of the QUERY param names that trigger date filtering.
+ * Default for any collection not listed: ["since", "until"]. Collections with
+ * extra date filter pairs (currently just bills with introduced_since/
+ * introduced_until) override here so the coverage warning fires when those
+ * are passed too.
+ */
+const COLLECTION_DATE_FILTER_FIELDS: Record<string, string[]> = {
+  bills: ["since", "until", "introduced_since", "introduced_until"],
+};
+
+/**
+ * Per-collection cache of min/max date strings. Computed lazily on first use,
+ * refreshed when cache entry is older than CACHE_TTL_MS. Per-Cloud-Function-
+ * instance — restart drops the cache, no big deal because the cache is just a
+ * cheap freshness gate, not source of truth.
+ */
+interface CoverageMeta {
+  min_date: string;
+  max_date: string;
+  fetched_at: number;
+}
+const COVERAGE_CACHE = new Map<string, CoverageMeta>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getCollectionCoverage(
+  collection: string,
+  dateField: string,
+): Promise<{ min_date: string; max_date: string }> {
+  const cached = COVERAGE_CACHE.get(collection);
+  if (cached && Date.now() - cached.fetched_at < CACHE_TTL_MS) {
+    return { min_date: cached.min_date, max_date: cached.max_date };
+  }
+  const db = await getLiveDb();
+  const ref = db.collection(collection);
+  const [minSnap, maxSnap] = await Promise.all([
+    ref.orderBy(dateField, "asc").limit(1).get(),
+    ref.orderBy(dateField, "desc").limit(1).get(),
+  ]);
+  const min_date =
+    (minSnap.docs[0]?.data() as Record<string, unknown> | undefined)?.[
+      dateField
+    ] as string | undefined ?? "";
+  const max_date =
+    (maxSnap.docs[0]?.data() as Record<string, unknown> | undefined)?.[
+      dateField
+    ] as string | undefined ?? "";
+  const fresh: CoverageMeta = {
+    min_date,
+    max_date,
+    fetched_at: Date.now(),
+  };
+  COVERAGE_CACHE.set(collection, fresh);
+  return { min_date, max_date };
 }
 
 /**
- * Wraps a QueryResult, attaching `coverage_warning` if the query returned
- * zero results while a since/until filter was active. Accepts any Query
- * type that may or may not declare since/until — pulls them defensively
- * via Record<string, unknown> cast. Single-line replacement for the
- * `return { results, has_more }` shape in every query function.
+ * v2 (2026-05-22 post-bug-hunt): attaches `coverage_warning` to a query
+ * result whenever the requested date range is outside or partially outside
+ * the collection's actual coverage window. Fires in two cases:
+ *
+ *   1. ZERO RESULTS + date filter set → "requested X; collection holds Y to Z;
+ *      no records in the requested window."
+ *   2. TRUNCATED RESULTS + date filter set + requested window EXTENDS BEYOND
+ *      the collection coverage → "requested X but collection only holds Y to
+ *      Z; some results returned but the older / newer slice of your window
+ *      isn't in the collection yet."
+ *
+ * Skipped when:
+ *   - No date filter was set on the query.
+ *   - Results came back AND the requested window is entirely within coverage.
+ *   - The collection name is unknown to the COLLECTION_DATE_FIELD map (defensive
+ *     fallback — better to emit no warning than crash on an unmapped collection).
+ *
+ * Async because it fetches min/max from Firestore (cached 5min per instance).
+ *
+ * Called as the final return wrapper in every query function:
+ *   return await withCoverageWarning({ results, has_more }, query, "<COLLECTION>");
  */
-function withCoverageWarning<T>(
+async function withCoverageWarning<T>(
   base: { results: T[]; has_more: boolean },
   query: Record<string, unknown> | unknown,
-): QueryResult<T> {
+  collection: string,
+): Promise<QueryResult<T>> {
   const q = query as Record<string, unknown>;
-  const since = typeof q.since === "string" ? q.since : undefined;
-  const until = typeof q.until === "string" ? q.until : undefined;
-  const coverage_warning = maybeCoverageWarning(
-    base.results.length,
-    since,
-    until,
-  );
-  return coverage_warning ? { ...base, coverage_warning } : base;
+  const dateFilterFields = COLLECTION_DATE_FILTER_FIELDS[collection] ?? [
+    "since",
+    "until",
+  ];
+  // Find the active since/until pair (any date filter that's set).
+  const setFilters: Array<[string, string]> = [];
+  for (const f of dateFilterFields) {
+    const v = q[f];
+    if (typeof v === "string" && v.length > 0) setFilters.push([f, v]);
+  }
+  if (setFilters.length === 0) return base; // no date filter → no warning
+
+  const dateField = COLLECTION_DATE_FIELD[collection];
+  if (!dateField) return base; // unmapped collection → silently skip
+
+  // Resolve the "requested window" from the set filters. Treat anything ending
+  // in "since" as a lower bound and "until" as an upper bound.
+  let reqSince: string | undefined;
+  let reqUntil: string | undefined;
+  for (const [name, value] of setFilters) {
+    if (name.endsWith("since") || name === "since") {
+      reqSince = !reqSince || value < reqSince ? value : reqSince;
+    } else if (name.endsWith("until") || name === "until") {
+      reqUntil = !reqUntil || value > reqUntil ? value : reqUntil;
+    }
+  }
+
+  const userLimit =
+    typeof q.limit === "number" && q.limit > 0 ? q.limit : 50;
+  const isEmpty = base.results.length === 0;
+  const isTruncated = base.has_more || base.results.length === userLimit;
+
+  // Fetch collection coverage (cached).
+  let coverage: { min_date: string; max_date: string };
+  try {
+    coverage = await getCollectionCoverage(collection, dateField);
+  } catch {
+    // Coverage fetch failed (Firestore hiccup, missing index, etc.) — fall back
+    // to a generic warning rather than blocking the response.
+    if (!isEmpty) return base;
+    return {
+      ...base,
+      coverage_warning: `Returned 0 results in the requested date range. KeyVex's coverage check could not run for this collection right now; widen the date range or contact contact@keyvex.com if this persists.`,
+    };
+  }
+
+  const { min_date, max_date } = coverage;
+  if (!min_date || !max_date) {
+    // Empty collection (no docs at all) — only meaningful when caller asked
+    // for something and got nothing.
+    if (!isEmpty) return base;
+    return {
+      ...base,
+      coverage_warning: `Returned 0 results. This collection currently holds 0 records — its scraper may not have run yet, or the collection name has changed. Email contact@keyvex.com to investigate.`,
+    };
+  }
+
+  // Determine if the requested window is outside or extends beyond coverage.
+  const beforeCoverage = reqSince && reqSince < min_date;
+  const afterCoverage = reqUntil && reqUntil > max_date;
+  const completelyOutside =
+    (reqUntil && reqUntil < min_date) || (reqSince && reqSince > max_date);
+
+  // Build a window-description string for the message.
+  const windowText =
+    reqSince && reqUntil
+      ? `${reqSince} to ${reqUntil}`
+      : reqSince
+        ? `since ${reqSince}`
+        : `until ${reqUntil}`;
+  const coverageText = `${min_date} to ${max_date}`;
+
+  if (isEmpty) {
+    let msg = `Returned 0 results in the requested range (${windowText}); this collection currently holds ${coverageText}.`;
+    if (completelyOutside) {
+      msg += ` The requested window is entirely outside available coverage.`;
+    } else if (beforeCoverage || afterCoverage) {
+      msg += ` The requested window extends beyond the collection's coverage on the ${beforeCoverage ? "older" : "newer"} side.`;
+    }
+    msg += ` Widen the range, omit the date filter, or email contact@keyvex.com for exact coverage info.`;
+    return { ...base, coverage_warning: msg };
+  }
+
+  if (isTruncated && (beforeCoverage || afterCoverage)) {
+    const side = beforeCoverage ? "older" : "newer";
+    const sideDetail = beforeCoverage
+      ? `${reqSince} predates collection start of ${min_date}`
+      : `${reqUntil} is past collection end of ${max_date}`;
+    return {
+      ...base,
+      coverage_warning: `Partial coverage: returned ${base.results.length} results from the available window, but the requested range (${windowText}) extends beyond this collection's coverage (${coverageText}) on the ${side} side (${sideDetail}). Records outside the coverage window are not stored. Email contact@keyvex.com for exact coverage info.`,
+    };
+  }
+
+  return base;
 }
 
 /**
@@ -432,7 +626,7 @@ async function queryInsiderTransactionsLive(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "insider_trades");
 }
 
 /**
@@ -530,7 +724,7 @@ export async function queryInstitutionalHoldings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "institutional_holdings");
 }
 
 /**
@@ -625,7 +819,7 @@ export async function queryCongressionalTrades(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "congressional_trades");
 }
 
 /**
@@ -716,7 +910,7 @@ export async function queryForm144Filings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "planned_insider_sales");
 }
 
 /**
@@ -808,7 +1002,7 @@ export async function queryForm3Holdings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "initial_ownership_baselines");
 }
 
 /**
@@ -907,7 +1101,7 @@ export async function queryActivistOwnership(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "activist_ownership");
 }
 
 /**
@@ -1007,7 +1201,7 @@ export async function queryFederalContractAwards(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "federal_contracts");
 }
 
 /**
@@ -1126,7 +1320,7 @@ export async function queryFederalGrants(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "federal_grants");
 }
 
 export async function saveFederalGrants(
@@ -1242,7 +1436,7 @@ export async function queryCftcCotReports(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "cftc_cot_reports");
 }
 
 export async function saveCftcCotReports(
@@ -1352,7 +1546,7 @@ export async function querySecFailsToDeliver(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "sec_fails_to_deliver");
 }
 
 export async function saveSecFailsToDeliver(
@@ -1468,7 +1662,7 @@ export async function queryLobbyingFilings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "lobbying_filings");
 }
 
 /**
@@ -1913,7 +2107,7 @@ export async function queryMaterialEvents(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "material_events");
 }
 
 /**
@@ -1993,7 +2187,7 @@ export async function queryProxyFilings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "proxy_filings");
 }
 
 export async function saveProxyFilings(
@@ -2086,7 +2280,7 @@ export async function queryXbrlFundamentals(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "xbrl_fundamentals");
 }
 
 export async function saveXbrlFundamentals(
@@ -2177,7 +2371,7 @@ export async function queryConsumerComplaints(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "consumer_complaints");
 }
 
 export async function saveConsumerComplaints(
@@ -2287,7 +2481,7 @@ export async function queryOigExclusions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "oig_exclusions");
 }
 
 export async function saveOigExclusions(
@@ -2376,7 +2570,7 @@ export async function queryEconomicIndicators(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "economic_indicators");
 }
 
 export async function saveEconomicIndicators(
@@ -2453,7 +2647,7 @@ export async function queryTreasuryAuctions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "treasury_auctions");
 }
 
 export async function saveTreasuryAuctions(
@@ -2538,7 +2732,7 @@ export async function queryLegislators(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "legislators");
 }
 
 /**
@@ -2654,7 +2848,7 @@ export async function queryForm278Filings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "annual_financial_disclosures");
 }
 
 /**
@@ -2765,7 +2959,7 @@ export async function queryFederalRegisterDocuments(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "federal_register_documents");
 }
 
 export async function saveFederalRegisterDocuments(
@@ -2879,7 +3073,7 @@ export async function queryOfacSdn(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "ofac_sdn");
 }
 
 export async function saveOfacSdn(
@@ -2985,7 +3179,7 @@ export async function queryRegistrationStatements(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "registration_statements");
 }
 
 export async function saveRegistrationStatements(
@@ -3080,7 +3274,7 @@ export async function queryNportFilings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "nport_filings");
 }
 
 export async function saveNportFilings(
@@ -3211,7 +3405,7 @@ export async function queryNportHoldings(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "nport_holdings");
 }
 
 export async function saveNportHoldings(
@@ -3326,7 +3520,7 @@ export async function queryProductRecalls(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "product_recalls");
 }
 
 export async function saveProductRecalls(
@@ -3407,7 +3601,7 @@ export async function queryGovDocuments(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "gov_documents");
 }
 
 export async function saveGovDocuments(
@@ -3495,7 +3689,7 @@ export async function queryForeignAgents(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "foreign_agents");
 }
 
 export async function saveForeignAgents(
@@ -3582,7 +3776,7 @@ export async function queryScreeningList(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "screening_list");
 }
 
 export async function saveScreeningList(
@@ -3679,7 +3873,7 @@ export async function queryEnforcementActions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "enforcement_actions");
 }
 
 export async function saveEnforcementActions(
@@ -3811,7 +4005,7 @@ export async function queryPrivatePlacements(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "private_placements");
 }
 
 export async function savePrivatePlacements(
@@ -3921,7 +4115,7 @@ export async function queryOtcMarketWeekly(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "otc_market_weekly");
 }
 
 export async function saveOtcMarketWeekly(
@@ -4032,7 +4226,7 @@ export async function queryBills(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "bills");
 }
 
 export async function saveBills(
@@ -4129,7 +4323,7 @@ export async function queryRollCallVotes(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "roll_call_votes");
 }
 
 export async function saveRollCallVotes(
@@ -4238,7 +4432,7 @@ export async function queryTenderOffers(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "tender_offers");
 }
 
 export async function saveTenderOffers(
@@ -4338,7 +4532,7 @@ export async function queryFecCandidates(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "fec_candidates");
 }
 
 /**
@@ -4438,7 +4632,7 @@ export async function queryFecCommittees(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "fec_committees");
 }
 
 export async function saveFecCommittees(
@@ -4587,7 +4781,7 @@ export async function queryFecContributions(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "fec_contributions");
 }
 
 /**
@@ -4739,7 +4933,7 @@ export async function queryFecIndependentExpenditures(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return withCoverageWarning({ results, has_more }, query);
+  return await withCoverageWarning({ results, has_more }, query, "fec_independent_expenditures");
 }
 
 export async function saveFecIndependentExpenditures(
