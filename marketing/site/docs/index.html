@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Documentation — KeyVex</title>
+  <meta name="description" content="KeyVex MCP server documentation. How to connect your AI agent, query the 38 tools, and reach support. No account or authentication required." />
+  <link rel="icon" type="image/png" href="/keyvex-mark.png" />
+  <link rel="apple-touch-icon" href="/keyvex-mark.png" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --border: #21262d;
+      --code-bg: #161b22;
+      --accent: #4dff20;
+      --accent-hover: #6dff48;
+      --row-alt: #11161d;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--fg);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+    }
+    main { max-width: 920px; margin: 0 auto; padding: 0 24px 96px; }
+    header.topbar {
+      max-width: 920px; margin: 0 auto; padding: 28px 24px 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { display: inline-flex; align-items: center; text-decoration: none; }
+    .logo img { height: 32px; width: auto; display: block; }
+    .topbar nav a {
+      color: var(--muted); text-decoration: none; margin-left: 24px; font-size: 14px;
+    }
+    .topbar nav a:hover { color: var(--accent); }
+    h1 {
+      font-size: 36px; line-height: 1.15; letter-spacing: -0.02em;
+      margin: 48px 0 8px; font-weight: 800;
+    }
+    .lede {
+      font-size: 18px; color: var(--muted); margin-bottom: 36px; max-width: 720px;
+    }
+    h2 {
+      font-size: 24px; margin: 56px 0 12px; font-weight: 700;
+      padding-top: 12px; border-top: 1px solid var(--border);
+    }
+    h2:first-of-type { border-top: none; padding-top: 0; }
+    h3 { font-size: 18px; margin: 28px 0 8px; font-weight: 700; }
+    p { margin: 0 0 14px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); text-decoration: underline; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 14px;
+    }
+    code {
+      background: var(--code-bg); padding: 2px 6px; border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    pre {
+      background: var(--code-bg); border: 1px solid var(--border);
+      padding: 16px 18px; border-radius: 8px; overflow-x: auto;
+      margin: 12px 0 20px; line-height: 1.5;
+    }
+    pre code { background: transparent; border: none; padding: 0; }
+    ul, ol { padding-left: 22px; margin: 0 0 14px; }
+    li { margin-bottom: 6px; }
+    .toc {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 18px 22px; margin: 8px 0 36px;
+    }
+    .toc strong { display: block; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+    .toc ul { list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 24px; }
+    .toc li { margin: 4px 0; break-inside: avoid; }
+    @media (max-width: 600px) { .toc ul { columns: 1; } }
+    table.tools {
+      width: 100%; border-collapse: collapse; font-size: 14px;
+      margin: 12px 0 24px;
+    }
+    table.tools th, table.tools td {
+      text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.tools th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+    table.tools td:first-child { font-family: ui-monospace, monospace; color: var(--accent); white-space: nowrap; }
+    table.tools tr:nth-child(even) td { background: var(--row-alt); }
+    details {
+      background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 18px; margin: 10px 0;
+    }
+    details > summary {
+      cursor: pointer; font-weight: 600; color: var(--fg);
+      list-style: none; padding-right: 24px; position: relative;
+    }
+    details > summary::after {
+      content: "+"; position: absolute; right: 0; top: 0;
+      color: var(--muted); font-size: 20px; line-height: 1;
+    }
+    details[open] > summary::after { content: "−"; }
+    details > summary::-webkit-details-marker { display: none; }
+    details p, details pre { margin-top: 12px; }
+    .callout {
+      background: rgba(77, 255, 32, 0.06); border-left: 3px solid var(--accent);
+      padding: 14px 18px; margin: 16px 0 24px; border-radius: 0 6px 6px 0;
+    }
+    .callout p:last-child { margin-bottom: 0; }
+    footer {
+      max-width: 920px; margin: 64px auto 32px; padding: 24px;
+      color: var(--muted); font-size: 14px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="/" aria-label="KeyVex home">
+      <img src="/keyvex-wordmark.png" alt="KeyVex" />
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/privacy">Privacy</a>
+      <a href="mailto:contact@keyvex.com">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Documentation</h1>
+    <p class="lede">
+      How to connect your AI agent to KeyVex and query the 38 tools. No account,
+      no API key, no OAuth flow — point your MCP client at the endpoint and go.
+      Last updated 2026-05-22.
+    </p>
+
+    <div class="toc">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#what-is-keyvex">What is KeyVex</a></li>
+        <li><a href="#quickstart">Quickstart</a></li>
+        <li><a href="#auth">Authentication</a></li>
+        <li><a href="#tools">Tool reference (38 tools)</a></li>
+        <li><a href="#unified-search">unified_search</a></li>
+        <li><a href="#rate-limits">Rate limits</a></li>
+        <li><a href="#data-freshness">Data freshness</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#support">Support</a></li>
+      </ul>
+    </div>
+
+    <h2 id="what-is-keyvex">What is KeyVex</h2>
+    <p>
+      KeyVex is a remote <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a>
+      (MCP) server that exposes US public financial and government disclosures as agent-native tools.
+      Your AI agent (Claude Desktop, Cursor, or any MCP client) connects once and can query
+      <strong>38 tools</strong> across dozens of official US government sources — SEC filings,
+      congressional trades, FEC campaign finance, federal contracts and grants, lobbying,
+      regulatory enforcement, sanctions, macroeconomic indicators, and more.
+    </p>
+    <p>
+      All data is public-record information sourced directly from US government agencies.
+      KeyVex normalizes and indexes it; KeyVex does not provide investment advice, derived
+      signals, or trading recommendations.
+    </p>
+
+    <h2 id="quickstart">Quickstart</h2>
+
+    <h3>1. There's no signup</h3>
+    <p>
+      KeyVex's MCP endpoint is publicly accessible. No account, no API key, no
+      consent flow. Point your client at the URL below and start calling tools.
+    </p>
+
+    <h3>2. Configure your MCP client</h3>
+    <p>The KeyVex MCP endpoint is:</p>
+    <pre><code>https://mcp.keyvex.com</code></pre>
+    <p>
+      For Claude Desktop, add this to your <code>claude_desktop_config.json</code>:
+    </p>
+    <pre><code>{
+  "mcpServers": {
+    "keyvex": {
+      "url": "https://mcp.keyvex.com",
+      "transport": "http"
+    }
+  }
+}</code></pre>
+    <p>
+      For Cursor or any other MCP client, follow your client's instructions for
+      adding a remote MCP server URL. KeyVex supports the standard Streamable HTTP
+      transport. No authentication headers are required.
+    </p>
+
+    <h3>3. Make a query</h3>
+    <p>Ask your agent something that touches KeyVex data:</p>
+    <pre><code>"Show me the largest congressional trades in the past 30 days
+ with party and committee context."</code></pre>
+    <p>
+      The agent will pick the right tools (<code>get_congressional_trades</code> and
+      <code>get_member_profile</code>), run them in parallel, and synthesize an answer.
+    </p>
+
+    <h3>4. Verify with curl (optional)</h3>
+    <p>You can hit the endpoint directly without any client. Health check:</p>
+    <pre><code>curl https://mcp.keyvex.com/</code></pre>
+    <p>Returns server version, tool count, and the full tool list as JSON. List all tools via MCP:</p>
+    <pre><code>curl -X POST https://mcp.keyvex.com/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'</code></pre>
+    <p>No <code>Authorization</code> header is needed. The response is a JSON-RPC envelope containing the full schema of every tool.</p>
+
+    <h2 id="auth">Authentication</h2>
+    <div class="callout">
+      <p><strong>Authentication: none.</strong> KeyVex's public MCP endpoint is openly accessible. There are no accounts, no API keys, no OAuth flow, and no consent screens. Any MCP client can connect and call any tool.</p>
+      <p>The endpoint advertises this contract in its health-check response: <code>{"auth":"none",...}</code>.</p>
+    </div>
+    <p>
+      The reason: every tool serves data already public by federal mandate (SEC filings,
+      USAspending records, congressional disclosures, etc.). There's nothing user-specific
+      to gate on. Removing the auth layer also removes a setup step for the agent developer.
+    </p>
+    <p>
+      <strong>Abuse prevention.</strong> Because the endpoint is open, two mechanisms protect
+      it from runaway use:
+    </p>
+    <ul>
+      <li>A <strong>per-IP rate limit</strong> caps each calling IP at 60 requests per 60-second sliding window. Exceed it and the endpoint returns HTTP 429 with a <code>Retry-After</code> header.</li>
+      <li>A <strong>Cloud Run instance cap</strong> bounds the worst-case server load even under a coordinated flood.</li>
+    </ul>
+    <p>
+      <strong>Future paid tiers (when they ship).</strong> Paid tiers — with higher quotas,
+      priority routing, and dedicated support — will live on a separate URL (e.g., a
+      <code>/v2</code> path or sibling subdomain) and will use per-customer Bearer keys we
+      issue at signup. The public endpoint at <code>mcp.keyvex.com</code> will remain
+      authless and free.
+    </p>
+
+    <h2 id="tools">Tool reference</h2>
+    <p>
+      KeyVex exposes 38 tools. All are read-only. Every tool's full schema (parameters,
+      filters, response shape) is returned by the MCP <code>tools/list</code> method.
+      The table below is a one-line summary.
+    </p>
+
+    <h3>SEC filings &amp; market structure</h3>
+    <table class="tools">
+      <tbody>
+        <tr><td>get_insider_transactions</td><td>SEC Form 4 / 5 — executive insider buys, sells, option exercises, RSU activity</td></tr>
+        <tr><td>get_planned_insider_sales</td><td>SEC Form 144 — planned insider sales with 10b5-1 plan flag</td></tr>
+        <tr><td>get_institutional_holdings</td><td>SEC Form 13F — quarterly institutional fund holdings</td></tr>
+        <tr><td>get_activist_stakes</td><td>SEC Schedule 13D / 13G — activist and 5%+ beneficial ownership</td></tr>
+        <tr><td>get_nport_filings</td><td>SEC Form N-PORT — mutual fund monthly portfolio metadata</td></tr>
+        <tr><td>get_fund_holdings</td><td>SEC N-PORT primary-document XML — per-security fund holdings + derivatives</td></tr>
+        <tr><td>get_registration_statements</td><td>SEC Form S-1 / S-3 — IPO and shelf registration statements</td></tr>
+        <tr><td>get_tender_offers</td><td>SEC Schedule TO — third-party + issuer tender offers</td></tr>
+        <tr><td>get_private_placements</td><td>SEC Form D — Regulation D exempt offerings</td></tr>
+        <tr><td>get_material_events</td><td>SEC Form 8-K — M&amp;A, executive changes, earnings, material events</td></tr>
+        <tr><td>get_proxy_filings</td><td>SEC Schedule 14A — proxy statements (DEF 14A annual + merger)</td></tr>
+        <tr><td>get_fundamentals</td><td>SEC EDGAR XBRL — income statement, balance sheet, cash flow per filing</td></tr>
+        <tr><td>get_sec_fails_to_deliver</td><td>SEC bi-monthly Fails-to-Deliver settlement data</td></tr>
+        <tr><td>get_otc_market_weekly</td><td>FINRA OTC Transparency — ATS dark-pool weekly volume</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Congressional activity</h3>
+    <table class="tools">
+      <tbody>
+        <tr><td>get_congressional_trades</td><td>Senate eFD + House Clerk Periodic Transaction Reports (member stock trades)</td></tr>
+        <tr><td>get_member_profile</td><td>Current senators, representatives, committee assignments, contact info</td></tr>
+        <tr><td>get_annual_financial_disclosures</td><td>Form 278 / Public Financial Disclosure (Senate eFD)</td></tr>
+        <tr><td>get_bills</td><td>Congress.gov bills + resolutions (HR / S / HJ / SJ / HC / SC / HR / SRes)</td></tr>
+        <tr><td>get_roll_call_votes</td><td>House + Senate roll-call votes</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Campaign finance &amp; influence</h3>
+    <table class="tools">
+      <tbody>
+        <tr><td>get_fec_candidate_profile</td><td>FEC candidates and linked principal committees</td></tr>
+        <tr><td>get_fec_contributions</td><td>FEC Schedule A — itemized campaign contributions (≥$200)</td></tr>
+        <tr><td>get_fec_independent_expenditures</td><td>FEC Schedule E — super-PAC ads supporting/opposing candidates</td></tr>
+        <tr><td>get_lobbying_filings</td><td>Senate LDA — quarterly lobbying registrations and spend</td></tr>
+        <tr><td>get_foreign_agents</td><td>DOJ FARA — foreign agent registrations and principal relationships</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Federal awards</h3>
+    <table class="tools">
+      <tbody>
+        <tr><td>get_federal_contracts</td><td>USAspending — federal procurement contract awards</td></tr>
+        <tr><td>get_federal_grants</td><td>USAspending — federal grant + assistance awards</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Regulatory &amp; compliance</h3>
+    <table class="tools">
+      <tbody>
+        <tr><td>get_enforcement_actions</td><td>SEC + DOJ + CFTC + OCC + FDIC + FTC enforcement press releases</td></tr>
+        <tr><td>get_ofac_sdn</td><td>US Treasury OFAC Specially Designated Nationals sanctions list</td></tr>
+        <tr><td>get_screening_list</td><td>US Consolidated Screening List — 12 export-control / sanctions lists</td></tr>
+        <tr><td>get_federal_register_documents</td><td>Federal Register — rules, proposed rules, notices, presidential documents</td></tr>
+        <tr><td>get_oig_exclusions</td><td>HHS-OIG LEIE — list of excluded healthcare individuals / entities</td></tr>
+        <tr><td>get_consumer_complaints</td><td>CFPB Consumer Complaint Database</td></tr>
+        <tr><td>get_product_recalls</td><td>FDA (drug / device / food) + CPSC consumer-product recalls</td></tr>
+        <tr><td>get_government_publications</td><td>GovInfo — committee reports, public laws, hearings, GAO reports</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Macroeconomic &amp; markets</h3>
+    <table class="tools">
+      <tbody>
+        <tr><td>get_economic_indicators</td><td>BLS + FRED + EIA — employment, CPI, rates, GDP, energy series</td></tr>
+        <tr><td>get_treasury_auctions</td><td>US Treasury Bills / Notes / Bonds / TIPS / FRN auctions</td></tr>
+        <tr><td>get_cftc_cot_reports</td><td>CFTC Commitments of Traders — weekly futures + options positioning</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="unified-search">unified_search</h2>
+    <p>
+      <code>unified_search</code> is the cross-source meta-tool. Pass one or more identifiers
+      (ticker, company_name, cusip, company_cik, bioguide_id, recipient_uei) and it
+      fans out across every applicable tool in parallel, returning a unified envelope.
+    </p>
+    <p>Useful when you want a full picture of an entity without manually calling 10 tools:</p>
+    <pre><code>{
+  "method": "tools/call",
+  "params": {
+    "name": "unified_search",
+    "arguments": { "ticker": "NVDA" }
+  }
+}</code></pre>
+    <p>
+      The fan-out hits insider transactions, congressional trades, institutional holdings,
+      activist stakes, federal contracts, material events, fundamentals, and more —
+      whichever tools match the identifier you passed. <code>get_lobbying_filings</code>
+      is the one collection deliberately excluded from the fan-out (substring scans on 51K+
+      filings are too slow to parallelize); call it directly for lobbying queries.
+    </p>
+
+    <h2 id="rate-limits">Rate limits</h2>
+    <p>
+      The public endpoint is open but rate-limited per IP to prevent abuse and protect
+      hosting cost:
+    </p>
+    <ul>
+      <li><strong>60 requests per 60-second sliding window per IP.</strong> If you exceed this, the endpoint returns HTTP 429 with a <code>Retry-After</code> header indicating how long to wait.</li>
+      <li><strong>Server-side concurrent instance cap</strong> further bounds worst-case load under coordinated traffic. You should never see this unless you're actively trying to flood the server.</li>
+    </ul>
+    <p>
+      For most agent workflows (a few tool calls per user question, occasional batch
+      catch-up) you will never see the rate limit. If your use case legitimately requires
+      sustained higher volume, email
+      <a href="mailto:contact@keyvex.com">contact@keyvex.com</a> — we can discuss a paid
+      tier on a separate URL when those ship.
+    </p>
+
+    <h2 id="data-freshness">Data freshness</h2>
+    <p>KeyVex caches normalized data in Firestore. Refresh cadence per source:</p>
+    <ul>
+      <li><strong>SEC filings (most types):</strong> hourly</li>
+      <li><strong>SEC Form 4:</strong> every 30 minutes</li>
+      <li><strong>13F:</strong> every 4 hours</li>
+      <li><strong>Congressional trades:</strong> daily, 6 AM ET</li>
+      <li><strong>FEC contributions, federal contracts, lobbying:</strong> daily</li>
+      <li><strong>Bills, votes, member profiles:</strong> daily</li>
+      <li><strong>XBRL fundamentals:</strong> weekly</li>
+      <li><strong>FARA, OFAC, screening lists, recalls:</strong> daily</li>
+      <li><strong>Economic indicators:</strong> daily</li>
+    </ul>
+    <p>
+      Each tool response includes a <code>scraped_at</code> or <code>last_modified_date</code>
+      field so you can see exactly when the source was last polled.
+    </p>
+
+    <h2 id="troubleshooting">Troubleshooting</h2>
+
+    <details>
+      <summary>I get HTTP 429 Too Many Requests</summary>
+      <p>
+        Your IP exceeded the 60-requests-per-minute rate limit. The response body and the
+        <code>Retry-After</code> header indicate how long to wait. If your legitimate use
+        case requires higher sustained volume, email
+        <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>.
+      </p>
+    </details>
+
+    <details>
+      <summary>A tool returns an empty result set when I expect data</summary>
+      <p>
+        Common causes:
+      </p>
+      <ul>
+        <li><strong>Filter too narrow.</strong> The MCP filter parameters AND together — try widening the date range or removing one filter.</li>
+        <li><strong>Source genuinely has no data for that query.</strong> Some sources (e.g., FARA, Senate roll-call votes for some sessions) have low overall volume. The empty response is correct.</li>
+        <li><strong>Data not yet ingested.</strong> If you're querying for events from the last hour, check the <a href="#data-freshness">refresh cadence</a> — some sources update only daily.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>My MCP client is asking for an authentication URL or consent flow</summary>
+      <p>
+        It shouldn't. KeyVex serves <code>auth: none</code> in its health-check response and
+        does not return a <code>WWW-Authenticate</code> header on any 401 (because we never
+        return 401 for auth reasons — there's nothing to authenticate). If your client is
+        forcing an OAuth flow regardless, check the client's MCP server configuration — some
+        clients default to OAuth discovery and need to be explicitly told the server is
+        authless. You can also paste a dummy Bearer token if your client requires the field;
+        we'll ignore it.
+      </p>
+    </details>
+
+    <details>
+      <summary>Can I get historical data older than what a tool returns by default?</summary>
+      <p>
+        Most tools accept <code>since</code> and <code>until</code> filters. The historical
+        depth varies by source — for example, SEC Form 4 goes back to the 2003 mandate,
+        XBRL fundamentals to 2009, FEC contributions to 1980. If a date range returns less
+        than expected, check the data freshness section.
+      </p>
+    </details>
+
+    <details>
+      <summary>How do I report a bug or request a feature?</summary>
+      <p>
+        Email <a href="mailto:contact@keyvex.com">contact@keyvex.com</a> with the tool name,
+        the exact query parameters you sent, the response you received, and what you expected.
+        We typically reply within one business day.
+      </p>
+    </details>
+
+    <h2 id="support">Support</h2>
+    <div class="callout">
+      <p><strong>Primary support contact:</strong> <a href="mailto:contact@keyvex.com">contact@keyvex.com</a></p>
+      <p>
+        Founders read this inbox directly. Typical response time is within one business day.
+        For urgent issues (production outage, breaking change), include "URGENT" in the subject.
+      </p>
+    </div>
+    <p>
+      For privacy, terms, and data-handling questions, see the
+      <a href="/privacy">privacy policy</a>. For status and version, see the public health
+      check at <a href="https://mcp.keyvex.com/" target="_blank" rel="noopener"><code>https://mcp.keyvex.com/</code></a>
+      (returns server version and current tool list as JSON, no authentication required).
+    </p>
+  </main>
+
+  <footer>
+    <div>© KeyVex LLC · <a href="/">keyvex.com</a></div>
+    <div><a href="mailto:contact@keyvex.com">contact@keyvex.com</a></div>
+  </footer>
+</body>
+</html>

@@ -96,14 +96,14 @@
 
   <main>
     <h1>Privacy Policy</h1>
-    <p class="effective">Effective May 12, 2026 · Last updated May 12, 2026</p>
+    <p class="effective">Effective May 22, 2026 · Last updated May 22, 2026</p>
 
     <div class="summary">
-      <p><strong>The short version.</strong> KeyVex is an API. We collect the bare minimum needed to operate it: a contact email when you request access, an API key for authentication, and Google Cloud's standard request logs. We don't run analytics on the marketing site. We don't sell or share your data. Every disclosure record we serve through the API is sourced from public US government filings — never from anything we collected from you.</p>
+      <p><strong>The short version.</strong> KeyVex is a publicly-accessible API. There is no account, no signup, and no API key. We collect almost nothing about you: the IP address of API requests (used transiently for rate-limiting and standard Cloud Run access logs), and whatever email correspondence you choose to send us. We don't run analytics on the marketing site. We don't sell or share your data. Every disclosure record we serve through the API is sourced from public US government filings — never from anything we collected from you.</p>
     </div>
 
     <h2>1. Who we are</h2>
-    <p>KeyVex is a Model Context Protocol (MCP) server that publishes US public-record financial disclosures. The service is operated by the founders of KeyVex (LLC formation pending). For privacy questions, contact <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>.</p>
+    <p>KeyVex is a Model Context Protocol (MCP) server that publishes US public-record financial and government disclosures. The service is operated by KeyVex LLC. For privacy questions, contact <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>.</p>
 
     <p>This Privacy Policy applies to:</p>
     <ul>
@@ -114,29 +114,41 @@
     <h2>2. Information we collect</h2>
 
     <h3>2.1 Information you give us</h3>
+    <p>
+      KeyVex's MCP endpoint at <code>mcp.keyvex.com</code> is openly accessible — there is no
+      signup form, no account, and no API key. The only personal information we receive
+      from you is what you voluntarily send by email:
+    </p>
     <ul>
-      <li><strong>Contact information</strong> when you email <code>contact@keyvex.com</code> to request preview access. This is typically your email address and whatever else you include in the message.</li>
-      <li><strong>API key issuance</strong> — we issue you a Bearer token to authenticate to the MCP endpoint. The token is stored in our access database alongside the email address it was issued to.</li>
+      <li><strong>Contact information</strong> when you email <code>contact@keyvex.com</code> (typically your email address and whatever else you include in the message).</li>
     </ul>
-    <p>We do not currently operate a self-serve signup flow. There is no marketing-site form, no account creation page, no newsletter signup.</p>
+    <p>We do not currently operate any self-serve signup flow, marketing-site form, account creation page, or newsletter signup.</p>
 
     <h3>2.2 Automatic information from API usage</h3>
     <p>When you call the MCP endpoint, Google Cloud Functions (Gen 2) automatically logs:</p>
     <ul>
       <li>Your IP address</li>
-      <li>The request method, path, headers, and tool name</li>
+      <li>The request method, path, and standard HTTP headers</li>
       <li>Response status code and approximate timing</li>
-      <li>A truncated set of the Bearer token (for auth-failure debugging) — the full token is never logged</li>
+      <li>The tool name invoked, if any</li>
     </ul>
-    <p>These logs live in Google Cloud Logging under the project <code>capitaledge-api</code> and are retained per Google's default retention (currently 30 days for standard logs). We use them to debug failures, monitor abuse, and enforce per-key rate limits.</p>
+    <p>These logs live in Google Cloud Logging under the project <code>capitaledge-api</code> and are retained per Google's default retention (currently 30 days for standard logs). We use them to debug failures and monitor for abuse.</p>
+    <p>
+      Your IP is <strong>also held briefly in server memory</strong> as part of the per-IP
+      rate-limit window (60 requests per 60 seconds). That in-memory state is per-container
+      and is dropped when the container restarts — typically within minutes of the last
+      request from that IP.
+    </p>
 
     <h3>2.3 Automatic information from the marketing site</h3>
     <p>The marketing site at <code>keyvex.com</code> is static HTML served by Firebase Hosting. We do not embed Google Analytics, Facebook Pixel, or any other third-party tracking. We do not set any cookies on the marketing site. Firebase Hosting's edge CDN (Fastly) logs basic request data (IP, user-agent, URL) for delivery and abuse protection, but we do not access or combine these with any other data.</p>
 
     <h3>2.4 What we do NOT collect</h3>
     <ul>
+      <li>We do not require you to register for an account.</li>
+      <li>We do not issue API keys (the public endpoint is unauthenticated).</li>
       <li>We do not collect any browsing history, search history, or behavioral profiles.</li>
-      <li>We do not collect financial information (we are not a payment processor; paid tiers will use a third-party billing provider when paid tiers launch).</li>
+      <li>We do not collect financial information (we are not a payment processor; paid tiers, when they launch, will live on a separate authenticated URL and use a third-party billing provider).</li>
       <li>We do not collect demographic information.</li>
       <li>We do not collect any data from minors and we do not intentionally serve users under 13.</li>
     </ul>
@@ -144,15 +156,15 @@
     <h2>3. How we use information</h2>
     <p>We use the information described above only to:</p>
     <ul>
-      <li>Provision API access (issue a Bearer token, respond to your request email)</li>
-      <li>Authenticate API requests and enforce per-key rate limits</li>
+      <li>Operate the MCP endpoint and enforce per-IP rate limits</li>
       <li>Debug failures and monitor for abuse</li>
-      <li>Communicate with you about service changes, outages, or security issues (transactional only; no marketing email at this time)</li>
+      <li>Respond to email you send to <code>contact@keyvex.com</code></li>
+      <li>Communicate with you about service changes, outages, or security issues if you've corresponded with us (transactional only; no marketing email at this time)</li>
     </ul>
     <p>We do not use your information for any other purpose. We do not run advertising. We do not train AI models on your usage data.</p>
 
     <h2>4. The data the API serves</h2>
-    <p>KeyVex's MCP tools return <strong>normalized public-record financial disclosures</strong> sourced from official US government repositories: SEC EDGAR, USAspending.gov, Senate eFD, House Clerk, Senate LDA, the unitedstates/congress-legislators public catalog, api.congress.gov, api.open.fec.gov, FINRA OTC Transparency, US Treasury OFAC, federalregister.gov, and SEC + DOJ press release feeds.</p>
+    <p>KeyVex's MCP tools return <strong>normalized public-record financial and government disclosures</strong> sourced from official US government repositories: SEC EDGAR, USAspending.gov, Senate eFD, House Clerk, Senate LDA, the unitedstates/congress-legislators public catalog, api.congress.gov, api.open.fec.gov, FINRA OTC Transparency, US Treasury OFAC, federalregister.gov, SEC + DOJ + CFTC + OCC + FDIC + FTC press release feeds, FDA openFDA, CPSC SaferProducts, CFPB Consumer Complaint Database, HHS-OIG LEIE, DOJ FARA, US Trade Consolidated Screening List, US Treasury Direct, CFTC Commitments of Traders, BLS, FRED, EIA, and GovInfo.</p>
     <p>This data is already public by federal mandate. We do not derive personal-information profiles, scoring models, or predictive analytics from it. We do not enrich the public-record data with anything sourced from our users. Records returned by the API carry attribution back to the originating government source via <code>filing_url</code> / <code>report_url</code> / <code>primary_document_url</code> fields.</p>
 
     <h2>5. Sharing</h2>
@@ -163,13 +175,14 @@
     </ul>
 
     <h2>6. Security</h2>
-    <p>API keys are stored in Google Secret Manager with restricted IAM access. The MCP endpoint requires Bearer-token authentication and serves traffic over TLS 1.2+ exclusively (auto-managed certificates via Let's Encrypt). Firestore and Cloud Logging are accessed via the runtime service account; no public read access.</p>
+    <p>The MCP endpoint at <code>mcp.keyvex.com</code> serves traffic over TLS 1.2+ exclusively (auto-managed certificates via Let's Encrypt). The endpoint runs under a dedicated Google Cloud service account with <strong>read-only</strong> Firestore permissions — by design, a request to the MCP endpoint physically cannot modify our database. Per-IP rate limits and Cloud Run instance caps bound worst-case load.</p>
+    <p>Email correspondence with <code>contact@keyvex.com</code> is handled by our inbox provider's standard security controls (TLS in transit, provider-default at-rest encryption).</p>
     <p>No system is perfectly secure. If we discover a breach affecting your information, we will notify you within the timeframe required by applicable law.</p>
 
     <h2>7. Data retention</h2>
     <ul>
-      <li><strong>Contact email + issued API keys:</strong> retained for as long as your access is active, plus one year after revocation for abuse-investigation purposes. Earlier deletion on request.</li>
-      <li><strong>Cloud Functions request logs:</strong> retained 30 days (Google Cloud default).</li>
+      <li><strong>Cloud Functions request logs (including IP):</strong> retained 30 days (Google Cloud default).</li>
+      <li><strong>Per-IP rate-limit state in server memory:</strong> dropped at container restart or after the 60-second sliding window expires, whichever comes first. Not persisted to disk or any database.</li>
       <li><strong>Email correspondence:</strong> retained per the inbox-hosting provider's default policy. Earlier deletion on request.</li>
     </ul>
 
@@ -184,7 +197,7 @@
       <li>Withdraw consent (where processing is based on consent)</li>
       <li>Lodge a complaint with your local data protection authority</li>
     </ul>
-    <p>To exercise any of these rights, email <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>. We respond within 30 days.</p>
+    <p>To exercise any of these rights, email <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>. We respond within 30 days. In practice, because we collect so little about you, most rights requests resolve to "no records found beyond your email correspondence."</p>
 
     <p><strong>California residents (CCPA / CPRA):</strong> You have the right to know what personal information we collect, the right to delete it, the right to correct inaccurate information, and the right not to be discriminated against for exercising these rights. We do not sell or share personal information for cross-context behavioral advertising.</p>
 
@@ -195,7 +208,7 @@
     <p>KeyVex is a developer-focused API service intended for adults building software professionally. We do not intentionally collect personal information from children under 13. If we learn we have collected information from a child under 13, we will delete it promptly.</p>
 
     <h2>11. Changes to this policy</h2>
-    <p>We may update this Privacy Policy from time to time. When we make material changes, we will update the "Effective" and "Last updated" dates at the top of this page and, if you have an active API key, send a notice to your contact email. Continued use of the service after a change indicates acceptance.</p>
+    <p>We may update this Privacy Policy from time to time. When we make material changes, we will update the "Effective" and "Last updated" dates at the top of this page. Continued use of the service after a change indicates acceptance.</p>
 
     <h2>12. Contact</h2>
     <p>For privacy questions or to exercise any rights described above:</p>
