@@ -529,17 +529,44 @@ const NUMERIC_SORT_FIELDS = new Set<string>([
   // USAspending federal contracts + grants
   "award_amount",
   "total_outlays",
-  // Lobbying disclosure (income is numeric; filing_year reads numeric)
+  // Lobbying disclosure + Annual financial disclosures (both have filing_year:number)
   "income",
-  // XBRL fundamentals
+  "filing_year",
+  // XBRL fundamentals + Economic indicators (BLS/FRED) — both have a "value" field
   "value",
+  // Economic indicators — `year` is an integer YYYY
+  "year",
   // OFAC SDN
   "ent_num",
-  // 13F institutional holdings
+  // 13F institutional holdings (sort_by: market_value | shares_held | shares_change_pct)
   "market_value",
+  "shares_held",
+  "shares_change_pct",
   // N-PORT holdings
   "value_usd",
   "pct_of_portfolio",
+  // FEC Schedule A — itemized contributions
+  "contribution_receipt_amount",
+  // FEC Schedule E — independent expenditures
+  "expenditure_amount",
+  // FEC candidate profile — `active_through` is a year integer
+  "active_through",
+  // CFTC Commitments of Traders
+  "open_interest",
+  "noncomm_net",
+  "comm_net",
+  // FINRA OTC market weekly (dark-pool activity)
+  "total_weekly_share_quantity",
+  "total_notional_sum",
+  "total_weekly_trade_count",
+  // SEC Form D — private placements
+  "total_amount_sold",
+  // SEC Fails-to-Deliver
+  "quantity_fails",
+  "fail_value",
+  // US Treasury auctions (the field that triggered this audit on 2026-05-22)
+  "offering_amount",
+  "bid_to_cover_ratio",
   // Generic
   "amount",
   "amount_min",
@@ -1383,6 +1410,12 @@ export async function queryCftcCotReports(
   const sortField = query.sort_by ?? "report_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  // Type-mismatch guard: cftc_cot sort fields open_interest / noncomm_net /
+  // comm_net are numeric. Combining a date-string since/until with a numeric
+  // sort_by produces silently-truncated client-side filtering — agent gets
+  // partial/empty results with no signal that the combination is invalid.
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
+
   const userLimit = query.limit ?? 50;
   const needsSubstring = !!query.contract_market_name;
   const fetchLimit = needsSubstring ? 5000 : Math.max(userLimit * 4, 500);
@@ -1494,6 +1527,11 @@ export async function querySecFailsToDeliver(
 
   const sortField = query.sort_by ?? "settlement_date";
   const sortOrder = query.sort_order ?? "desc";
+
+  // Type-mismatch guard: sec_ftd sort fields quantity_fails / fail_value are
+  // numeric. Same client-side filter pattern as cftc_cot — combining numeric
+  // sort with since/until silently truncates without agent feedback.
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
 
   const userLimit = query.limit ?? 50;
   const fetchLimit = Math.max(userLimit * 4, 500);
@@ -3927,6 +3965,14 @@ export async function queryPrivatePlacements(
     return { results: [doc.data() as PrivatePlacement], has_more: false };
   }
 
+  // Type-mismatch guard: private_placements sort_by=total_amount_sold is
+  // numeric. since/until apply to date_of_first_sale client-side regardless
+  // of sort_by, but combining numeric sort with date filter still produces
+  // confusing partial/empty results — fire the standard INVALID_QUERY error
+  // so agents get clear feedback rather than a false coverage_warning.
+  const sortFieldForGuard = query.sort_by ?? "file_date";
+  rejectNumericSortWithDateFilter(sortFieldForGuard, query.since, query.until);
+
   let q: FirestoreQuery = db.collection("private_placements");
 
   if (query.issuer_cik) {
@@ -4056,6 +4102,13 @@ export async function queryOtcMarketWeekly(
     if (!doc.exists) return { results: [], has_more: false };
     return { results: [doc.data() as OtcMarketWeekly], has_more: false };
   }
+
+  // Type-mismatch guard: otc_market_weekly sort fields total_notional_sum /
+  // total_weekly_share_quantity / total_weekly_trade_count are numeric.
+  // Same client-side filter pattern — fire INVALID_QUERY rather than emit a
+  // false coverage_warning when results truncate to empty.
+  const sortFieldForGuard = query.sort_by ?? "week_start_date";
+  rejectNumericSortWithDateFilter(sortFieldForGuard, query.since, query.until);
 
   let q: FirestoreQuery = db.collection("otc_market_weekly");
 
@@ -4710,6 +4763,10 @@ export async function queryFecContributions(
   const sortField = query.sort_by ?? "contribution_receipt_date";
   const sortOrder = query.sort_order ?? "desc";
 
+  // Type-mismatch guard: sort_by=contribution_receipt_amount is numeric;
+  // combining with since/until would produce the silent-empty trap.
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
+
   // Substring filters (contributor_name, contributor_employer) need a wider
   // pre-fetch window since they're applied client-side.
   const userLimit = query.limit ?? 50;
@@ -4861,6 +4918,10 @@ export async function queryFecIndependentExpenditures(
 
   const sortField = query.sort_by ?? "expenditure_date";
   const sortOrder = query.sort_order ?? "desc";
+
+  // Type-mismatch guard: sort_by=expenditure_amount is numeric; combining
+  // with since/until would produce the silent-empty trap.
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
 
   const userLimit = query.limit ?? 50;
   const needsSubstring = !!(query.payee_name || query.description);
