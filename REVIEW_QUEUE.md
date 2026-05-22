@@ -238,6 +238,29 @@ This is NOT scoped for v1 because no customer report has confirmed it bites. Kee
 
 ---
 
+## 10. congressional_trades — `reporting_lag_days` semantics (calendar vs business days)
+
+**Greg's 2026-05-22 observation**. The field's name reads as calendar days, but the values look like business days:
+
+  - Kelly: transaction → disclosure = **42 calendar days**, field reads `30`
+  - Meuser: 27 calendar → field reads `19`
+  - Cohen: 16 calendar → field reads `12`
+
+All three fit calendar-minus-weekends. Field is undocumented in the tool description / schema; agents must guess which convention is in use.
+
+**Why this matters**: the STOCK Act statutory window is **45 calendar days** transaction → disclosure. If `reporting_lag_days` is business days, an agent (or downstream compliance product) using `reporting_lag_days > 45` as the "late filing" check will UNDERSTATE late filings — a row at 60 calendar days would read `42` business and slip past the threshold.
+
+**Decision needed (Greg's call)**:
+  a. **Switch to calendar days** — re-derive from `transaction_date` / `disclosure_date` at ingestion, no schema change. Backward-compatible value change (numbers go up); agents using the field for compliance checks become correct.
+  b. **Keep business days but rename + document** — rename to `reporting_lag_business_days`, add explicit note in tool description, add a new `reporting_lag_calendar_days` field for compliance use. Schema-additive.
+  c. **Keep as-is + document** — least work, biggest agent-surprise risk; not recommended.
+
+**Recommendation**: (a) — the field name already implies calendar days, fixing the values to match is the lowest-friction "make it correct" path. Greg owns this call because it's a behavioral change.
+
+**Status**: shelved per Greg's instruction ("log the lag-semantics item for me"). No code change in this pass.
+
+---
+
 ## Tracking signal for v1.1
 
 Each item above has a known fix. None are launch blockers — the v0.47.0 fix

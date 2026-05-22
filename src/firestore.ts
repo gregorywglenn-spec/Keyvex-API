@@ -1125,9 +1125,37 @@ export async function saveCongressionalTrades(
   const BATCH_SIZE = 400;
   let saved = 0;
 
-  for (let i = 0; i < trades.length; i += BATCH_SIZE) {
+  // Enrich bioguide_id + party + state from the legislators catalog
+  // BEFORE writing. Greg's 2026-05-22 finding: 99.6% of existing rows had
+  // bioguide_id="" because the scheduled scrapers never ran the resolver.
+  // Now every save (scheduled cron OR manual CLI) gets ingestion-time
+  // enrichment. Lookups are cached 10 min per process so the 13K-record
+  // catalog load only happens once per cold function start.
+  //
+  // Best-effort: if the catalog load fails, log + save the raw trades
+  // rather than blocking the write. The standalone `backfill-bioguide`
+  // CLI can clean up any rows that slipped through.
+  let toWrite = trades;
+  try {
+    toWrite = await enrichTradesWithBioguide(trades);
+    const filled = toWrite.filter(
+      (t, i) => !trades[i]?.bioguide_id && t.bioguide_id,
+    ).length;
+    if (filled > 0) {
+      console.error(
+        `[saveCongressionalTrades] bioguide enrichment: ${filled}/${trades.length} resolved`,
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[saveCongressionalTrades] bioguide enrichment FAILED — saving raw rows. ${msg}`,
+    );
+  }
+
+  for (let i = 0; i < toWrite.length; i += BATCH_SIZE) {
     const batch = db.batch();
-    const chunk = trades.slice(i, i + BATCH_SIZE);
+    const chunk = toWrite.slice(i, i + BATCH_SIZE);
     for (const trade of chunk) {
       batch.set(collection.doc(trade.id), trade, { merge: true });
     }
@@ -1137,6 +1165,266 @@ export async function saveCongressionalTrades(
 
   return { saved, collection: COLLECTION };
 }
+
+// ─── Bioguide enrichment (ingestion-time + cached) ────────────────────────
+//
+// Greg's 2026-05-22 finding: the Senate + House scrapers wrote bioguide_id=""
+// + party="" + state="" on every new record, relying on a manual back-fill
+// CLI to fill them in later. The back-fill was a one-time pass — so every
+// nightly cron run accumulated more unenriched rows. By 2026-05-22 the
+// collection was 99.6% empty on bioguide_id (56,970 of 57,211 rows).
+//
+// Fix: extract the resolver from backfillBioguideIds() into a reusable
+// in-memory enricher + wire it into saveCongressionalTrades() so EVERY
+// write (scheduled cron, manual CLI, future paths) populates bioguide_id
+// + party + state at ingestion time. The standalone back-fill CLI still
+// exists for one-time cleanup of pre-existing rows.
+
+type SenatorByLast = {
+  bioguide: string;
+  state: string;
+  first: string;
+  nickname: string;
+};
+type ByLastWord = {
+  bioguide: string;
+  chamber: string;
+  state: string;
+  fullLast: string;
+};
+type HistoricalCandidate = {
+  bioguide: string;
+  terms: Array<{ start: string; end: string }>;
+};
+type BioguideInfo = { party: string; state: string };
+
+type BioguideLookups = {
+  primaryLookup: Record<string, string>;
+  senateByLast: Record<string, SenatorByLast[]>;
+  byLastWord: Record<string, ByLastWord[]>;
+  historicalByKey: Record<string, HistoricalCandidate[]>;
+  bioguideToInfo: Record<string, BioguideInfo>;
+};
+
+let cachedLookups: BioguideLookups | null = null;
+let cachedLookupsExpiry = 0;
+const LOOKUPS_TTL_MS = 10 * 60 * 1000; // 10 min — agents won't notice; cron cold-starts rebuild fresh
+
+/**
+ * Strip ", Jr.", ", Sr.", ", III", ", IV" etc. — trailing comma-suffixes
+ * the Senate scraper bakes into the last_name field. Used both here and
+ * in backfillBioguideIds (kept duplicated to avoid coupling).
+ */
+function stripSuffixForBioguide(last: string): string {
+  return last.replace(/,\s*(jr|sr|ii|iii|iv|v)\.?\s*$/i, "").trim();
+}
+
+/**
+ * Build the four lookup tables from the legislators + legislators_historical
+ * collections. Cached at module scope for 10 minutes — cheap enough for
+ * cold cron starts (one 13K-record load on first call, no-op after).
+ */
+async function buildBioguideLookups(): Promise<BioguideLookups> {
+  if (cachedLookups && Date.now() < cachedLookupsExpiry) {
+    return cachedLookups;
+  }
+  const db = await getLiveDb();
+
+  const lookups: BioguideLookups = {
+    primaryLookup: {},
+    senateByLast: {},
+    byLastWord: {},
+    historicalByKey: {},
+    bioguideToInfo: {},
+  };
+
+  // Current legislators
+  const legSnap = await db.collection("legislators").get();
+  for (const doc of legSnap.docs) {
+    const x = doc.data() as {
+      bioguide_id?: string;
+      chamber?: string;
+      state?: string;
+      party?: string;
+      last_name?: string;
+      first_name?: string;
+      nickname?: string;
+    };
+    if (!x.bioguide_id || !x.chamber || !x.state || !x.last_name) continue;
+    const lastLower = x.last_name.toLowerCase();
+    const stateUpper = x.state.toUpperCase();
+    lookups.primaryLookup[`${x.chamber}|${stateUpper}|${lastLower}`] = x.bioguide_id;
+    lookups.bioguideToInfo[x.bioguide_id] = {
+      party: x.party ?? "",
+      state: stateUpper,
+    };
+    if (x.chamber === "senate") {
+      if (!lookups.senateByLast[lastLower]) lookups.senateByLast[lastLower] = [];
+      lookups.senateByLast[lastLower].push({
+        bioguide: x.bioguide_id,
+        state: stateUpper,
+        first: (x.first_name || "").toLowerCase(),
+        nickname: (x.nickname || "").toLowerCase(),
+      });
+    }
+    const lastWord = lastLower.split(/\s+/).pop() ?? "";
+    if (lastWord && lastWord !== lastLower) {
+      if (!lookups.byLastWord[lastWord]) lookups.byLastWord[lastWord] = [];
+      lookups.byLastWord[lastWord].push({
+        bioguide: x.bioguide_id,
+        chamber: x.chamber,
+        state: stateUpper,
+        fullLast: lastLower,
+      });
+    }
+  }
+
+  // Historical legislators (best-effort — skip cleanly if collection empty)
+  try {
+    const histSnap = await db.collection("legislators_historical").get();
+    for (const doc of histSnap.docs) {
+      const x = doc.data() as {
+        bioguide_id?: string;
+        last_name?: string;
+        terms?: Array<{
+          chamber?: string;
+          state?: string;
+          start?: string;
+          end?: string;
+          party?: string;
+        }>;
+      };
+      if (!x.bioguide_id || !x.last_name || !x.terms) continue;
+      const lastLower = x.last_name.toLowerCase();
+      const termsByKey: Record<string, Array<{ start: string; end: string }>> = {};
+      for (const t of x.terms) {
+        if (!t.chamber || !t.state || !t.start || !t.end) continue;
+        const key = `${t.chamber}|${t.state.toUpperCase()}|${lastLower}`;
+        if (!termsByKey[key]) termsByKey[key] = [];
+        termsByKey[key].push({ start: t.start, end: t.end });
+        // Record info from the most-recent term (last in chronological list).
+        if (!lookups.bioguideToInfo[x.bioguide_id]) {
+          lookups.bioguideToInfo[x.bioguide_id] = {
+            party: t.party ?? "",
+            state: t.state.toUpperCase(),
+          };
+        }
+      }
+      for (const [key, terms] of Object.entries(termsByKey)) {
+        if (!lookups.historicalByKey[key]) lookups.historicalByKey[key] = [];
+        lookups.historicalByKey[key].push({ bioguide: x.bioguide_id, terms });
+      }
+    }
+  } catch {
+    // Historical collection unreadable — skip cleanly, Tier-4 will return nothing.
+  }
+
+  cachedLookups = lookups;
+  cachedLookupsExpiry = Date.now() + LOOKUPS_TTL_MS;
+  return lookups;
+}
+
+/**
+ * Resolve one trade's bioguide_id via the 4-tier matcher. Returns null on
+ * no match. Pure function over the prebuilt lookups — safe to call in a tight
+ * loop without I/O.
+ */
+function resolveTradeBioguide(
+  trade: CongressionalTrade,
+  lookups: BioguideLookups,
+): string | null {
+  const chamber = trade.chamber || "";
+  const stateUpper = (trade.state || "").toUpperCase();
+  const lastClean = stripSuffixForBioguide(
+    (trade.member_last || "").toLowerCase(),
+  );
+  const tradeDate = trade.transaction_date || trade.disclosure_date || "";
+
+  // Tier 1: primary
+  if (stateUpper && lastClean) {
+    const hit = lookups.primaryLookup[`${chamber}|${stateUpper}|${lastClean}`];
+    if (hit) return hit;
+  }
+
+  // Tier 2: senate-no-state
+  if (chamber === "senate" && lastClean) {
+    const senators = lookups.senateByLast[lastClean] ?? [];
+    if (senators.length === 1 && senators[0]) {
+      return senators[0].bioguide;
+    } else if (senators.length > 1) {
+      const tradeFirstWord =
+        (trade.member_first || "").toLowerCase().trim().split(/\s+/)[0] || "";
+      if (tradeFirstWord) {
+        const matches = senators.filter(
+          (s) => s.first === tradeFirstWord || s.nickname === tradeFirstWord,
+        );
+        if (matches.length === 1 && matches[0]) return matches[0].bioguide;
+      }
+    }
+  }
+
+  // Tier 3: last-word match
+  if (lastClean) {
+    const candidates = (lookups.byLastWord[lastClean] ?? []).filter(
+      (c) => c.chamber === chamber && (!stateUpper || c.state === stateUpper),
+    );
+    if (candidates.length === 1 && candidates[0]) return candidates[0].bioguide;
+  }
+
+  // Tier 4: historical (date-window filtered)
+  if (lastClean && tradeDate) {
+    let candidates: HistoricalCandidate[] = [];
+    if (stateUpper) {
+      candidates = lookups.historicalByKey[`${chamber}|${stateUpper}|${lastClean}`] ?? [];
+    } else if (chamber === "senate") {
+      for (const [key, arr] of Object.entries(lookups.historicalByKey)) {
+        if (key.startsWith("senate|") && key.endsWith(`|${lastClean}`)) {
+          candidates = candidates.concat(arr);
+        }
+      }
+    }
+    const inOffice = candidates.filter((c) =>
+      c.terms.some((t) => t.start <= tradeDate && tradeDate <= t.end),
+    );
+    if (inOffice.length === 1 && inOffice[0]) return inOffice[0].bioguide;
+  }
+
+  return null;
+}
+
+/**
+ * Enrich an array of CongressionalTrade rows in memory: for any row with
+ * empty bioguide_id, run the 4-tier resolver against the cached lookups
+ * and populate bioguide_id + party + state from the legislators catalog.
+ *
+ * Idempotent on bioguide_id (already-set rows pass through unchanged).
+ * party + state are filled only if currently empty — never overwrites
+ * scraper-provided values when present.
+ *
+ * Used by saveCongressionalTrades(). Exposed (non-`export`) so the same
+ * helper is reachable from tests / smoketests via module import.
+ */
+async function enrichTradesWithBioguide(
+  trades: CongressionalTrade[],
+): Promise<CongressionalTrade[]> {
+  if (trades.length === 0) return trades;
+  const lookups = await buildBioguideLookups();
+  return trades.map((t) => {
+    if (t.bioguide_id) return t;
+    const bg = resolveTradeBioguide(t, lookups);
+    if (!bg) return t;
+    const info = lookups.bioguideToInfo[bg];
+    return {
+      ...t,
+      bioguide_id: bg,
+      party: t.party || info?.party || "",
+      state: t.state || info?.state || "",
+    };
+  });
+}
+
+// Export the enricher under a clear name for smoketests + future call sites.
+export const __enrichTradesWithBioguide = enrichTradesWithBioguide;
 
 // ─── Planned insider sales (Form 144) query ────────────────────────────────
 
