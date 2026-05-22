@@ -1440,6 +1440,71 @@
         { "fieldPath": "fiscal_period", "order": "ASCENDING" },
         { "fieldPath": "period_end", "order": "DESCENDING" }
       ]
+    },
+
+    {
+      "collectionGroup": "institutional_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cusip", "order": "ASCENDING" },
+        { "fieldPath": "market_value", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "institutional_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "fund_cik", "order": "ASCENDING" },
+        { "fieldPath": "market_value", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "institutional_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "quarter", "order": "ASCENDING" },
+        { "fieldPath": "market_value", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "institutional_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "position_change", "order": "ASCENDING" },
+        { "fieldPath": "market_value", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "planned_insider_sales",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "company_cik", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activist_ownership",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cusip", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "activist_ownership",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filing_type", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "xbrl_fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "cik", "order": "ASCENDING" },
+        { "fieldPath": "period_end", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

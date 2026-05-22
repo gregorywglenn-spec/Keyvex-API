@@ -122,6 +122,42 @@ parser + chunked-write to Firestore. ~1-2 hours of scraper rewrite.
 
 ---
 
+## 5. 13F scraper coverage gap — only 18 funds, all big-caps absent
+
+**Data gap surfaced by Greg's WFC test (2026-05-22)**. `get_institutional_holdings(ticker="WFC")` returns 0. Root cause is NOT a CUSIP→ticker enrichment issue (the `ticker` field IS populated on every doc) — it's a **scraper coverage gap**.
+
+The `institutional_holdings` collection holds **903 docs across only 18 distinct funds**, all small specialty managers. Of the 10 "tracked aliases" the scraper is supposed to ingest (berkshire / blackrock / vanguard / bridgewater / citadel / point72 / deshaw / renaissance / twosigma / millennium), **only Berkshire is actually present**. BlackRock / Vanguard / etc. — all ABSENT.
+
+That's why WFC returns 0: WFC IS held by BlackRock and Vanguard at massive scale, but those funds' 13F filings haven't been ingested.
+
+**v1.1 fix**: investigate why the 13F scheduled scraper is only running against Berkshire + Harvest + Park West + Energy Income Partners + Diker + Bruce + Washington Capital + Hermes + Viking + Tekla + Coastline + Atlas Brown + Lane Five + Broadwood + Trafelet + Matrix + New Generation + Garcia Hamilton. The fund-alias list in `src/scrapers/13f.ts` should include the 10 tracked aliases above; verify why they're not being ingested. Probably either: (a) CIK lookup is failing for those, (b) `13f-feed` is only scraping a subset, (c) the scheduled function only fires on a subset.
+
+**Confirmed**: not a query bug, not a ticker bug — purely scraper coverage. Captured here so Greg can prioritize the scraper investigation separately.
+
+---
+
+## 6. Default-orderBy INDEX_MISSING — broader sweep needed (v1.1)
+
+**Context** (2026-05-22 commit `<this commit>`): the v0.47 audit found 38 (filter × default_sort) combos returning `INDEX_MISSING`. Greg's recommended split:
+  - **(i) Query-builder fix**: skip default orderBy when only equality filters are present
+  - **(ii) Provision composite indexes** for the genuinely-needed money-ranking queries
+
+This commit applies (i) to `queryInstitutionalHoldings` only (the function Greg specifically reported) plus adds 8 high-value composite indexes for (ii). The remaining ~25 query functions follow the same pattern and need the same (i) treatment.
+
+**Why I didn't sweep all 30 functions in this pass**:
+  1. The bug bites hardest on numeric-default queries (`institutional_holdings.market_value`) — fixed now
+  2. Date-default queries DO regress in UX when default orderBy is dropped (recency lost on equality-only queries) — needs a per-function decision about whether to client-side-sort after fetch
+  3. The mechanical diff across 30+ functions deserves a focused PR with its own smoketest matrix
+
+**What needs to happen next pass**:
+  - Apply `applyOrderByConditionally()` helper to the other ~25 query functions
+  - For date-default tools, decide per-tool whether to also client-side sort after fetch to preserve "most recent first" UX
+  - Add a battle-test that hits every (equality_field × default_sort) combo and asserts no INDEX_MISSING
+
+**Audit table of remaining 38 combos** stored in `scripts/audit-indexes.ts` — re-runnable any time via `npx tsx scripts/audit-indexes.ts`. Re-run after each pass to see what's left.
+
+---
+
 ## Tracking signal for v1.1
 
 Each item above has a known fix. None are launch blockers — the v0.47.0 fix
