@@ -253,6 +253,10 @@ interface FtsHit {
     file_date?: string;
     file_type?: string;
     display_names?: string[];
+    /** EDGAR FTS calls this `period_ending`; we expose it as
+     *  `period_of_report` on the output. Same field-name typo as
+     *  form8k.ts surfaced 2026-05-23 — fixed defensively here too. */
+    period_ending?: string;
     period_of_report?: string;
     form?: string;
   };
@@ -315,7 +319,10 @@ export async function scrapeProxyLiveFeed(
       const cikRaw = cikPaddedFromHit.replace(/^0+/, "");
 
       const filedAt = src.file_date ?? "";
-      const periodOfReport = src.period_of_report ?? "";
+      // FTS field is `period_ending`, not `period_of_report` — same
+      // bug as form8k.ts caught 2026-05-23. Fall back to legacy
+      // name defensively.
+      const periodOfReport = src.period_ending ?? src.period_of_report ?? "";
 
       const ticker = await getTickerFromCik(cikPaddedFromHit);
       const companyName =

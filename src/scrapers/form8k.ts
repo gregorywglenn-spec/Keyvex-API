@@ -282,6 +282,14 @@ interface FtsHit {
     items?: unknown;
     file_type?: string;
     display_names?: string[];
+    /** EDGAR FTS calls this `period_ending`; the submissions API calls
+     *  the same field `reportDate`; the public-facing field name on
+     *  our records is `period_of_report`. Greg's 2026-05-23 finding:
+     *  the previous code read `src.period_of_report` (which doesn't
+     *  exist on FTS) and left every feed-path row blank. Now reads
+     *  period_ending first, falls back to period_of_report for
+     *  defensive coverage. */
+    period_ending?: string;
     period_of_report?: string;
   };
 }
@@ -339,7 +347,9 @@ export async function scrape8kLiveFeed(
     const cikRaw = cikPaddedFromHit.replace(/^0+/, "");
 
     const filedAt = src.file_date ?? "";
-    const periodOfReport = src.period_of_report ?? "";
+    // FTS uses `period_ending` (not `period_of_report`). Fall back to
+    // the legacy name too — defensive against future API normalization.
+    let periodOfReport = src.period_ending ?? src.period_of_report ?? "";
     let itemCodes = parseItemCodes(src.items);
 
     // Resolve ticker + name via the bidirectional cache.
@@ -349,21 +359,30 @@ export async function scrape8kLiveFeed(
       src.display_names?.[0]?.split(" (")[0] ??
       null;
 
-    // Fallback path: if FTS didn't carry items, fetch the submissions API
-    // and look up the matching accession. Cached per CIK.
-    if (itemCodes.length === 0) {
+    // Fallback path: if FTS didn't carry items OR period_of_report,
+    // fetch the submissions API and look up the matching accession.
+    // Cached per CIK. Greg's 2026-05-23 finding caused this to fire on
+    // period_of_report too (older code only fired when items were
+    // missing, leaving 51% of feed-path rows with empty
+    // period_of_report).
+    if (itemCodes.length === 0 || !periodOfReport) {
       try {
         const subs = await getSubmissions(cikPaddedFromHit);
         const recent = subs.filings?.recent;
         if (recent) {
           const idx = recent.accessionNumber.findIndex((a) => a === accession);
           if (idx >= 0) {
-            itemCodes = parseItemCodes(recent.items?.[idx]);
+            if (itemCodes.length === 0) {
+              itemCodes = parseItemCodes(recent.items?.[idx]);
+            }
+            if (!periodOfReport && recent.reportDate?.[idx]) {
+              periodOfReport = recent.reportDate[idx];
+            }
           }
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[8k live]   ${accession}: items fallback SKIP — ${msg}`);
+        console.error(`[8k live]   ${accession}: items/period fallback SKIP — ${msg}`);
       }
     }
 

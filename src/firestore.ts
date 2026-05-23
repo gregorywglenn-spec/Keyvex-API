@@ -2760,13 +2760,38 @@ export async function queryMaterialEvents(
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
-  q = q.orderBy(sortField, sortOrder);
+  // Greg's 2026-05-23 finding: period_of_report was empty on ~52% of
+  // material_events rows (FTS field-name typo in the scraper — fixed
+  // for going-forward writes, plus a backfill, but until the backfill
+  // completes some rows still have blank period_of_report). When
+  // sort_by=period_of_report, sorting by an empty string buries the
+  // newest filings — the opposite of what the agent wants. Fall back
+  // to filing_date as the order key in that case: it's the same
+  // ordering for fully-populated rows, and pushes blank-period rows
+  // into their natural chronological position by filing_date.
+  const effectiveSortField =
+    sortField === "period_of_report" ? "filing_date" : sortField;
+  q = q.orderBy(effectiveSortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
   q = q.limit(userLimit + 1);
 
   const snap = await q.get();
-  const docs = snap.docs.map((d) => d.data() as MaterialEvent);
+  let docs = snap.docs.map((d) => d.data() as MaterialEvent);
+
+  // When agent asked for period_of_report sort, re-sort client-side
+  // using a COALESCE(period_of_report, filing_date) key so populated
+  // rows still get their accurate event-date ordering while blanks
+  // sort by filing_date.
+  if (sortField === "period_of_report") {
+    docs.sort((a, b) => {
+      const ak = (a.period_of_report || a.filing_date || "") as string;
+      const bk = (b.period_of_report || b.filing_date || "") as string;
+      if (ak === bk) return 0;
+      const cmp = ak < bk ? -1 : 1;
+      return sortOrder === "desc" ? -cmp : cmp;
+    });
+  }
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
