@@ -2484,7 +2484,53 @@ export async function backfillBioguideIds(
   let unmatched = 0;
   let alreadySet = 0;
   const unmatchedKeys = new Set<string>();
-  const updates: Array<{ docId: string; bioguide_id: string }> = [];
+  const updates: Array<{
+    docId: string;
+    bioguide_id: string;
+    party?: string;
+    state?: string;
+  }> = [];
+
+  // Build a bioguide → {party, state} lookup so backfill can ALSO write
+  // party + state alongside bioguide_id. Greg's 2026-05-22 finding: the
+  // earlier backfill only wrote bioguide_id, leaving party empty across
+  // every backfilled row even when the catalog had the answer. Now both
+  // current and historical legislators contribute info to this map; the
+  // primary catalog wins on conflict (most recent term info).
+  const bioguideToInfo: Record<string, { party: string; state: string }> = {};
+  for (const doc of legSnap.docs) {
+    const x = doc.data() as {
+      bioguide_id?: string;
+      party?: string;
+      state?: string;
+    };
+    if (x.bioguide_id) {
+      bioguideToInfo[x.bioguide_id] = {
+        party: x.party ?? "",
+        state: (x.state ?? "").toUpperCase(),
+      };
+    }
+  }
+  // Historical fallback for legislators not in the current catalog.
+  try {
+    const histSnap = await db.collection("legislators_historical").get();
+    for (const doc of histSnap.docs) {
+      const x = doc.data() as {
+        bioguide_id?: string;
+        terms?: Array<{ party?: string; state?: string }>;
+      };
+      if (!x.bioguide_id || bioguideToInfo[x.bioguide_id]) continue;
+      const lastTerm = x.terms?.[x.terms.length - 1];
+      if (lastTerm) {
+        bioguideToInfo[x.bioguide_id] = {
+          party: lastTerm.party ?? "",
+          state: (lastTerm.state ?? "").toUpperCase(),
+        };
+      }
+    }
+  } catch {
+    // Historical missing — current catalog is sufficient for ~98% of cases
+  }
 
   for (const doc of tradesSnap.docs) {
     const x = doc.data() as {
@@ -2493,10 +2539,21 @@ export async function backfillBioguideIds(
       state?: string;
       chamber?: string;
       bioguide_id?: string;
+      party?: string;
       transaction_date?: string;
       disclosure_date?: string;
     };
     if (x.bioguide_id) {
+      // bioguide is already set — but check whether party still needs
+      // back-filling (an earlier backfill run only wrote bioguide_id).
+      // If so, push an update with just the missing party/state and
+      // continue. Otherwise count as fully-set and skip.
+      const info = bioguideToInfo[x.bioguide_id];
+      const needsParty = !x.party && info?.party;
+      const needsState = !x.state && info?.state;
+      if (needsParty || needsState) {
+        updates.push({ docId: doc.id, bioguide_id: x.bioguide_id });
+      }
       alreadySet++;
       continue;
     }
@@ -2608,6 +2665,10 @@ export async function backfillBioguideIds(
   );
 
   // Step 3: Write the matches back. Batch updates capped at 400 per Firestore.
+  // Also write party + state from bioguideToInfo (Greg's 2026-05-22 fix —
+  // earlier backfill only wrote bioguide_id, leaving party empty even when
+  // the catalog had the answer). Only writes party/state if non-empty so
+  // existing scraper-provided values aren't clobbered (merge semantics).
   let written = 0;
   if (!dryRun && updates.length > 0) {
     const collection = db.collection("congressional_trades");
@@ -2616,7 +2677,11 @@ export async function backfillBioguideIds(
       const batch = db.batch();
       const chunk = updates.slice(i, i + BATCH_SIZE);
       for (const u of chunk) {
-        batch.update(collection.doc(u.docId), { bioguide_id: u.bioguide_id });
+        const info = bioguideToInfo[u.bioguide_id];
+        const payload: Record<string, string> = { bioguide_id: u.bioguide_id };
+        if (info?.party) payload.party = info.party;
+        if (info?.state) payload.state = info.state;
+        batch.update(collection.doc(u.docId), payload);
       }
       await batch.commit();
       written += chunk.length;
