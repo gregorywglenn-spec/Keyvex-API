@@ -261,6 +261,63 @@ All three fit calendar-minus-weekends. Field is undocumented in the tool descrip
 
 ---
 
+## 11. xbrl_fundamentals — `fiscal_period` field is filing-derived, not observation-derived (BUG, scope quantified)
+
+**Surfaced by Greg's 2026-05-22 audit.** AAPL Revenues row period_end=2018-09-29, period_start=2018-07-01 (~90-day quarter), frame="CY2018Q3" — but fiscal_period="FY". Span and frame both say quarter; fiscal_period says full year.
+
+**Root cause** (verified in `src/scrapers/xbrl.ts:326`):
+```ts
+fiscal_period: args.obs.fp ?? "",
+```
+The scraper writes SEC's `fp` field as-is. That field describes the **FILING TYPE** ("10-K" → "FY", "10-Q" → "Q1/Q2/Q3"), not the per-observation period. A 10-K filing contains BOTH the FY cumulative AND the Q4-standalone observations of every concept — SEC tags both with `fp="FY"` because they're inside a 10-K. Same root cause produces H+fp=Q and 9M+fp=Q mislabels in 10-Q filings (which contain Q3-standalone AND 6M-YTD AND 9M-YTD observations all tagged `fp="Q3"`).
+
+**Audit scope** (`scripts/audit-xbrl-fiscal-period.ts`, re-runnable):
+  - Total rows scanned: **323,590**
+  - Clean cases (derived_kind, frame, fp all agree): ~31.5% of collection
+  - **Clear mismatches** (span=Q + fp=FY OR span=FY + fp=Q): **21,380 (6.6%)**
+  - Of those, 16,996 (79.5%) have frame agreeing with derived span — proves fp is the wrong field, not span/frame
+  - Conceptual mismatches (H+fp=Q, 9M+fp=Q — cumulative YTDs tagged as quarters): another ~19.3% combined
+
+**Why this matters for agents**:
+  - Filter `fiscal_period="Q3"` for "Q3 2018 Revenues" → MISSES the row from the 10-K filing where fp="FY" but the actual observation is Q4-standalone
+  - Sum all `fiscal_period="FY"` rows for 2018 → DOUBLE-COUNTS (the 10-K Q4-standalone + the FY cumulative both have fp="FY")
+  - Margin math comparing quarter A to quarter B can silently pick a YTD row instead of a standalone
+
+**Two fix options (Greg's call)**:
+
+  (a) **Re-derive `fiscal_period` from span + frame at scrape time** — sub-3-month → derive Q1/Q2/Q3/Q4 from calendar quarter end, 12-month → "FY", 6-month → "H", 9-month → "9M". Backward-compatible behavioral change. Requires a re-scrape OR a backfill to clean existing rows.
+
+  (b) **Keep `fiscal_period` as-is (matching SEC `fp` semantics) + add a NEW field `observation_period`** that's accurately derived. Schema-additive. Document the `fiscal_period` gotcha in the tool description. Agent recommendation: use `observation_period` for math, `fiscal_period` only when you need to know which FILING the row came from.
+
+**Recommendation**: (b). Cleaner separation of concerns (filing-level metadata vs observation-level metadata), preserves backward compatibility, no re-scrape needed. The `observation_period` derivation can be done by a Firestore-side batch update reading existing rows' span — no SEC re-fetch required.
+
+**Status**: shelved per Greg's instruction ("commit + PR for the fiscal_period audit"). Audit script committed; fix awaits Greg's a/b decision.
+
+---
+
+## 12. xbrl_fundamentals — `latest_only=true` mixes period types + multi-year staleness (design call)
+
+**Greg's 2026-05-22 observation**. `get_fundamentals(ticker:"AAPL", latest_only:true)` returns the newest row PER CONCEPT regardless of period type or age. One snapshot mixes:
+  - Q2-FY2026 quarterly figures (Revenues $111.18B, NetIncome $29.58B — current)
+  - FY2023 annual (InterestExpense — 2 years stale)
+  - FY2018 annual (Revenues $62.9B from an old 10-K — 8 years stale, shows alongside the current quarterly)
+
+Disambiguating metadata IS present (period_end, fiscal_period, frame all there). But the response is presented as a coherent latest snapshot — which it isn't. Agent doing margin math on the returned set can compute nonsense.
+
+**Three fix options (Greg's call)**:
+
+  (a) **`latest_only` filters to a consistent period type** — agent passes `period_type="Q"` or `period_type="FY"` alongside `latest_only=true`. Default to most-recent matching period type. Adds a required disambiguator.
+
+  (b) **Attach a `staleness_warning` field** to the response when any returned observation is older than ~1 year. Agent can decide whether to use the stale rows. Doesn't change behavior, just surfaces honesty.
+
+  (c) **Both**: default to consistent period type AND emit staleness warning when applicable.
+
+**Recommendation**: (c). Defaulting to most-recent quarterly (with explicit opt-in to "give me whatever's latest, mixed") solves the foot-gun. Staleness warning catches the slow-moving-concept edge case (InterestExpense reported only in 10-Ks).
+
+**Status**: shelved per Greg's instruction ("log the latest_only design item"). No code change in this pass.
+
+---
+
 ## Tracking signal for v1.1
 
 Each item above has a known fix. None are launch blockers — the v0.47.0 fix
