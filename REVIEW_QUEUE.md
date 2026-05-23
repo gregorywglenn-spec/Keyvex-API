@@ -8,7 +8,36 @@ a verified status check from today.
 
 ---
 
-## 1. Bills — `introduction_date` field + full-text/subject search + backfill
+## 0. Bills — `introduction_date` IS UNRECOVERABLE FROM CURRENT API ENDPOINT (verified 2026-05-23)
+
+**Greg's 2026-05-22 expectation**: `introduction_date` would auto-resolve via overnight cron.
+
+**Actual verification (2026-05-23)**: 0/16,075 bills have `introduction_date` populated. The scraper code DOES write the field (`congress-legislation.ts:290`: `introduction_date: raw.introducedDate ?? ""`), and the cron IS running (max `update_date` is 2026-05-21 — 2 days fresh). The field comes back EMPTY because **api.congress.gov v3 `/v3/bill/{congress}/{billType}` does not return `introducedDate`**.
+
+Direct API probe confirms (using `?api_key=<KEY>&format=json&limit=3`):
+```
+HR-134: keys = congress, latestAction, number, originChamber,
+        originChamberCode, title, type, updateDate, updateDateIncludingText, url
+        introducedDate=None
+```
+
+The CLAUDE.md comment "congress.gov v3 returns `introducedDate` on the bill list endpoint" was incorrect — either the API was changed or the assumption was wrong from day 1.
+
+**Three real options (Greg's call)**:
+
+  (a) **Per-bill detail fetch** — `/v3/bill/{congress}/{billType}/{billNumber}` returns the full record including `introducedDate`. Adds one API call per bill. 16K bills × ~5 req/sec rate limit ≈ 55 min per backfill, then ~5-10 min per daily cron going forward. Real but expensive.
+
+  (b) **Drop the `introduction_date` field** — remove from `Bill` type, remove from tool schema, remove the `introduced_since`/`introduced_until` filters, remove the `introduction_date` sort option. Honest about what we can deliver from the available endpoint.
+
+  (c) **Switch source** — congress.gov public website has the field; XML at `govinfo.gov/bulkdata/BILLSTATUS/{congress}/{billType}/...` may have it. Would need a separate scraper path.
+
+**Recommendation**: (a) for the data — it's the canonical source and 55 min is manageable. The DETAIL endpoint also gives us policy_area + subjects + sponsor data we currently lack, so this opens v1.1 enrichment of bills as a bonus.
+
+**Status**: Greg's a/b/c decision. Until decided, the field stays empty and the `introduction_date` sort option / `introduced_since`/`introduced_until` filters silently return nothing useful. Should document this in the tool description to prevent agent confusion.
+
+---
+
+## 1. Bills — full-text/subject search (separate from #0)
 
 **Scope cut**: introduced_date field IS in the v0.47.0 code (scraper, types, tool,
 query). What's MISSING is the data on existing records, because the scheduled
@@ -315,6 +344,29 @@ Disambiguating metadata IS present (period_end, fiscal_period, frame all there).
 **Recommendation**: (c). Defaulting to most-recent quarterly (with explicit opt-in to "give me whatever's latest, mixed") solves the foot-gun. Staleness warning catches the slow-moving-concept edge case (InterestExpense reported only in 10-Ks).
 
 **Status**: shelved per Greg's instruction ("log the latest_only design item"). No code change in this pass.
+
+---
+
+## 13. Scraper health + backfill audit (2026-05-23)
+
+Per Greg's "any scrapers need to be backed up or schedule changed" — full audit of all 42+ scheduled scrapers via `scripts/audit-scraper-health.ts` (re-runnable).
+
+**SCHEDULES: no changes needed.** Every cron's cadence matches the upstream data velocity. The one apparent stale item — `sec_fails_to_deliver` at 39 days — matches SEC's documented 2-3 week publication lag plus the scraper's auto-fallback (walks back up to 6 half-months to find the latest published file). Working as designed.
+
+**BACKFILL CANDIDATES** (in priority order):
+
+| # | Collection | Field/Aspect | Current state | Recommended action |
+|---|---|---|---|---|
+| 1 | bills | `introduction_date` | 0/16,075 (0%) | See #0 — API endpoint gap; needs scraper change or field drop |
+| 2 | institutional_holdings | tracked fund coverage | 1 of 10 aliases (Berkshire only) | **IN PROGRESS** — 13F backfill running for 9 missing aliases |
+| 3 | insider_trades | `is_derivative` | 40,319/159,644 (25.3%) | Pre-v0.41 rows lack derivative-table fields. `form4-feed 60 --save` will re-walk recent ~40K; the older ~80K need a per-CIK historical re-scrape OR accept the gap as "v1.1 polish for historical depth" |
+| 4 | annual_financial_disclosures | historical coverage | 1,882 docs | Per CLAUDE.md Day 8 plan, the year-by-year backfill 2016-2025 was never run. Derek's project has ~5,591 docs over 2008-2024. Run `form278 --start-date=YYYY-01-01 --end-date=YYYY-12-31 --save` for each year |
+| 5 | ofac_sdn | `designation_date` | not in schema | See #2 — source-data gap, requires advanced-XML ingestion |
+| 6 | consumer_complaints | historical depth | rolling ~8d window | See #4 — needs bulk CSV path |
+| 7 | federal_contracts | historical mega-contracts | rolling 7d action window | See #8 — recipient-backfill mode |
+| 8 | federal_grants | historical mega-grants | rolling 7d action window | Same as #7 |
+
+**META-DATA TELEMETRY GAP** (informational, not a data bug): ~30 of 42 scrapers don't write to `/meta/{jobName}.lastSyncedAt`. The cross-project health-check function only alerts on jobs that DO write meta; jobs without meta entries can fail silently from a telemetry perspective (their data still appears, so functionally fine). Adding `writeJobMeta()` to the remaining scrapers is a v1.1 telemetry-completeness item.
 
 ---
 
