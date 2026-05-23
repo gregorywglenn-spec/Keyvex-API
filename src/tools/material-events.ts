@@ -113,7 +113,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["filing_date", "period_of_report"],
         description:
-          "Field used for ordering and for since/until filters. filing_date = when filed with SEC; period_of_report = when the underlying event occurred. Default: filing_date.",
+          "Field used for ordering and for since/until filters. filing_date = when filed with SEC; period_of_report = when the underlying event occurred. Default: filing_date. NOTE: a small number of 8-Ks (Reg-FD-only filings, item-7.01 disclosures) lack period_of_report at the SEC source — those rows fall back to filing_date ordering automatically, so sort_by='period_of_report' won't bury them.",
       },
       sort_order: {
         type: "string",
