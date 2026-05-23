@@ -5597,7 +5597,14 @@ export async function queryFecContributions(
       (c) => (c.contribution_receipt_date ?? "") <= (query.until ?? "9999"),
     );
   }
-  if (query.exclude_memos) {
+  // Default-true since 2026-05-23 (Greg's "show real money movement by
+  // default" call). FEC memoed_subtotal=true rows are payroll-aggregate /
+  // receipt-account duplicates that double-count the same dollars across
+  // multiple rows — leaving them visible by default inflates top-donor
+  // queries (e.g. Doerr's $132K JF RECOUNT memo appearing alongside his
+  // real $182K contribution). Power users can opt back in with
+  // exclude_memos=false to see the raw memo rows.
+  if (query.exclude_memos !== false) {
     docs = docs.filter((c) => c.memoed_subtotal !== true);
   }
 
@@ -5754,7 +5761,11 @@ export async function queryFecIndependentExpenditures(
       (c) => (c.expenditure_date ?? "") <= (query.until ?? "9999"),
     );
   }
-  if (query.exclude_memos) {
+  // Default-true since 2026-05-23 (same call as fec_contributions: memo
+  // rows double-count the same dollars across multiple rows; default
+  // filtering keeps top-spender queries honest. Opt back in with
+  // exclude_memos=false for raw memo rows.).
+  if (query.exclude_memos !== false) {
     docs = docs.filter((c) => c.memoed_subtotal !== true);
   }
 

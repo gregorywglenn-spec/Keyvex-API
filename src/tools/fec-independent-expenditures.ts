@@ -123,7 +123,8 @@ export const definition: Tool = {
       },
       exclude_memos: {
         type: "boolean",
-        description: "When true, filters out memoed_subtotal rows. Default false.",
+        description:
+          "When true (DEFAULT), filters out rows flagged memoed_subtotal=true — FEC's aggregate / receipt-account duplicates that double-count the same dollars across multiple rows. Top-spender queries are misleading without this filter. Pass exclude_memos=false to include the raw memo rows.",
       },
       sort_by: {
         type: "string",

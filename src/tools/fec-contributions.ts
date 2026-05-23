@@ -71,8 +71,15 @@ export const definition: Tool = {
     "CCM (candidate committee), PAC (political action committee),",
     "PTY (party), CAN (candidate), ORG (organization), UNK (unknown).",
     "",
-    "Memo rows: contribution_receipt_date may be null on PAC payroll",
-    "subtotal / aggregate rows. set exclude_memos=true to filter them.",
+    "Memo rows (IMPORTANT — default behavior changed 2026-05-23):",
+    "FEC tags certain aggregate / receipt-account rows with",
+    "memoed_subtotal=true. These are DUPLICATES that double-count the",
+    "same dollars across multiple rows — e.g. John Doerr's $132K 'JF",
+    "RECOUNT ACCOUNT' memo receipt appears as a separate row alongside",
+    "his actual $182K contribution, inflating top-donor totals. KeyVex",
+    "DEFAULTS to exclude_memos=true to show real money movement; if you",
+    "want the raw memo rows back (e.g. for joint-fundraising-committee",
+    "auditing), pass exclude_memos=false explicitly.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -140,7 +147,7 @@ export const definition: Tool = {
       exclude_memos: {
         type: "boolean",
         description:
-          "When true, filters out rows flagged memoed_subtotal=true (PAC aggregate / payroll subtotal noise). Default false.",
+          "When true (DEFAULT), filters out rows flagged memoed_subtotal=true — FEC's aggregate / receipt-account duplicates that double-count the same dollars across multiple rows. Pass exclude_memos=false to include them (useful for joint-fundraising-committee audits or matching FEC's own raw row counts).",
       },
       sort_by: {
         type: "string",
