@@ -920,6 +920,102 @@ export async function saveInsiderTransactions(
   return { saved, collection: COLLECTION };
 }
 
+// ─── SEC Bulk Insider Dataset v2 — write paths ────────────────────────────
+//
+// Three sibling collections, parallel save shape to saveInsiderTransactions
+// above. Idempotent merge (Firestore set merge:true) — re-runs of the same
+// quarter hit the same doc IDs and overwrite-in-place. NEVER duplicates.
+//
+// Per Greg's Gate 2/4 approval: tagged source: "sec_bulk", era-aware via
+// schema_era field; pre-2023 records carry aff10b5one: "NOT_TRACKED" sentinel.
+
+export async function saveInsiderTransactionsV2(
+  docs: import("./types.js").InsiderTransactionV2[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "insider_transactions_v2";
+  if (docs.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + BATCH_SIZE);
+    for (const doc of chunk) {
+      batch.set(collection.doc(doc.id), doc, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+export async function saveInsiderHoldingsV2(
+  docs: import("./types.js").InsiderHoldingV2[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "insider_holdings_v2";
+  if (docs.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + BATCH_SIZE);
+    for (const doc of chunk) {
+      batch.set(collection.doc(doc.id), doc, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+export async function saveInsiderFilingsV2(
+  docs: import("./types.js").InsiderFilingV2[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "insider_filings_v2";
+  if (docs.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = docs.slice(i, i + BATCH_SIZE);
+    for (const doc of chunk) {
+      batch.set(collection.doc(doc.id), doc, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
 // ─── Institutional holdings (13F) query ─────────────────────────────────────
 
 export async function queryInstitutionalHoldings(

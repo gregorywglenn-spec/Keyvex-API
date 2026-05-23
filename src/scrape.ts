@@ -104,6 +104,9 @@ import {
   saveTenderOffers,
   saveForm3Holdings,
   saveInsiderTransactions,
+  saveInsiderTransactionsV2,
+  saveInsiderHoldingsV2,
+  saveInsiderFilingsV2,
   saveInstitutionalHoldings,
   saveLegislators,
   saveLegislatorsHistorical,
@@ -121,6 +124,7 @@ import {
   scrapeBioguideHistorical,
 } from "./scrapers/bioguide.js";
 import { scrape8kByTicker, scrape8kLiveFeed } from "./scrapers/form8k.js";
+import { scrapeForm345BulkQuarter } from "./scrapers/form345-bulk.js";
 import {
   scrapeProxyByTicker,
   scrapeProxyLiveFeed,
@@ -926,6 +930,49 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return trades;
+    },
+  },
+  "form345-bulk": {
+    description:
+      "Load ONE quarter of the SEC Bulk Insider Dataset (Forms 3/4/5 quarterly TSV bundle) into the *_v2 collections. Usage: form345-bulk <YYYYqN> [--save] [--force]. Without --save, parses + builds docs in memory only (use for verification dry-runs). With --save, writes to insider_transactions_v2 / insider_holdings_v2 / insider_filings_v2 collections. --force re-downloads the zip even if cached. Era-aware: pre-2023 records get aff10b5one='NOT_TRACKED' sentinel.",
+    run: async (args) => {
+      const quarter = args.find((a) => !a.startsWith("--"));
+      if (!quarter || !/^\d{4}q[1-4]$/i.test(quarter)) {
+        throw new Error(
+          "Usage: tsx src/scrape.ts form345-bulk <YYYYqN> [--save] [--force]   (e.g. 2023q1)",
+        );
+      }
+      const force = args.includes("--force");
+      const result = await scrapeForm345BulkQuarter(quarter.toLowerCase(), { force });
+      console.error(
+        `[form345-bulk] Result for ${quarter}: ` +
+          `${result.transactions.length} transactions, ` +
+          `${result.holdings.length} holdings, ` +
+          `${result.filings.length} filings`,
+      );
+      console.error(`[form345-bulk] Skipped reasons: ${JSON.stringify(result.skipped)}`);
+      if (hasSaveFlag(args)) {
+        console.error(`[save] Writing ${result.filings.length} filings to insider_filings_v2...`);
+        const f = await saveInsiderFilingsV2(result.filings);
+        console.error(`[save] Saved ${f.saved} → ${f.collection}`);
+
+        console.error(`[save] Writing ${result.transactions.length} transactions to insider_transactions_v2...`);
+        const t = await saveInsiderTransactionsV2(result.transactions);
+        console.error(`[save] Saved ${t.saved} → ${t.collection}`);
+
+        console.error(`[save] Writing ${result.holdings.length} holdings to insider_holdings_v2...`);
+        const h = await saveInsiderHoldingsV2(result.holdings);
+        console.error(`[save] Saved ${h.saved} → ${h.collection}`);
+      } else {
+        console.error("[form345-bulk] Dry-run (no --save). Pass --save to write to Firestore.");
+      }
+      return {
+        quarter,
+        transactions_count: result.transactions.length,
+        holdings_count: result.holdings.length,
+        filings_count: result.filings.length,
+        skipped: result.skipped,
+      };
     },
   },
   form144: {

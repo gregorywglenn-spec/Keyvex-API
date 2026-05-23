@@ -3340,3 +3340,266 @@ export interface UnifiedSearchEnvelope {
   sources_queried: string[];
   sources_with_results: string[];
 }
+
+// ─── SEC Bulk Insider Dataset v2 (Forms 3/4/5 quarterly TSV bundles) ──────
+//
+// Loaded from https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/YYYYqN_form345.zip
+// Three collections: insider_transactions_v2, insider_holdings_v2, insider_filings_v2.
+//
+// Era boundary (verified Gate 1 + Gate 1.5 via inspect-form345-bulk.ts on
+// 2008q1 / 2018q1 / 2022q4 / 2023q1):
+//   pre_2023  = 2006q1 → 2022q4  (AFF10B5ONE column did NOT exist)
+//   2023_plus = 2023q1 → present (AFF10B5ONE column added — matches SEC
+//                                 Rule 10b5-1 amendment compliance date
+//                                 of April 1, 2023)
+//
+// Per Greg's Gate 4 spec: pre-2023 records get aff10b5one = "NOT_TRACKED"
+// — NEVER bare null — so agents can distinguish "field didn't exist in this
+// era" from "field present but null/zero."
+//
+// Footnote inlining (per Greg's Gate 2 answer #3): each *_FN reference column
+// is resolved against the FOOTNOTES table at load time, and the resolved text
+// is inlined into footnote_refs[] on the row itself. A single Firestore read
+// returns the transaction AND its caveats — no second lookup required.
+
+export type SchemaEra = "pre_2023" | "2023_plus";
+
+/**
+ * A resolved footnote reference attached to a specific field on a row.
+ * Inlined at load time so agents see human-readable prose instead of cryptic
+ * "F11" tokens.
+ */
+export interface InlineFootnoteRef {
+  /** The transaction/holding/filing field this footnote annotates. */
+  field: string;
+  /** Raw FOOTNOTE_ID from the SEC bulk dataset (e.g. "F1", "F11"). */
+  ref: string;
+  /** Resolved FOOTNOTE_TXT from the FOOTNOTES table, joined by accession + ref. */
+  text: string;
+}
+
+/**
+ * A reporting owner attached to a filing. Most filings have exactly one;
+ * 10%-plus-holder filings + fund-family filings can have several.
+ */
+export interface BulkReportingOwner {
+  cik: string;                          // zero-padded "0001234567"
+  name: string;
+  is_director: boolean;
+  is_officer: boolean;
+  is_ten_percent_owner: boolean;
+  is_other: boolean;
+  officer_title: string | null;
+  other_relationship_text: string | null;
+}
+
+/**
+ * One transaction row from the SEC bulk insider dataset's NONDERIV_TRANS or
+ * DERIV_TRANS table, joined with its SUBMISSION envelope, all REPORTINGOWNER
+ * rows for the filing, and any FOOTNOTES referenced by *_FN columns.
+ *
+ * Doc ID format: "{accession}-NT-{nonderiv_trans_sk}" or
+ *                "{accession}-DT-{deriv_trans_sk}".
+ * SK columns are SEC's stable surrogate keys — re-runs hit the same doc IDs,
+ * Firestore merges, no duplicates ever.
+ */
+export interface InsiderTransactionV2 {
+  // ─── Provenance + era ─────────────────────────────────────────────────────
+  id: string;
+  source: "sec_bulk";
+  source_zip: string;                   // "2018q1_form345.zip"
+  schema_era: SchemaEra;
+  bulk_loaded_at: string;               // ISO 8601, when KeyVex wrote this row
+  source_url: string;                   // EDGAR archive URL for the accession
+
+  // ─── Filing envelope (from SUBMISSION) ────────────────────────────────────
+  accession_number: string;
+  filing_date: string;                  // ISO YYYY-MM-DD
+  period_of_report: string;             // ISO YYYY-MM-DD
+  date_of_orig_sub: string | null;
+  document_type: string;                // "3" | "3/A" | "4" | "4/A" | "5" | "5/A"
+  /** True for /A amendment filings (Form 4/A, Form 5/A, etc.). */
+  is_amendment: boolean;
+  company_cik: string;                  // ISSUERCIK — zero-padded
+  company_name: string;                 // ISSUERNAME
+  ticker: string;                       // ISSUERTRADINGSYMBOL — uppercased
+  remarks: string | null;
+  no_securities_owned: boolean;
+  not_subject_sec16: boolean;
+  form3_holdings_reported: boolean;
+  form4_trans_reported: boolean;
+
+  // ─── 10b5-1 plan flag (era-gated) ─────────────────────────────────────────
+  /**
+   * Raw AFF10B5ONE value from SUBMISSION (2023+) or "NOT_TRACKED" for
+   * pre-2023 records where the column didn't exist. Never bare null.
+   * SEC values: "1" = plan adopted, "0" = no plan, "" = blank/unknown.
+   */
+  aff10b5one: "1" | "0" | "" | "NOT_TRACKED";
+
+  // ─── Reporting owner (primary, denormalized; full list under reporting_owners) ─
+  reporting_owner_cik: string;
+  reporting_owner_name: string;
+  is_director: boolean;
+  is_officer: boolean;
+  is_ten_percent_owner: boolean;
+  is_other: boolean;
+  officer_title: string | null;
+  other_relationship_text: string | null;
+  reporting_owners: BulkReportingOwner[];
+
+  // ─── Transaction row (the discriminator + payload) ────────────────────────
+  /** Source table — "nonderiv" for NONDERIV_TRANS, "deriv" for DERIV_TRANS. */
+  transaction_type: "nonderiv" | "deriv";
+  /** SEC surrogate key for this row (NONDERIV_TRANS_SK or DERIV_TRANS_SK). */
+  sk: number;
+  security_title: string;               // "Common Stock", "Stock Option (right to buy)"
+  transaction_date: string;             // ISO YYYY-MM-DD
+  deemed_execution_date: string | null;
+  trans_form_type: string;              // "3" | "4" | "5"
+  trans_code: string;                   // P, S, A, M, X, C, F, G, D, I, V, etc.
+  equity_swap_involved: boolean;
+  trans_timeliness: string | null;      // "L" (late), "E" (early), etc.
+  trans_shares: number | null;
+  trans_price_per_share: number | null;
+  /** Present on DERIV_TRANS rows; null on nonderiv (compute from shares × price). */
+  trans_total_value: number | null;
+  trans_acquired_disp_cd: "A" | "D" | null;
+  direct_indirect_ownership: "D" | "I" | null;
+  nature_of_ownership: string | null;
+  shrs_owned_following_trans: number | null;
+  valu_owned_following_trans: number | null;
+
+  // ─── Derivative-only fields (null on nonderiv rows) ───────────────────────
+  conv_exercise_price: number | null;
+  exercise_date: string | null;
+  expiration_date: string | null;
+  underlying_security_title: string | null;
+  underlying_security_shares: number | null;
+  underlying_security_value: number | null;
+
+  // ─── Footnote dereferencing ───────────────────────────────────────────────
+  footnote_refs: InlineFootnoteRef[];
+}
+
+/**
+ * One holding row from the SEC bulk insider dataset's NONDERIV_HOLDING or
+ * DERIV_HOLDING table. No transaction date — position-only snapshot at the
+ * time of filing. Same envelope + reporting-owner + footnote denormalization
+ * as InsiderTransactionV2.
+ *
+ * Doc ID format: "{accession}-NH-{nonderiv_holding_sk}" or
+ *                "{accession}-DH-{deriv_holding_sk}".
+ */
+export interface InsiderHoldingV2 {
+  id: string;
+  source: "sec_bulk";
+  source_zip: string;
+  schema_era: SchemaEra;
+  bulk_loaded_at: string;
+  source_url: string;
+
+  // Filing envelope (same as transactions)
+  accession_number: string;
+  filing_date: string;
+  period_of_report: string;
+  date_of_orig_sub: string | null;
+  document_type: string;
+  is_amendment: boolean;
+  company_cik: string;
+  company_name: string;
+  ticker: string;
+  remarks: string | null;
+  no_securities_owned: boolean;
+  not_subject_sec16: boolean;
+  form3_holdings_reported: boolean;
+  form4_trans_reported: boolean;
+
+  // Era-gated flag
+  aff10b5one: "1" | "0" | "" | "NOT_TRACKED";
+
+  // Primary reporting owner (denormalized) + full list
+  reporting_owner_cik: string;
+  reporting_owner_name: string;
+  is_director: boolean;
+  is_officer: boolean;
+  is_ten_percent_owner: boolean;
+  is_other: boolean;
+  officer_title: string | null;
+  other_relationship_text: string | null;
+  reporting_owners: BulkReportingOwner[];
+
+  // Holding row
+  /** "nonderiv" for NONDERIV_HOLDING, "deriv" for DERIV_HOLDING. */
+  holding_type: "nonderiv" | "deriv";
+  sk: number;
+  security_title: string;
+  /** TRANS_FORM_TYPE on the HOLDING row — null when not annotated. */
+  trans_form_type: string | null;
+  shrs_owned_following_trans: number | null;
+  valu_owned_following_trans: number | null;
+  direct_indirect_ownership: "D" | "I" | null;
+  nature_of_ownership: string | null;
+
+  // Derivative-only
+  conv_exercise_price: number | null;
+  exercise_date: string | null;
+  expiration_date: string | null;
+  underlying_security_title: string | null;
+  underlying_security_shares: number | null;
+  underlying_security_value: number | null;
+
+  footnote_refs: InlineFootnoteRef[];
+}
+
+/**
+ * One filing-level envelope row from the SEC bulk insider dataset's
+ * SUBMISSION table. Carries the SUBMISSION envelope, ALL reporting owners as
+ * an array, and OWNER_SIGNATURE rows (signer name + date).
+ *
+ * Doc ID format: "{accession_number}" (accessions are already path-safe and
+ * globally unique — no transformation needed).
+ */
+export interface InsiderFilingV2 {
+  id: string;                           // = accession_number
+  source: "sec_bulk";
+  source_zip: string;
+  schema_era: SchemaEra;
+  bulk_loaded_at: string;
+  source_url: string;
+
+  // SUBMISSION envelope
+  accession_number: string;
+  filing_date: string;
+  period_of_report: string;
+  date_of_orig_sub: string | null;
+  document_type: string;
+  is_amendment: boolean;
+  company_cik: string;
+  company_name: string;
+  ticker: string;
+  remarks: string | null;
+  no_securities_owned: boolean;
+  not_subject_sec16: boolean;
+  form3_holdings_reported: boolean;
+  form4_trans_reported: boolean;
+
+  // Era-gated flag
+  aff10b5one: "1" | "0" | "" | "NOT_TRACKED";
+
+  // Full reporting-owner list
+  reporting_owners: BulkReportingOwner[];
+
+  // OWNER_SIGNATURE rows attached to this accession
+  signatures: Array<{
+    signer_name: string;
+    signature_date: string | null;      // ISO YYYY-MM-DD
+  }>;
+
+  // Row counts for the filing (so agents can size before pulling rows)
+  nonderiv_trans_count: number;
+  deriv_trans_count: number;
+  nonderiv_holding_count: number;
+  deriv_holding_count: number;
+  footnote_count: number;
+}
