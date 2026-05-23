@@ -301,6 +301,37 @@ const COMMANDS: Record<string, CliCommand> = {
       return stats;
     },
   },
+  "form4-backfill-quarter": {
+    description:
+      "Run the Form 4 historical backfill harness for one (year, quarter). Enumerates the quarter via SEC EDGAR full-index, fetches XML per accession, parses + saves + checkpoints to /meta/form4Backfill/quarters/{year}-Q{n}. Resumable: re-running picks up from last_processed_index. Layer 2 self-check after run; HALTS on correctness failure. Flags: --year=YYYY --quarter=N [--max-rows=N] [--dry-run] [--force]. --force overrides a prior HALTED checkpoint (forensic recovery only).",
+    run: async (args) => {
+      const yArg = args.find((a) => a.startsWith("--year="));
+      const qArg = args.find((a) => a.startsWith("--quarter="));
+      const mArg = args.find((a) => a.startsWith("--max-rows="));
+      if (!yArg || !qArg) {
+        throw new Error(
+          "Usage: tsx src/scrape.ts form4-backfill-quarter --year=YYYY --quarter=N [--max-rows=N] [--dry-run] [--force]",
+        );
+      }
+      const year = parseInt(yArg.split("=")[1] ?? "", 10);
+      const quarter = parseInt(qArg.split("=")[1] ?? "", 10);
+      if (![1, 2, 3, 4].includes(quarter)) {
+        throw new Error("--quarter must be 1, 2, 3, or 4");
+      }
+      const { runBackfillQuarter } = await import(
+        "./scrapers/form4-backfill.js"
+      );
+      return runBackfillQuarter({
+        year,
+        quarter: quarter as 1 | 2 | 3 | 4,
+        maxRowsThisRun: mArg
+          ? parseInt(mArg.split("=")[1] ?? "", 10)
+          : undefined,
+        dryRun: args.includes("--dry-run"),
+        force: args.includes("--force"),
+      });
+    },
+  },
   "8k": {
     description:
       "Scrape recent Form 8-K material-event filings for a single ticker (add --save to write to Firestore). 8-K = the SEC's 'current report' form, filed within 4 business days of any material event. Each row is one filing, indexed by item_codes (1.01 / 2.01 / 5.02 / 7.01 / 8.01 / 9.01 etc.).",

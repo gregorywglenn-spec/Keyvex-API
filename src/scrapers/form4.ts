@@ -29,7 +29,16 @@ const CONFIG = {
   BASE_URL: "https://data.sec.gov",
   EDGAR_URL: "https://www.sec.gov",
   SEARCH_URL: "https://efts.sec.gov/LATEST/search-index",
-  RATE_LIMIT_MS: 150,
+  /**
+   * 110ms ≈ 9 req/s — SEC's published ceiling is 10/s; 9/s leaves burst
+   * headroom. Bumped 2026-05-23 from 150 → 110 per the Form 4 backfill
+   * brief (also hardens the existing prod scrapers — they get one more
+   * request/sec of throughput for the same SEC-relationship cost).
+   */
+  RATE_LIMIT_MS: 110,
+  /** Max retries on 429 + 5xx. After this many failures, the per-filing
+   *  caller skips and continues; doesn't propagate the failure upward. */
+  MAX_RETRIES: 5,
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -37,23 +46,93 @@ const CONFIG = {
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Fetch helper with exponential backoff on 429 + 5xx + network errors.
+ * Honors Retry-After header on 429 when present (SEC uses this).
+ *
+ * Greg's 2026-05-23 finding: the previous fetch helpers threw on first
+ * failure, leaving prod scrapers fragile against any transient SEC
+ * blip. This adds 429 + 5xx retry-with-backoff to BOTH backfill code
+ * AND existing live scrapers (since they share fetchText/fetchJson).
+ *
+ * Returns the Response on success; throws after MAX_RETRIES with the
+ * last error message.
+ */
+async function fetchWithBackoff(
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  let lastErr: string = "";
+  for (let attempt = 0; attempt <= CONFIG.MAX_RETRIES; attempt++) {
+    await sleep(CONFIG.RATE_LIMIT_MS);
+    let res: Response;
+    try {
+      res = await fetch(url, init);
+    } catch (err) {
+      lastErr = `network: ${err instanceof Error ? err.message : String(err)}`;
+      if (attempt < CONFIG.MAX_RETRIES) {
+        const wait = Math.min(60000, 1000 * Math.pow(2, attempt));
+        console.error(
+          `[edgar] ${url.slice(-60)}: network error, retry ${attempt + 1}/${CONFIG.MAX_RETRIES} in ${wait}ms — ${lastErr}`,
+        );
+        await sleep(wait);
+        continue;
+      }
+      throw new Error(`EDGAR network failed after ${CONFIG.MAX_RETRIES} retries: ${lastErr} — ${url}`);
+    }
+
+    // 429: rate-limited. Honor Retry-After if present; else exponential backoff.
+    if (res.status === 429) {
+      const retryAfterRaw = res.headers.get("retry-after") ?? "";
+      const retryAfterSec = parseInt(retryAfterRaw, 10);
+      const wait = !Number.isNaN(retryAfterSec) && retryAfterSec > 0
+        ? retryAfterSec * 1000
+        : Math.min(60000, 1000 * Math.pow(2, attempt));
+      if (attempt < CONFIG.MAX_RETRIES) {
+        console.error(
+          `[edgar] ${url.slice(-60)}: 429 rate-limited, wait ${wait}ms (Retry-After=${retryAfterRaw || "none"}), retry ${attempt + 1}/${CONFIG.MAX_RETRIES}`,
+        );
+        await sleep(wait);
+        continue;
+      }
+      throw new Error(`EDGAR 429 after ${CONFIG.MAX_RETRIES} retries — ${url}`);
+    }
+
+    // 5xx: server-side transient — retry with exponential backoff.
+    if (res.status >= 500 && res.status < 600) {
+      lastErr = `${res.status} ${res.statusText}`;
+      if (attempt < CONFIG.MAX_RETRIES) {
+        const wait = Math.min(60000, 1000 * Math.pow(2, attempt));
+        console.error(
+          `[edgar] ${url.slice(-60)}: ${lastErr}, retry ${attempt + 1}/${CONFIG.MAX_RETRIES} in ${wait}ms`,
+        );
+        await sleep(wait);
+        continue;
+      }
+      throw new Error(`EDGAR ${lastErr} after ${CONFIG.MAX_RETRIES} retries — ${url}`);
+    }
+
+    return res;
+  }
+  throw new Error(`EDGAR unreachable after ${CONFIG.MAX_RETRIES} retries: ${lastErr} — ${url}`);
+}
+
 async function fetchJson(url: string): Promise<unknown> {
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await fetch(url, {
+  const res = await fetchWithBackoff(url, {
     headers: {
       "User-Agent": CONFIG.USER_AGENT,
       Accept: "application/json",
     },
   });
   if (!res.ok) {
+    // Non-retryable status (404, 403, etc.) — propagate as-is
     throw new Error(`EDGAR ${res.status} ${res.statusText} — ${url}`);
   }
   return res.json();
 }
 
 async function fetchText(url: string): Promise<string> {
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await fetch(url, {
+  const res = await fetchWithBackoff(url, {
     headers: { "User-Agent": CONFIG.USER_AGENT },
   });
   if (!res.ok) {
@@ -268,6 +347,21 @@ export function parseForm4Xml(
     const totalValue = shares * price;
 
     if (!txDate || shares === 0) continue;
+    // Year sanity guard (Greg's 2026-05-23 brief item 4): reject any
+    // transaction_date with year outside [2012, current_year+1]. The
+    // House PTR scraper hit a year-3031 corruption class; defending
+    // against the same pattern here prevents silent garbage from
+    // older Form 4 XMLs (paper-filing fallback, malformed dates, etc.)
+    // before it can poison the collection.
+    const txYearStr = txDate.slice(0, 4);
+    const txYear = parseInt(txYearStr, 10);
+    const maxYear = new Date().getUTCFullYear() + 1;
+    if (isNaN(txYear) || txYear < 2012 || txYear > maxYear) {
+      console.error(
+        `[form4] ${meta.accession}: transaction_date "${txDate}" out of [2012, ${maxYear}] — skipping row`,
+      );
+      continue;
+    }
 
     // Preserve the legacy P/S doc-ID format so prior writes stay idempotent.
     // Use row-index suffix for all other codes (new namespace, no collision).
@@ -345,6 +439,21 @@ export function parseForm4Xml(
       : null;
 
     if (!txDate || shares === 0) continue;
+    // Year sanity guard (Greg's 2026-05-23 brief item 4): reject any
+    // transaction_date with year outside [2012, current_year+1]. The
+    // House PTR scraper hit a year-3031 corruption class; defending
+    // against the same pattern here prevents silent garbage from
+    // older Form 4 XMLs (paper-filing fallback, malformed dates, etc.)
+    // before it can poison the collection.
+    const txYearStr = txDate.slice(0, 4);
+    const txYear = parseInt(txYearStr, 10);
+    const maxYear = new Date().getUTCFullYear() + 1;
+    if (isNaN(txYear) || txYear < 2012 || txYear > maxYear) {
+      console.error(
+        `[form4] ${meta.accession}: transaction_date "${txDate}" out of [2012, ${maxYear}] — skipping row`,
+      );
+      continue;
+    }
 
     trades.push({
       id: `${meta.accession}-D-${txDate}-${code}-${dIdx}`,
