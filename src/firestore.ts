@@ -312,6 +312,9 @@ const COLLECTION_DATE_FIELD: Record<string, string> = {
   fec_committees: "last_file_date",
   fec_contributions: "contribution_receipt_date",
   fec_independent_expenditures: "expenditure_date",
+  insider_transactions_v2: "transaction_date",
+  insider_holdings_v2: "period_of_report",
+  insider_filings_v2: "filing_date",
 };
 
 /**
@@ -1014,6 +1017,96 @@ export async function saveInsiderFilingsV2(
   }
 
   return { saved, collection: COLLECTION };
+}
+
+// ─── SEC Bulk Insider Dataset v2 — read path ──────────────────────────────
+//
+// Parallel to queryInsiderTransactions but reads from insider_transactions_v2
+// and returns the full v2 doc shape (including footnote_refs[] and
+// aff10b5one). Branched into by get_insider_transactions when the tool is
+// called with data_source="bulk_v2".
+//
+// Greg's Item 3 acceptance test (Gate 5 follow-up, 2026-05-23): "Query that
+// row through the live MCP and show the 10b5-1 footnote text coming back in
+// the response." This is the read path that makes that possible.
+//
+// NOTE: the v2 schema's `transaction_type` field is nonderiv|deriv (NOT
+// buy|sell as in legacy). Caller-facing parameter is named `row_type` in
+// InsiderTransactionsV2Query to avoid the naming collision.
+
+export async function queryInsiderTransactionsV2(
+  query: import("./types.js").InsiderTransactionsV2Query,
+): Promise<QueryResult<import("./types.js").InsiderTransactionV2>> {
+  if (isStubMode()) {
+    // No stub data for v2 — returns empty in stub mode. Tool description
+    // makes it clear data only exists once the bulk loader has run.
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("insider_transactions_v2");
+
+  if (query.ticker) q = q.where("ticker", "==", query.ticker);
+  if (query.company_cik) q = q.where("company_cik", "==", query.company_cik);
+  if (query.reporting_owner_cik) {
+    q = q.where("reporting_owner_cik", "==", query.reporting_owner_cik);
+  }
+  if (query.row_type) {
+    q = q.where("transaction_type", "==", query.row_type);
+  }
+  if (query.trans_codes && query.trans_codes.length > 0) {
+    q = q.where("trans_code", "in", query.trans_codes);
+  }
+  if (query.aff10b5one !== undefined) {
+    q = q.where("aff10b5one", "==", query.aff10b5one);
+  }
+  if (query.schema_era) {
+    q = q.where("schema_era", "==", query.schema_era);
+  }
+
+  const sortField = query.sort_by ?? "transaction_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  // Date-range filters apply to the active sort field. The v2 collection's
+  // sortable date fields are both ISO YYYY-MM-DD strings so this is safe to
+  // use without numeric-sort guarding.
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  // INDEX HYGIENE: only add orderBy when the caller actually needs ordered
+  // results — i.e. they passed since/until or an explicit sort_by. A plain
+  // equality query without orderBy doesn't require a composite index, so
+  // ticker-only / company_cik-only / reporting_owner-only queries work
+  // immediately on a fresh deploy (before composite indexes propagate).
+  // When the caller IS using date-range or sort, the composite index from
+  // firestore.indexes.json is required.
+  const needsOrderBy =
+    query.sort_by !== undefined || query.since !== undefined || query.until !== undefined;
+  if (needsOrderBy) {
+    q = q.orderBy(sortField, sortOrder);
+  }
+
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.reporting_owner_name ? 5000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as import("./types.js").InsiderTransactionV2);
+
+  if (query.reporting_owner_name) {
+    const needle = query.reporting_owner_name.toLowerCase();
+    docs = docs.filter((t) =>
+      matchesSubstringSafe(t.reporting_owner_name, needle),
+    );
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return await withCoverageWarning(
+    { results, has_more },
+    query,
+    "insider_transactions_v2",
+  );
 }
 
 // ─── Institutional holdings (13F) query ─────────────────────────────────────

@@ -154,6 +154,41 @@ export interface InsiderTransactionsEnvelope
   baselines?: Form3Holding[];
 }
 
+/**
+ * Query parameters for the v2-aware data_source="bulk_v2" branch of
+ * get_insider_transactions. Smaller filter surface than the legacy
+ * InsiderTransactionsQuery — the v2 schema uses `transaction_type`
+ * for the nonderiv/deriv discriminator (different meaning from legacy's
+ * buy/sell), so we expose it as `row_type` to avoid name collision in
+ * the tool's input shape.
+ *
+ * Field semantics map to InsiderTransactionV2:
+ *   row_type ↔ transaction_type ("nonderiv" | "deriv")
+ *   trans_codes ↔ trans_code OR-filter (P, S, A, M, X, C, F, G, D, I, V, ...)
+ *   reporting_owner_cik ↔ reporting_owner_cik (CIK; pad to 10 digits)
+ *   aff10b5one ↔ aff10b5one ("1" | "0" | "" | "NOT_TRACKED")
+ *   schema_era ↔ schema_era ("pre_2023" | "2023_plus")
+ *   since/until ↔ applied to sort_by field (default transaction_date)
+ */
+export interface InsiderTransactionsV2Query {
+  ticker?: string;
+  company_cik?: string;
+  reporting_owner_cik?: string;
+  reporting_owner_name?: string; // substring filter (client-side)
+  row_type?: "nonderiv" | "deriv";
+  trans_codes?: string[];
+  aff10b5one?: "1" | "0" | "" | "NOT_TRACKED";
+  schema_era?: SchemaEra;
+  since?: string;
+  until?: string;
+  sort_by?: "transaction_date" | "filing_date";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
+export interface InsiderTransactionsV2Envelope
+  extends ResultEnvelope<InsiderTransactionV2> {}
+
 // ─── Planned insider sales (Form 144) ──────────────────────────────────────
 
 /**
