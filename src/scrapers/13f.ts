@@ -55,12 +55,20 @@ const TRACKED_FUNDS: Array<{ name: string; alias: string; cik: string }> = [
   { name: "BlackRock", alias: "blackrock", cik: "0001364742" },
   { name: "Vanguard Group", alias: "vanguard", cik: "0000102909" },
   { name: "Bridgewater Associates", alias: "bridgewater", cik: "0001350694" },
-  { name: "Citadel Advisors", alias: "citadel", cik: "0001423689" },
+  // Fixed 2026-05-23: the 4 CIKs below were wrong in the original
+  // alias map — they pointed to completely unrelated entities
+  // (Citadel=AGNC Investment Corp; TwoSigma=an individual named
+  // Wong Pak Fai Phillip; Millennium=MoneyGram International;
+  // DEShaw=Bank Bradesco). Each 13F backfill silently FATAL'd with
+  // "No 13F-HR filings". Verified via EDGAR FTS for each firm name
+  // with forms=13F-HR; correct CIKs are the management entities
+  // that actually file 13F-HRs.
+  { name: "Citadel Advisors LLC", alias: "citadel", cik: "0001423053" },
   { name: "Point72 Asset Management", alias: "point72", cik: "0001603466" },
-  { name: "D.E. Shaw", alias: "deshaw", cik: "0001160330" },
+  { name: "D. E. Shaw & Co., Inc.", alias: "deshaw", cik: "0001009207" },
   { name: "Renaissance Technologies", alias: "renaissance", cik: "0001037389" },
-  { name: "Two Sigma Investments", alias: "twosigma", cik: "0001471037" },
-  { name: "Millennium Management", alias: "millennium", cik: "0001273931" },
+  { name: "Two Sigma Investments, LP", alias: "twosigma", cik: "0001179392" },
+  { name: "Millennium Management LLC", alias: "millennium", cik: "0001273087" },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -326,14 +334,17 @@ async function fetchLatest13F(fund: FundRef): Promise<{
   const index = (await fetchJson(indexUrl)) as IndexResponse;
 
   const items = index.directory?.item ?? [];
-  // Find the holdings XML — typically named "infotable.xml" or similar
-  const holdingsFile = items.find(
-    (f) =>
-      f.name.toLowerCase().includes("infotable") ||
-      (f.name.endsWith(".xml") &&
-        !f.name.toLowerCase().includes("primary_doc") &&
-        !f.name.toLowerCase().includes("filing")),
-  );
+  // Find the holdings XML. Strategy: prefer explicit "infotable" match
+  // (cleanest signal — common naming convention), fall back to any
+  // .xml that isn't the primary_doc.xml header. The earlier exclusion
+  // of names containing "filing" was a false-positive trap — Millennium
+  // Management's holdings file is literally named "MLP_FIling_20260331.xml"
+  // (their typo on "Filing"), which legitimately contains the holdings
+  // table. Caught 2026-05-23. Trust .xml + exclude only primary_doc.
+  const xmlFiles = items.filter((f) => f.name.endsWith(".xml"));
+  const holdingsFile =
+    xmlFiles.find((f) => f.name.toLowerCase().includes("infotable")) ??
+    xmlFiles.find((f) => !f.name.toLowerCase().includes("primary_doc"));
   if (!holdingsFile) {
     throw new Error(`No holdings XML found in ${accession}`);
   }
