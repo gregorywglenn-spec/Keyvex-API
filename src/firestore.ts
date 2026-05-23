@@ -4363,7 +4363,34 @@ export async function queryProductRecalls(
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
-  return await withCoverageWarning({ results, has_more }, query, "product_recalls");
+  const base = await withCoverageWarning(
+    { results, has_more },
+    query,
+    "product_recalls",
+  );
+
+  // Greg's 2026-05-23 honesty notice: classification is FDA-only
+  // (Class I / II / III). CPSC records have classification=null by
+  // design (CPSC doesn't use the FDA severity scheme). When the
+  // agent filters by classification, the query STRUCTURALLY can't
+  // match any CPSC row — so a 0 result without context could read as
+  // "no severe recalls exist" when it really means "no FDA recalls
+  // matched and CPSC was filtered out by the field choice." Append a
+  // notice that augments (doesn't replace) any coverage_warning the
+  // standard machinery emitted. Same posture as DEFA14A
+  // period_of_report and federal_contracts coverage notes.
+  if (query.classification) {
+    const note =
+      `Note on classification filter: 'classification' is an FDA-only field (Class I / II / III). CPSC records always have classification=null by design (CPSC doesn't use the FDA severity scheme), so this filter excludes all CPSC rows regardless of match. To see CPSC + FDA together, drop the classification filter and post-filter client-side; to focus on the highest-severity FDA recalls only, this filter is correct as-is.`;
+    return {
+      ...base,
+      coverage_warning: base.coverage_warning
+        ? `${base.coverage_warning} ${note}`
+        : note,
+    };
+  }
+
+  return base;
 }
 
 export async function saveProductRecalls(

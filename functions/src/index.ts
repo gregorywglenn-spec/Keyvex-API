@@ -1510,8 +1510,17 @@ export const scrapeFdaRecallsDaily = onSchedule(
   },
   async () => {
     const started = Date.now();
-    logger.info("[fda-recalls] starting daily refresh (7-day lookback)");
-    const recalls = await scrapeAllFdaRecalls({ lookbackDays: 7 });
+    // Widened 2026-05-23 from 7 → 60: openFDA's record
+    // `recall_initiation_date` is when the recall STARTED, not when
+    // openFDA indexed it. openFDA has a ~30-45 day publication lag
+    // between FDA classifying a recall and openFDA exposing it via
+    // the API. A 7-day window kept missing entire weeks of fda_device
+    // records whose initiation date pre-dated the window but who only
+    // got openFDA-indexed in the last week. 60 days catches the
+    // long tail of late-indexed records without re-pulling unnecessary
+    // volume (idempotent on doc IDs anyway).
+    logger.info("[fda-recalls] starting daily refresh (60-day lookback)");
+    const recalls = await scrapeAllFdaRecalls({ lookbackDays: 60 });
     logger.info(`[fda-recalls] scraper returned ${recalls.length} recalls`);
     let docsWritten = 0;
     if (recalls.length > 0) {
