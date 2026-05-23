@@ -5070,6 +5070,123 @@ export async function saveBills(
   return { saved, collection: COLLECTION };
 }
 
+/**
+ * Backfill detail-endpoint fields (introduction_date, policy_area,
+ * subjects, primary_sponsor_*) on existing bills. Walks the
+ * `bills` collection in pages, fetches the detail endpoint per
+ * bill via enrichBillsWithDetail() (rate-limited internally),
+ * writes back via merge.
+ *
+ * Idempotent: skips bills already enriched (any of policy_area,
+ * subjects, or primary_sponsor_bioguide_id non-empty).
+ *
+ * Greg's 2026-05-23 ask. Detail endpoint returns ~48 min for the
+ * full 16K-bill collection at api.data.gov's 20K/hr ceiling under
+ * a registered key.
+ */
+export async function backfillBillsWithDetail(
+  options: { limit?: number; dryRun?: boolean } = {},
+): Promise<{
+  total_scanned: number;
+  needs_enrichment: number;
+  enriched: number;
+  written: number;
+  already_enriched: number;
+}> {
+  if (isStubMode()) {
+    throw new Error("backfillBillsWithDetail requires LIVE mode");
+  }
+  const { enrichBillsWithDetail } = await import(
+    "./scrapers/congress-legislation.js"
+  );
+  const db = await getLiveDb();
+  const dryRun = options.dryRun ?? false;
+  const pageSize = 500;
+
+  let totalScanned = 0;
+  let alreadyEnriched = 0;
+  let written = 0;
+  const toEnrich: Bill[] = [];
+
+  let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  while (true) {
+    let q: FirebaseFirestore.Query = db.collection("bills").limit(pageSize);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    if (snap.empty) break;
+    for (const doc of snap.docs) {
+      totalScanned++;
+      const b = doc.data() as Bill;
+      const isAlreadyEnriched =
+        !!b.policy_area ||
+        (b.subjects && b.subjects.length > 0) ||
+        !!b.primary_sponsor_bioguide_id;
+      if (isAlreadyEnriched) {
+        alreadyEnriched++;
+      } else {
+        toEnrich.push(b);
+        if (options.limit && toEnrich.length >= options.limit) break;
+      }
+    }
+    if (options.limit && toEnrich.length >= options.limit) break;
+    last = snap.docs[snap.docs.length - 1];
+    if (snap.size < pageSize) break;
+  }
+
+  console.error(
+    `[backfill-bills-detail] scanned ${totalScanned}, ${alreadyEnriched} already enriched, ${toEnrich.length} need enrichment`,
+  );
+
+  if (toEnrich.length === 0) {
+    return {
+      total_scanned: totalScanned,
+      needs_enrichment: 0,
+      enriched: 0,
+      written: 0,
+      already_enriched: alreadyEnriched,
+    };
+  }
+
+  // Process in chunks of 500 so we can write back periodically (long
+  // backfills can run for tens of minutes; chunked writes ensure
+  // progress survives a mid-run kill).
+  const CHUNK_SIZE = 500;
+  let enrichedCount = 0;
+  for (let i = 0; i < toEnrich.length; i += CHUNK_SIZE) {
+    const chunk = toEnrich.slice(i, i + CHUNK_SIZE);
+    console.error(
+      `[backfill-bills-detail] enriching chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(toEnrich.length / CHUNK_SIZE)} (${chunk.length} bills)...`,
+    );
+    const t0 = Date.now();
+    const enriched = await enrichBillsWithDetail(chunk);
+    const chunkEnriched = enriched.filter(
+      (b, j) =>
+        !chunk[j]?.policy_area &&
+        b.policy_area !== chunk[j]?.policy_area,
+    ).length;
+    enrichedCount += chunkEnriched;
+    console.error(
+      `[backfill-bills-detail]   chunk done in ${Math.round((Date.now() - t0) / 1000)}s, ${chunkEnriched} got new fields`,
+    );
+
+    if (!dryRun) {
+      const r = await saveBills(enriched);
+      written += r.saved;
+      console.error(
+        `[backfill-bills-detail]   wrote ${r.saved} (cumulative ${written})`,
+      );
+    }
+  }
+
+  return {
+    total_scanned: totalScanned,
+    needs_enrichment: toEnrich.length,
+    enriched: enrichedCount,
+    written,
+    already_enriched: alreadyEnriched,
+  };
+}
+
 // ─── Roll-call votes query + save ─────────────────────────────────────────
 
 export async function queryRollCallVotes(

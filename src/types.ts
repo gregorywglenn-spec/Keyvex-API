@@ -2240,6 +2240,35 @@ export interface Bill {
   congress_gov_url: string;
   /** API detail URL for sponsors, cosponsors, full history, etc. */
   api_url: string;
+  /**
+   * Policy area assigned by CRS (Congressional Research Service). Single
+   * high-level category like "Immigration", "Health", "Public Lands and
+   * Natural Resources", "Armed Forces and National Security". Curated
+   * vocabulary; far better than substring-matching titles for topic
+   * filtering. Populated by the detail-fetch backfill (2026-05-23+).
+   * Empty string on bills predating the backfill.
+   */
+  policy_area: string;
+  /**
+   * Legislative subjects assigned by CRS. Multiple fine-grained topic
+   * tags like "Artificial intelligence", "Cybersecurity", "Federal
+   * employees", "Indian land rights". Stored as array for
+   * array-contains-any filtering. Empty array on bills predating
+   * the detail-fetch backfill.
+   */
+  subjects: string[];
+  /**
+   * Primary sponsor's bioguide_id (the member who introduced the bill).
+   * Joins to get_member_profile + congressional_trades + Form 278.
+   * Empty string on bills predating the detail-fetch backfill.
+   */
+  primary_sponsor_bioguide_id: string;
+  /** Primary sponsor's full name as filed. */
+  primary_sponsor_name: string;
+  /** Primary sponsor's party (R / D / I / etc.). */
+  primary_sponsor_party: string;
+  /** Primary sponsor's 2-letter state code. */
+  primary_sponsor_state: string;
   scraped_at: string;
 }
 

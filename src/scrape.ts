@@ -73,6 +73,7 @@
 import {
   backfillBioguideIds,
   backfillForm278Bioguide,
+  backfillBillsWithDetail,
   getDbIfLive,
   pingFirestore,
   saveActivistOwnership,
@@ -298,6 +299,17 @@ const COMMANDS: Record<string, CliCommand> = {
     run: async (args) => {
       const dryRun = args.includes("--dry-run");
       const stats = await backfillForm278Bioguide({ dryRun });
+      return stats;
+    },
+  },
+  "backfill-bills-detail": {
+    description:
+      "Walk every bills record and fetch api.congress.gov v3 DETAIL endpoint per bill to populate introduction_date + policy_area + subjects + primary_sponsor_* fields (which the LIST endpoint omits). Idempotent (skips already-enriched). Use --limit=N to test on a subset; --dry-run to count without writing. Rate-limited internally to stay under api.data.gov's 20K/hr ceiling. Requires CONGRESS_API_KEY or GOVINFO_API_KEY in env (DEMO_KEY's 10/hr cap is impractical for the full 16K bills).",
+    run: async (args) => {
+      const dryRun = args.includes("--dry-run");
+      const limitArg = args.find((a) => a.startsWith("--limit="));
+      const limit = limitArg ? parseInt(limitArg.split("=")[1] ?? "0", 10) : undefined;
+      const stats = await backfillBillsWithDetail({ dryRun, limit });
       return stats;
     },
   },

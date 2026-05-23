@@ -270,12 +270,52 @@ async function fetchAllPages<TResp, TRow>(
 
 // ─── Normalizers ────────────────────────────────────────────────────────────
 
-function normalizeBill(raw: RawBill, scrapedAt: string): Bill | null {
+/**
+ * Detail-endpoint response shape — `/v3/bill/{congress}/{billType}/{billNumber}`.
+ * Returns rich metadata the LIST endpoint silently omits: introducedDate,
+ * policyArea, subjects, sponsors, summaries, etc. Verified 2026-05-23.
+ */
+interface RawBillDetail {
+  introducedDate?: string;
+  policyArea?: { name?: string };
+  subjects?: {
+    legislativeSubjects?: Array<{ name?: string }>;
+  };
+  sponsors?: Array<{
+    bioguideId?: string;
+    firstName?: string;
+    middleName?: string;
+    lastName?: string;
+    fullName?: string;
+    party?: string;
+    state?: string;
+    district?: string | number;
+  }>;
+}
+
+interface BillDetailResponse {
+  bill?: RawBillDetail;
+}
+
+function normalizeBill(
+  raw: RawBill,
+  scrapedAt: string,
+  detail?: RawBillDetail,
+): Bill | null {
   if (!raw.congress || !raw.type || !raw.number) return null;
   const billType = raw.type.toUpperCase();
   const congress = raw.congress;
   const number = raw.number;
   const billId = `${congress}-${billType}-${number}`;
+
+  // Sponsor data lives ONLY on the detail endpoint; first sponsor is the
+  // "primary sponsor" — the member who introduced the bill.
+  const primarySponsor = detail?.sponsors?.[0];
+  const subjectNames =
+    detail?.subjects?.legislativeSubjects
+      ?.map((s) => s.name ?? "")
+      .filter((n) => n.length > 0) ?? [];
+
   return {
     bill_id: billId,
     congress,
@@ -284,17 +324,117 @@ function normalizeBill(raw: RawBill, scrapedAt: string): Bill | null {
     title: raw.title ?? "",
     origin_chamber: raw.originChamber ?? "",
     origin_chamber_code: raw.originChamberCode ?? "",
-    // congress.gov v3 returns `introducedDate` on the bill list endpoint.
-    // Older scraper runs (pre-2026-05-22) did not extract this; re-running
-    // the scraper backfills it idempotently (same bill_id, merge on write).
-    introduction_date: raw.introducedDate ?? "",
+    // 2026-05-23 verified: introducedDate is ONLY on detail endpoint,
+    // NOT the list endpoint (the previous comment was wrong). Falls back
+    // to raw if detail unavailable; will be "" when scraping list-only.
+    introduction_date: detail?.introducedDate ?? raw.introducedDate ?? "",
     latest_action_date: raw.latestAction?.actionDate ?? "",
     latest_action_text: raw.latestAction?.text ?? "",
     update_date: raw.updateDateIncludingText ?? raw.updateDate ?? "",
     congress_gov_url: `https://www.congress.gov/bill/${congress}/${billType.toLowerCase()}/${number}`,
     api_url: raw.url ?? "",
+    policy_area: detail?.policyArea?.name ?? "",
+    subjects: subjectNames,
+    primary_sponsor_bioguide_id: primarySponsor?.bioguideId ?? "",
+    primary_sponsor_name:
+      primarySponsor?.fullName ??
+      [primarySponsor?.firstName, primarySponsor?.lastName]
+        .filter(Boolean)
+        .join(" "),
+    primary_sponsor_party: primarySponsor?.party ?? "",
+    primary_sponsor_state: primarySponsor?.state ?? "",
     scraped_at: scrapedAt,
   };
+}
+
+/**
+ * Fetch the detail endpoint for one bill. Returns null on 404 or parse
+ * failure (the calling code should skip-and-continue, not throw).
+ *
+ * Rate cost: 1 api.congress.gov request per call. Caller throttles.
+ */
+export async function fetchBillDetail(
+  congress: number,
+  billType: string,
+  billNumber: string,
+): Promise<RawBillDetail | null> {
+  const apiKey =
+    process.env.CONGRESS_API_KEY ??
+    process.env.GOVINFO_API_KEY ??
+    "DEMO_KEY";
+  const url = `${CONFIG.BASE_URL}/bill/${congress}/${billType.toLowerCase()}/${billNumber}?format=json&api_key=${apiKey}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": CONFIG.USER_AGENT,
+        Accept: "application/json",
+      },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as BillDetailResponse;
+    return json.bill ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Enrich a batch of Bill rows with detail-endpoint fields. Throttled
+ * to stay well under api.data.gov's 20K/hr ceiling. Concurrent fetches
+ * with bounded parallelism for throughput.
+ *
+ * Returns a new array — does not mutate input. Bills whose detail fetch
+ * fails come back unchanged (silent skip — fields stay empty).
+ */
+export async function enrichBillsWithDetail(
+  bills: Bill[],
+): Promise<Bill[]> {
+  if (bills.length === 0) return bills;
+  const CONCURRENCY = 8; // 8 inflight × ~150ms = ~53 req/sec = 190K/hr — well under 20K/hr
+  // Actually 8 × (1000ms/150ms) = 53 req/sec is way over. Tame to 5 inflight + 200ms pacing.
+  const out = [...bills];
+  const scrapedAt = new Date().toISOString();
+
+  let cursor = 0;
+  async function worker() {
+    while (cursor < bills.length) {
+      const i = cursor++;
+      const b = bills[i]!;
+      // Skip if already enriched (has subjects or policy_area or sponsor_id)
+      if (b.subjects?.length > 0 || b.policy_area || b.primary_sponsor_bioguide_id) {
+        continue;
+      }
+      const detail = await fetchBillDetail(b.congress, b.bill_type, b.number);
+      if (detail) {
+        const rebuilt = normalizeBill(
+          {
+            congress: b.congress,
+            type: b.bill_type,
+            number: b.number,
+            title: b.title,
+            originChamber: b.origin_chamber,
+            originChamberCode: b.origin_chamber_code,
+            introducedDate: b.introduction_date || detail.introducedDate,
+            latestAction: {
+              actionDate: b.latest_action_date,
+              text: b.latest_action_text,
+            },
+            updateDate: b.update_date,
+            updateDateIncludingText: b.update_date,
+            url: b.api_url,
+          },
+          b.scraped_at || scrapedAt,
+          detail,
+        );
+        if (rebuilt) out[i] = rebuilt;
+      }
+      // Small pacing delay between requests (per-worker)
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  return out;
 }
 
 function normalizeHouseVote(
