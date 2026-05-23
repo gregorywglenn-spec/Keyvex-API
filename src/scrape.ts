@@ -72,6 +72,7 @@
 
 import {
   backfillBioguideIds,
+  backfillForm278Bioguide,
   getDbIfLive,
   pingFirestore,
   saveActivistOwnership,
@@ -288,6 +289,15 @@ const COMMANDS: Record<string, CliCommand> = {
     run: async (args) => {
       const dryRun = args.includes("--dry-run");
       const stats = await backfillBioguideIds({ dryRun });
+      return stats;
+    },
+  },
+  "backfill-form278-bioguide": {
+    description:
+      "Walk every annual_financial_disclosures record and write the matching bioguide_id + party + state back into the row. Same 4-tier matcher as backfill-bioguide. Idempotent — safe to re-run. Pass --dry-run to count matches without writing.",
+    run: async (args) => {
+      const dryRun = args.includes("--dry-run");
+      const stats = await backfillForm278Bioguide({ dryRun });
       return stats;
     },
   },

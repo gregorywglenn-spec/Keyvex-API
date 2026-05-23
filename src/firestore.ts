@@ -3451,9 +3451,31 @@ export async function saveForm278Filings(
   const BATCH_SIZE = 400;
   let saved = 0;
 
-  for (let i = 0; i < filings.length; i += BATCH_SIZE) {
+  // Same enrichment posture as saveCongressionalTrades (Greg's 2026-05-22
+  // audit): Form 278 records were going in with bioguide_id="" + party=""
+  // on 100% of rows (1,882 of 1,882 blank). Wire the same in-memory
+  // resolver into the write path so every new save auto-resolves.
+  let toWrite = filings;
+  try {
+    toWrite = await enrichForm278WithBioguide(filings);
+    const filled = toWrite.filter(
+      (f, i) => !filings[i]?.bioguide_id && f.bioguide_id,
+    ).length;
+    if (filled > 0) {
+      console.error(
+        `[saveForm278Filings] bioguide enrichment: ${filled}/${filings.length} resolved`,
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[saveForm278Filings] bioguide enrichment FAILED — saving raw rows. ${msg}`,
+    );
+  }
+
+  for (let i = 0; i < toWrite.length; i += BATCH_SIZE) {
     const batch = db.batch();
-    const chunk = filings.slice(i, i + BATCH_SIZE);
+    const chunk = toWrite.slice(i, i + BATCH_SIZE);
     for (const filing of chunk) {
       batch.set(collection.doc(filing.filing_id), filing, { merge: true });
     }
@@ -3462,6 +3484,139 @@ export async function saveForm278Filings(
   }
 
   return { saved, collection: COLLECTION };
+}
+
+// ─── Form 278 bioguide enrichment (parallel to congressional_trades) ─────
+//
+// Form 278 filings carry the same member_first / member_last / chamber /
+// state fields as congressional_trades, so the same 4-tier resolver maps
+// cleanly. Reuses buildBioguideLookups() (shared cache) and a Form278-
+// specific shim around resolveTradeBioguide() that adapts the record shape.
+async function enrichForm278WithBioguide(
+  filings: Form278Filing[],
+): Promise<Form278Filing[]> {
+  if (filings.length === 0) return filings;
+  const lookups = await buildBioguideLookups();
+  return filings.map((f) => {
+    if (f.bioguide_id) return f;
+    // Adapt Form278Filing shape to the trade-shape the resolver expects.
+    const adapted = {
+      chamber: f.chamber,
+      state: f.state,
+      member_first: f.member_first,
+      member_last: f.member_last,
+      transaction_date: f.filing_date, // filing_date is the best in-office anchor we have
+      disclosure_date: f.filing_date,
+    } as CongressionalTrade;
+    const bg = resolveTradeBioguide(adapted, lookups);
+    if (!bg) return f;
+    const info = lookups.bioguideToInfo[bg];
+    return {
+      ...f,
+      bioguide_id: bg,
+      party: f.party || info?.party || "",
+      state: f.state || info?.state || "",
+    };
+  });
+}
+
+/**
+ * One-shot back-fill: walks every annual_financial_disclosures row, runs
+ * the 4-tier bioguide resolver, writes bioguide_id + party + state on
+ * matches. Idempotent (already-set rows skipped). Same shape as
+ * backfillBioguideIds for congressional_trades.
+ *
+ * Invoked from CLI: `npx tsx src/scrape.ts backfill-form278-bioguide`.
+ */
+export async function backfillForm278Bioguide(
+  options: { dryRun?: boolean } = {},
+): Promise<{
+  total: number;
+  matched: number;
+  already_set: number;
+  unmatched: number;
+  written: number;
+}> {
+  if (isStubMode()) {
+    throw new Error(
+      "backfillForm278Bioguide requires LIVE mode (no service account)",
+    );
+  }
+  const dryRun = options.dryRun ?? false;
+  const db = await getLiveDb();
+  const lookups = await buildBioguideLookups();
+  const snap = await db.collection("annual_financial_disclosures").get();
+
+  let matched = 0;
+  let alreadySet = 0;
+  let unmatched = 0;
+  const updates: Array<{
+    docId: string;
+    bioguide_id: string;
+    party: string;
+    state: string;
+  }> = [];
+
+  for (const doc of snap.docs) {
+    const f = doc.data() as Form278Filing;
+    if (f.bioguide_id) {
+      alreadySet++;
+      continue;
+    }
+    const adapted = {
+      chamber: f.chamber,
+      state: f.state,
+      member_first: f.member_first,
+      member_last: f.member_last,
+      transaction_date: f.filing_date,
+      disclosure_date: f.filing_date,
+    } as CongressionalTrade;
+    const bg = resolveTradeBioguide(adapted, lookups);
+    if (!bg) {
+      unmatched++;
+      continue;
+    }
+    matched++;
+    const info = lookups.bioguideToInfo[bg];
+    updates.push({
+      docId: doc.id,
+      bioguide_id: bg,
+      party: f.party || info?.party || "",
+      state: f.state || info?.state || "",
+    });
+  }
+
+  console.error(
+    `[backfill-form278] ${snap.size} filings: ${matched} matchable, ${unmatched} unmatched, ${alreadySet} already set`,
+  );
+
+  let written = 0;
+  if (!dryRun && updates.length > 0) {
+    const collection = db.collection("annual_financial_disclosures");
+    const BATCH_SIZE = 400;
+    for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+      const batch = db.batch();
+      const chunk = updates.slice(i, i + BATCH_SIZE);
+      for (const u of chunk) {
+        batch.update(collection.doc(u.docId), {
+          bioguide_id: u.bioguide_id,
+          ...(u.party ? { party: u.party } : {}),
+          ...(u.state ? { state: u.state } : {}),
+        });
+      }
+      await batch.commit();
+      written += chunk.length;
+      console.error(`[backfill-form278] Wrote ${written}/${updates.length}...`);
+    }
+  }
+
+  return {
+    total: snap.size,
+    matched,
+    already_set: alreadySet,
+    unmatched,
+    written,
+  };
 }
 
 // ─── Federal Register documents query + save ─────────────────────────────
