@@ -47,14 +47,50 @@ const CONFIG = {
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Convert MM/DD/YYYY → YYYY-MM-DD. Pass-through if already ISO. */
+/**
+ * Convert MM/DD/YYYY → YYYY-MM-DD. Pass-through if already ISO.
+ *
+ * Sanity guard (Greg's 2026-05-23 finding): House PTRs are PDF-parsed
+ * and pdf-parse occasionally garbles year digits ("04/30/2021" got
+ * extracted as "04/30/3031" or "04/07/2220"). Returns "" for any date
+ * whose year falls outside [2012, current_year+1] — 2012 is the House
+ * PTR-era start; current_year+1 catches typo-future dates without
+ * rejecting legitimate forward-looking notation dates. The empty
+ * string sorts to the bottom of date-DESC queries, keeping garbage
+ * out of the headline "most recent trades" surface.
+ *
+ * For audit visibility, parser failures and out-of-range dates are
+ * logged to console.error rather than silently swallowed.
+ */
 function toISO(dateStr: string): string {
   if (!dateStr) return "";
+  let iso: string;
   if (dateStr.includes("/")) {
-    const [m, d, y] = dateStr.split("/");
-    return `${y}-${m!.padStart(2, "0")}-${d!.padStart(2, "0")}`;
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) {
+      console.error(`[house] toISO: malformed date "${dateStr}" — rejecting`);
+      return "";
+    }
+    const [m, d, y] = parts;
+    iso = `${y}-${m!.padStart(2, "0")}-${d!.padStart(2, "0")}`;
+  } else {
+    iso = dateStr;
   }
-  return dateStr;
+  // Sanity-check the year — reject corrupted PDF extractions
+  const yearMatch = /^(\d{4})/.exec(iso);
+  if (!yearMatch) {
+    console.error(`[house] toISO: no year prefix on "${iso}" — rejecting`);
+    return "";
+  }
+  const year = parseInt(yearMatch[1]!, 10);
+  const maxYear = new Date().getUTCFullYear() + 1;
+  if (year < 2012 || year > maxYear) {
+    console.error(
+      `[house] toISO: year ${year} out of [2012, ${maxYear}] for "${dateStr}" → "${iso}" — rejecting as PDF-parse corruption`,
+    );
+    return "";
+  }
+  return iso;
 }
 
 /** Business days between two dates. Inputs may be MM/DD/YYYY or YYYY-MM-DD. */

@@ -1095,6 +1095,27 @@ export async function queryCongressionalTrades(
     );
   }
 
+  // Interim guard (Greg's 2026-05-23 finding): a handful of House PTRs
+  // have transaction_date corruption from pdf-parse digit garbling
+  // ("04/30/2021" extracted as "04/30/3031"). Until those rows are
+  // cleaned up via re-scrape, exclude impossible future-dated trades
+  // from transaction_date-sorted results so the "most recent trades"
+  // headline query doesn't return year-3031 rows at the top.
+  //
+  // Threshold: any transaction_date year > current_year+1 is
+  // structurally impossible (no PTR is filed for a trade more than ~1
+  // year in the future). Keep ancient-year rows (< 2012) in the
+  // result set since they're legitimate historical PTRs.
+  if (sortField === "transaction_date") {
+    const cutoffYear = new Date().getUTCFullYear() + 1;
+    docs = docs.filter((t) => {
+      const td = t.transaction_date ?? "";
+      if (!td) return true; // empty stays (sorts to bottom naturally)
+      const yr = parseInt(td.slice(0, 4), 10);
+      return Number.isNaN(yr) || yr <= cutoffYear;
+    });
+  }
+
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
   return await withCoverageWarning({ results, has_more }, query, "congressional_trades");
