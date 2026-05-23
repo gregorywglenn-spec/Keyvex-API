@@ -125,6 +125,7 @@ import {
 } from "./scrapers/bioguide.js";
 import { scrape8kByTicker, scrape8kLiveFeed } from "./scrapers/form8k.js";
 import { scrapeForm345BulkQuarter } from "./scrapers/form345-bulk.js";
+import { runFullLoad as runForm345FullLoad } from "./scrapers/form345-bulk-orchestrator.js";
 import {
   scrapeProxyByTicker,
   scrapeProxyLiveFeed,
@@ -972,6 +973,33 @@ const COMMANDS: Record<string, CliCommand> = {
         holdings_count: result.holdings.length,
         filings_count: result.filings.length,
         skipped: result.skipped,
+      };
+    },
+  },
+  "form345-bulk-all": {
+    description:
+      "Full SEC Bulk Insider Dataset load: iterate every quarter from 2006q1 through the current quarter, writing each to insider_transactions_v2 / insider_holdings_v2 / insider_filings_v2. Resume-friendly via secrets/form345-bulk-checkpoint.json — already-completed quarters are skipped automatically; kill+restart is safe. Options: --start=YYYYqN (default 2006q1), --end=YYYYqN (default current quarter), --force (re-run even completed), --dry-run (parse + build but skip Firestore writes), --max=N (cap quarters per invocation for testing). 404s on future-quarter probes are recorded as 'not_published' and skipped; other failures are recorded as 'failed' and the orchestrator continues. Expect ~3-5 min wall per quarter, ~5-6 hr total for the full 80-quarter run.",
+    run: async (args) => {
+      const startArg = args.find((a) => a.startsWith("--start="));
+      const endArg = args.find((a) => a.startsWith("--end="));
+      const maxArg = args.find((a) => a.startsWith("--max="));
+      const opts: Parameters<typeof runForm345FullLoad>[0] = {
+        force: args.includes("--force"),
+        dryRun: args.includes("--dry-run"),
+      };
+      if (startArg) opts.startQuarter = startArg.slice("--start=".length);
+      if (endArg) opts.endQuarter = endArg.slice("--end=".length);
+      if (maxArg) {
+        const n = parseInt(maxArg.slice("--max=".length), 10);
+        if (Number.isNaN(n) || n < 1) {
+          throw new Error("--max must be a positive integer");
+        }
+        opts.maxQuarters = n;
+      }
+      const result = await runForm345FullLoad(opts);
+      return {
+        last_run_at: result.last_run_at,
+        quarters_in_checkpoint: Object.keys(result.quarters).length,
       };
     },
   },
