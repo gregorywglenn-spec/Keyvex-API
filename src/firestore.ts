@@ -931,6 +931,97 @@ export async function saveInsiderTransactions(
 //
 // Per Greg's Gate 2/4 approval: tagged source: "sec_bulk", era-aware via
 // schema_era field; pre-2023 records carry aff10b5one: "NOT_TRACKED" sentinel.
+//
+// 2026-05-24 perf: switched from single-threaded await loop (~70 min per
+// 400K-doc quarter from a residential connection) to an N-way concurrent
+// semaphore.
+//
+// First attempt at N=50 hit gRPC DEADLINE_EXCEEDED after 60s — 50 batches
+// × ~800KB each = 40MB queued for upload, draining over 16-32s on
+// residential bandwidth, plus Firestore commit/ack pushed last-in-queue
+// batches past the 60s default deadline. The Firebase Admin SDK retries
+// were burning their full budget before firstError fired.
+//
+// Reset to N=10: 10 × 800KB = 8MB queued, drains in 5-10s, leaves
+// plenty of margin under 60s. Still 3-4x faster than single-threaded
+// (~287 docs/sec at N=50 before fault → projected ~250 docs/sec sustained
+// at N=10). RETRY logic stays for transient throttling / blips so the
+// loader self-recovers without halting.
+
+const BULK_BATCH_SIZE = 400;
+const BULK_PARALLEL_BATCHES = 10;
+const BULK_MAX_RETRIES = 5;
+
+/**
+ * Save a batch of docs using a semaphore-bounded parallel-commit pool.
+ * - Up to BULK_PARALLEL_BATCHES Firestore batch commits in flight at once.
+ * - Each batch carries up to BULK_BATCH_SIZE docs.
+ * - Transient throttling (429 / RESOURCE_EXHAUSTED / UNAVAILABLE) is
+ *   retried with exponential backoff per batch (BULK_MAX_RETRIES attempts).
+ * - Other errors fail the whole save (orchestrator catches and marks the
+ *   quarter "in_progress"; resume re-runs idempotently).
+ */
+async function commitBatchesParallel<T extends { id: string }>(
+  db: FirestoreInstance,
+  collectionName: string,
+  docs: T[],
+): Promise<number> {
+  if (docs.length === 0) return 0;
+  const collection = db.collection(collectionName);
+
+  // Slice docs into batch-sized chunks up front
+  const chunks: T[][] = [];
+  for (let i = 0; i < docs.length; i += BULK_BATCH_SIZE) {
+    chunks.push(docs.slice(i, i + BULK_BATCH_SIZE));
+  }
+
+  let nextIdx = 0;
+  let saved = 0;
+  let firstError: Error | null = null;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      if (firstError) return; // short-circuit if a peer worker hit a non-retryable failure
+      const myIdx = nextIdx++;
+      if (myIdx >= chunks.length) return;
+      const chunk = chunks[myIdx]!;
+
+      let attempt = 0;
+      while (true) {
+        try {
+          const batch = db.batch();
+          for (const doc of chunk) {
+            batch.set(collection.doc(doc.id), doc, { merge: true });
+          }
+          await batch.commit();
+          saved += chunk.length;
+          break;
+        } catch (e) {
+          const msg = (e as Error).message ?? String(e);
+          const isRetryable =
+            /429|RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|INTERNAL/i.test(msg);
+          attempt += 1;
+          if (!isRetryable || attempt >= BULK_MAX_RETRIES) {
+            firstError = e as Error;
+            return;
+          }
+          // Exponential backoff with jitter: 1s, 2s, 4s, 8s, 16s
+          const baseMs = 1000 * Math.pow(2, attempt - 1);
+          const jitter = Math.floor(Math.random() * 500);
+          await new Promise((r) => setTimeout(r, baseMs + jitter));
+        }
+      }
+    }
+  }
+
+  const workerCount = Math.min(BULK_PARALLEL_BATCHES, chunks.length);
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < workerCount; i++) workers.push(worker());
+  await Promise.all(workers);
+
+  if (firstError) throw firstError;
+  return saved;
+}
 
 export async function saveInsiderTransactionsV2(
   docs: import("./types.js").InsiderTransactionV2[],
@@ -942,22 +1033,8 @@ export async function saveInsiderTransactionsV2(
   }
   const COLLECTION = "insider_transactions_v2";
   if (docs.length === 0) return { saved: 0, collection: COLLECTION };
-
   const db = await getLiveDb();
-  const collection = db.collection(COLLECTION);
-  const BATCH_SIZE = 400;
-  let saved = 0;
-
-  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = docs.slice(i, i + BATCH_SIZE);
-    for (const doc of chunk) {
-      batch.set(collection.doc(doc.id), doc, { merge: true });
-    }
-    await batch.commit();
-    saved += chunk.length;
-  }
-
+  const saved = await commitBatchesParallel(db, COLLECTION, docs);
   return { saved, collection: COLLECTION };
 }
 
@@ -971,22 +1048,8 @@ export async function saveInsiderHoldingsV2(
   }
   const COLLECTION = "insider_holdings_v2";
   if (docs.length === 0) return { saved: 0, collection: COLLECTION };
-
   const db = await getLiveDb();
-  const collection = db.collection(COLLECTION);
-  const BATCH_SIZE = 400;
-  let saved = 0;
-
-  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = docs.slice(i, i + BATCH_SIZE);
-    for (const doc of chunk) {
-      batch.set(collection.doc(doc.id), doc, { merge: true });
-    }
-    await batch.commit();
-    saved += chunk.length;
-  }
-
+  const saved = await commitBatchesParallel(db, COLLECTION, docs);
   return { saved, collection: COLLECTION };
 }
 
@@ -1000,22 +1063,8 @@ export async function saveInsiderFilingsV2(
   }
   const COLLECTION = "insider_filings_v2";
   if (docs.length === 0) return { saved: 0, collection: COLLECTION };
-
   const db = await getLiveDb();
-  const collection = db.collection(COLLECTION);
-  const BATCH_SIZE = 400;
-  let saved = 0;
-
-  for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = docs.slice(i, i + BATCH_SIZE);
-    for (const doc of chunk) {
-      batch.set(collection.doc(doc.id), doc, { merge: true });
-    }
-    await batch.commit();
-    saved += chunk.length;
-  }
-
+  const saved = await commitBatchesParallel(db, COLLECTION, docs);
   return { saved, collection: COLLECTION };
 }
 
