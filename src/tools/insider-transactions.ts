@@ -24,7 +24,20 @@ import type {
   InsiderTransactionsQuery,
   InsiderTransactionsV2Envelope,
   InsiderTransactionsV2Query,
+  ResultEnvelope,
 } from "../types.js";
+import {
+  applyV2BackwardCompatShim,
+  type InsiderTransactionV2Compat,
+} from "./insider-transactions-v2-shim.js";
+
+/**
+ * Envelope shape returned when data_source resolves to "bulk_v2" (the new
+ * default). Rows carry both v2 native fields AND the legacy field aliases —
+ * see InsiderTransactionV2Compat in the shim module for details.
+ */
+export type InsiderTransactionsV2CompatEnvelope =
+  ResultEnvelope<InsiderTransactionV2Compat>;
 
 // ─── Tool definition ────────────────────────────────────────────────────────
 
@@ -77,19 +90,32 @@ export const definition: Tool = {
     "ticker or company_cik to be set.",
     "",
     "data_source SELECTS WHICH BACKING COLLECTION:",
-    "  'legacy' (default) — `insider_trades` collection populated by KeyVex's",
-    "    daily EDGAR scraper (limited history, no footnotes, no aff10b5one).",
-    "    Filter set: ticker, company_cik, officer_name, transaction_type",
-    "    (buy|sell), is_derivative, transaction_codes, min_value, since/until,",
-    "    sort_by (disclosure_date|transaction_date|total_value).",
-    "  'bulk_v2' — `insider_transactions_v2` collection populated by SEC bulk",
-    "    Forms 3/4/5 quarterly TSV bundles (deeper history, INLINED FOOTNOTES,",
-    "    aff10b5one 10b5-1 plan flag, full reporting_owners array, schema_era).",
-    "    Filter set: ticker, company_cik, reporting_owner_cik,",
+    "  'bulk_v2' (DEFAULT as of 2026-05-24) — `insider_transactions_v2`",
+    "    collection populated by SEC quarterly bulk Forms 3/4/5 TSV bundles.",
+    "    Deeper history (2006q1 → latest published quarter, ~9.9M rows),",
+    "    INLINED FOOTNOTES (footnote_refs[] with resolved text on every row),",
+    "    aff10b5one 10b5-1 plan flag, full reporting_owners array, schema_era.",
+    "    Filters: ticker, company_cik, reporting_owner_cik,",
     "    reporting_owner_name (substring), row_type ('nonderiv'|'deriv'),",
     "    trans_codes, aff10b5one, schema_era ('pre_2023'|'2023_plus'),",
     "    since/until, sort_by ('transaction_date'|'filing_date').",
-    "    Each row includes footnote_refs[] with resolved footnote text inlined.",
+    "    BACKWARD-COMPAT: every v2 row also carries the LEGACY field aliases",
+    "    (disclosure_date, transaction_code, shares, price_per_share,",
+    "    total_value, acquired_disposed, shares_owned_after, officer_name,",
+    "    is_derivative, reporting_lag_days, data_source, sec_filing_url) so",
+    "    callers reading the old field names keep working. The",
+    "    `transaction_type` field carries the legacy 'buy'|'sell' semantic",
+    "    (synthesized from trans_code + trans_acquired_disp_cd, identical",
+    "    algorithm to the legacy scraper); the v2 nonderiv|deriv discriminator",
+    "    lives at `row_type`.",
+    "  'legacy' — `insider_trades` collection populated by KeyVex's daily",
+    "    EDGAR scraper. Shallower coverage (2022+), no footnotes, no",
+    "    aff10b5one, ~91% fewer filings in the same window than bulk_v2.",
+    "    Filters: ticker, company_cik, officer_name, transaction_type",
+    "    (buy|sell), is_derivative, transaction_codes, min_value, since/until,",
+    "    sort_by (disclosure_date|transaction_date|total_value).",
+    "    Use this only when you specifically need the legacy doc shape with",
+    "    NO v2-extension fields.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -167,7 +193,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["legacy", "bulk_v2"],
         description:
-          "Which backing collection to query. 'legacy' (default) = the daily EDGAR scraper output (no footnotes, no 10b5-1 flag). 'bulk_v2' = SEC quarterly bulk dataset output (footnote_refs[] inlined, aff10b5one present, full reporting_owners array). See main description for the per-source filter set.",
+          "Which backing collection to query. 'bulk_v2' (DEFAULT as of 2026-05-24) = SEC quarterly bulk dataset, 2006q1→latest (footnote_refs[] inlined, aff10b5one present, full reporting_owners array, deeper coverage). Rows carry legacy field aliases for backward compat. 'legacy' = daily EDGAR scraper output (insider_trades collection, 2022+ only, no footnotes, no 10b5-1 flag).",
       },
       reporting_owner_cik: {
         type: "string",
@@ -213,11 +239,16 @@ export const definition: Tool = {
 
 export async function handler(
   args: unknown,
-): Promise<InsiderTransactionsEnvelope | InsiderTransactionsV2Envelope> {
-  // Two branches, fully separated by data_source. Default is "legacy" so
-  // every existing caller behaves exactly as before; "bulk_v2" surfaces the
-  // SEC Bulk Insider Dataset v2 collection (footnotes, aff10b5one,
-  // reporting_owners). See tool description for filter-set differences.
+): Promise<
+  | InsiderTransactionsEnvelope
+  | InsiderTransactionsV2CompatEnvelope
+> {
+  // Two branches, fully separated by data_source. Default flipped to
+  // "bulk_v2" on 2026-05-24 after Gate 6 finished — v2 has ~12x more
+  // coverage and a richer schema than legacy. v2 responses go through
+  // applyV2BackwardCompatShim so the row carries BOTH v2 native fields
+  // AND the legacy field aliases (disclosure_date, shares, officer_name,
+  // etc.) for backward compatibility with callers reading the old names.
   const dataSource = pickDataSource(args);
 
   if (dataSource === "bulk_v2") {
@@ -227,10 +258,10 @@ export async function handler(
 }
 
 function pickDataSource(args: unknown): "legacy" | "bulk_v2" {
-  if (typeof args !== "object" || args === null) return "legacy";
+  if (typeof args !== "object" || args === null) return "bulk_v2";
   const ds = (args as Record<string, unknown>).data_source;
-  if (ds === "bulk_v2") return "bulk_v2";
-  if (ds === "legacy" || ds === undefined) return "legacy";
+  if (ds === "legacy") return "legacy";
+  if (ds === "bulk_v2" || ds === undefined) return "bulk_v2";
   throw new Error(
     `INVALID data_source: '${String(ds)}' — expected 'legacy' or 'bulk_v2'`,
   );
@@ -271,13 +302,20 @@ async function handleLegacy(
 
 async function handleV2(
   args: unknown,
-): Promise<InsiderTransactionsV2Envelope> {
+): Promise<InsiderTransactionsV2CompatEnvelope> {
   const query = validateAndNormalizeV2(args);
   const { results, has_more, coverage_warning } =
     await queryInsiderTransactionsV2(query);
+
+  // Apply the backward-compat shim per row: each result gains the legacy
+  // field aliases (disclosure_date, shares, officer_name, etc.) and
+  // `transaction_type` is redefined to legacy "buy"|"sell" semantic.
+  // See insider-transactions-v2-shim.ts for the algorithm + invariant.
+  const shimmedResults = results.map(applyV2BackwardCompatShim);
+
   return {
-    results,
-    count: results.length,
+    results: shimmedResults,
+    count: shimmedResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     query: { ...query, data_source: "bulk_v2" } as Record<string, unknown>,
