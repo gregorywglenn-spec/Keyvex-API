@@ -11,6 +11,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryCongressionalTrades } from "../firestore.js";
+import { deriveCongressionalNature } from "./insider-transactions-v2-shim.js";
 import type {
   CongressionalTrade,
   CongressionalTradesQuery,
@@ -116,6 +117,11 @@ export const definition: Tool = {
         maximum: 500,
         description: "Maximum records to return. Default 50, max 500.",
       },
+      include_non_open_market: {
+        type: "boolean",
+        description:
+          "Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows (charitable contributions, gifts, donations detected in the `comment` field) appear in the result. Honest-by-default: when transaction_type='buy'|'sell' is set, defaults to FALSE — a charitable contribution isn't a trade and shouldn't pollute a sell-total query. When transaction_type is NOT set, defaults to TRUE so the caller sees everything tagged honestly. The transaction_type field on each row is NEVER mutated by this filter. Concrete example: a `member_name:'Pelosi', transaction_type:'sell'` query by default WON'T return Pelosi's Trinity University charitable contribution (correctly excluded); pass include_non_open_market:true to opt back in.",
+      },
     },
     additionalProperties: false,
   },
@@ -128,13 +134,52 @@ export async function handler(
 ): Promise<ResultEnvelope<CongressionalTrade>> {
   const query = validateAndNormalize(args);
   const { results, has_more, coverage_warning } = await queryCongressionalTrades(query);
+
+  // Phase A (2026-05-24): apply transaction_nature filtering. Most legacy
+  // congressional rows don't carry transaction_nature in storage (forward-
+  // write only); we derive it on-the-fly from the `comment` field via the
+  // SAME helper that ingestion uses (one rule, all paths).
+  //
+  // Honest-by-default: when caller sets transaction_type, default to
+  // EXCLUDING NON_OPEN_MARKET_TRANSFER (gift/contribution language in
+  // comment). Caller passes include_non_open_market:true to opt back in.
+  const includeNonOpenMarket = resolveIncludeNonOpenMarket(
+    query.transaction_type,
+    query.include_non_open_market,
+  );
+  const filteredResults = includeNonOpenMarket
+    ? results
+    : results.filter((r) => {
+        const nature =
+          r.transaction_nature ??
+          deriveCongressionalNature({
+            comment: r.comment,
+            transaction_type: r.transaction_type,
+          });
+        return nature !== "NON_OPEN_MARKET_TRANSFER";
+      });
+
   return {
-    results,
-    count: results.length,
+    results: filteredResults,
+    count: filteredResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
   };
+}
+
+/**
+ * Phase A: resolve the context-driven default for include_non_open_market.
+ * Identical semantic to insider-transactions: when transaction_type is set,
+ * default to excluding transfers; otherwise include them all by default.
+ */
+function resolveIncludeNonOpenMarket(
+  transactionType: string | undefined,
+  callerValue: boolean | undefined,
+): boolean {
+  if (callerValue !== undefined) return callerValue;
+  if (transactionType === "buy" || transactionType === "sell") return false;
+  return true;
 }
 
 // ─── Input validation ───────────────────────────────────────────────────────
@@ -280,6 +325,14 @@ function validateAndNormalize(raw: unknown): CongressionalTradesQuery {
       );
     }
     out.limit = args.limit;
+  }
+
+  // Phase A (2026-05-24): see CongressionalTradesQuery for full semantic
+  if (args.include_non_open_market !== undefined) {
+    if (typeof args.include_non_open_market !== "boolean") {
+      throw new Error("include_non_open_market must be a boolean");
+    }
+    out.include_non_open_market = args.include_non_open_market;
   }
 
   return out;

@@ -97,6 +97,14 @@ export interface InsiderTransaction {
    *  transactions exempt from or missed on Form 4. Both share this schema
    *  and the same `insider_trades` collection. */
   data_source: "SEC_EDGAR_FORM4" | "SEC_EDGAR_FORM5";
+  /** Phase A (2026-05-24): event-kind classification. Optional because of
+   *  forward-write-only backfill — historical rows omit this; the MCP read
+   *  shim derives it on-the-fly. New ingestion writes it directly. */
+  transaction_nature?: TransactionNature;
+  /** Phase A (2026-05-24): parse-integrity. INSUFFICIENT_DATA when any
+   *  internal relational reference (footnote ID) failed to resolve at
+   *  ingestion. Absent on historical rows (forward-write only). */
+  verification_status?: VerificationStatus;
 }
 
 /**
@@ -138,6 +146,23 @@ export interface InsiderTransactionsQuery {
    * to be set (otherwise the baseline lookup would be unbounded).
    */
   include_baseline?: boolean;
+  /**
+   * Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows
+   * (gifts, tax withholding, dispositions to issuer) appear in the result.
+   *
+   * Honest-by-default semantic:
+   *   - When `transaction_type: "buy"|"sell"` is set:
+   *       default = false → EXCLUDE transfers (a gift isn't a trade).
+   *       Pass `true` to opt back in (include transfers in your direction filter).
+   *   - When `transaction_type` is NOT set:
+   *       default = true → return all rows, honestly tagged via transaction_nature.
+   *       Pass `false` to opt OUT (clean view excluding transfers).
+   *
+   * The legacy `transaction_type` string ("buy"/"sell") on each returned
+   * record is NEVER mutated by this filter — only whether the row appears
+   * at all in the result set.
+   */
+  include_non_open_market?: boolean;
 }
 
 /**
@@ -187,6 +212,13 @@ export interface InsiderTransactionsV2Query {
    * so has_more reflects post-filter matches.
    */
   transaction_type?: "buy" | "sell";
+  /**
+   * Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows
+   * (gifts, tax withholding, dispositions to issuer) appear in the result.
+   * Context-driven default — see InsiderTransactionsQuery for the same
+   * field's semantics, identical here.
+   */
+  include_non_open_market?: boolean;
   since?: string;
   until?: string;
   sort_by?: "transaction_date" | "filing_date";
@@ -1144,12 +1176,26 @@ export interface InstitutionalHolding {
     | "decreased"
     | "closed"
     | "unchanged"
+    | "INSUFFICIENT_DATA"     // Phase A: prior-quarter lookup empty OR current
+                              //   filing failed its infoTableEntryTotal check
     | null;
   shares_change: number | null;
   shares_change_pct: number | null;
   accession_number: string;
   filing_url: string;
   data_source: "SEC_EDGAR_13F";
+  /** Phase A (2026-05-24): parse-integrity per filing.
+   *  VERIFIED iff successfully-parsed holding count equals primary_doc.xml's
+   *  infoTableEntryTotal. INSUFFICIENT_DATA otherwise (incl. case where
+   *  primary_doc.xml's infoTableEntryTotal cannot be extracted — the "no
+   *  count" case defaults to INSUFFICIENT_DATA per the gate rule, never to
+   *  VERIFIED). Optional because of forward-write-only backfill; historical
+   *  rows omit this and downstream consumers treat missing as "unknown". */
+  verification_status?: VerificationStatus;
+  /** Phase A: what the verification check expected (from primary_doc.xml). */
+  verification_expected?: number;
+  /** Phase A: what the verification check actually saw (rows we parsed). */
+  verification_actual?: number;
 }
 
 /**
@@ -1219,6 +1265,16 @@ export interface CongressionalTrade {
   ptr_id: string;
   report_url: string;
   data_source: "SENATE_EFD_PTR" | "HOUSE_CLERK_PTR";
+  /** Phase A (2026-05-24): event-kind classification derived from the
+   *  `comment` field via deriveCongressionalNature(). NEVER overwrites
+   *  `transaction_type` ("buy"|"sell") which stays as-stored for back-compat.
+   *  When comment contains contribution/gift/donation/charitable language →
+   *  NON_OPEN_MARKET_TRANSFER. When transaction_type is "buy"/"sell" and no
+   *  transfer language detected → OPEN_MARKET. When transaction_type is
+   *  empty/unrecognized AND no transfer signal in comment → INSUFFICIENT_DATA.
+   *  Optional because of forward-write-only backfill; the MCP read shim
+   *  derives on-the-fly for historical rows. */
+  transaction_nature?: TransactionNature;
 }
 
 /**
@@ -1238,6 +1294,16 @@ export interface CongressionalTradesQuery {
   sort_by?: "disclosure_date" | "transaction_date";
   sort_order?: "desc" | "asc";
   limit?: number;
+  /**
+   * Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows
+   * (charitable contributions, gifts, donations detected in the comment
+   * field) appear in the result. Honest-by-default semantic identical to
+   * InsiderTransactionsQuery.include_non_open_market — see that field for
+   * the full rule. Critical for the Pelosi-Trinity-contribution case:
+   * a `transaction_type: "sell"` query for Pelosi must NOT return the
+   * Trinity charitable contribution by default.
+   */
+  include_non_open_market?: boolean;
 }
 
 // ─── Form 278 (Annual Financial Disclosure) ─────────────────────────────────
@@ -3407,6 +3473,65 @@ export interface UnifiedSearchEnvelope {
 
 export type SchemaEra = "pre_2023" | "2023_plus";
 
+// ─── Phase A: Data-Integrity Engine vocabulary (2026-05-24) ────────────────
+//
+// One fixed vocabulary across every storage shape + the wire shim. NO variants,
+// NO alternates. Source of truth: docs/architecture-data-integrity.md.
+//
+// Per Greg's gate rule: "Stop all confident false assertions immediately. If
+// a pipeline lacks the historical context or parsing completeness to prove a
+// calculation, it must emit an explicit uncertainty state."
+
+/**
+ * What KIND of insider/legislator event a row represents.
+ *
+ * Distinguishes open-market trades from compensation events from non-trade
+ * transfers so naive "how much did X sell" queries can't silently count
+ * gifts/grants as sales. Always exactly one of the four enum values — never
+ * bare null, never invented variants.
+ *
+ * Derivation rules (locked 2026-05-24 against SEC 1474 (03-26),
+ *                   OMB 3235-0287, page 11-12):
+ *   - Form 4 / Form 5: deriveTransactionNature(trans_code). NEVER reads
+ *     the acquired/disposed flag — only the trans_code XML node value.
+ *   - Congressional PTRs: deriveCongressionalNature(comment) — separate
+ *     code path that regexes the comment field for charitable/gift/donation
+ *     language. No trans_code field exists for congressional.
+ */
+export type TransactionNature =
+  | "OPEN_MARKET"               // Codes P, S (open-market or private trades)
+  | "EQUITY_COMP"               // Codes A, M, I (Rule 16b-3 comp) + C, X, O
+                                //   (derivative exercises/conversions — typically
+                                //    comp-granted in insider context; see C/X/O
+                                //    note in shim module)
+  | "NON_OPEN_MARKET_TRANSFER"  // Codes D, F, G, W, Z, U + congressional
+                                //   contribution/gift/donation language
+  | "INSUFFICIENT_DATA";        // Codes V, E, H, L, J, K (standalone),
+                                //   null, empty, unrecognized, or congressional
+                                //   with no transaction_type signal
+
+/**
+ * Whether the row has passed its source-specific integrity check at ingestion.
+ *
+ * For 13F: pass means the parser successfully extracted N holding rows AND
+ *   the SEC's `infoTableEntryTotal` field from primary_doc.xml equals N.
+ * For Form 4 / Form 5: pass means every transaction line item successfully
+ *   resolved its internal relational references (footnote IDs all resolve
+ *   to known footnote text — no dangling `(footnote not found)` sentinels).
+ * For congressional PTRs: not currently checked at ingestion (Phase A scope
+ *   doesn't define a comparable canonical landmark for these); rows arrive
+ *   with verification_status undefined.
+ *
+ * "INSUFFICIENT_DATA" is the explicit honesty signal that downstream
+ * computations (position_change deltas in 13F, sell-totals in tools) must
+ * RESPECT — withhold synthetic labels rather than fabricate from partial state.
+ */
+export type VerificationStatus =
+  | "VERIFIED"
+  | "INSUFFICIENT_DATA";
+// Phase B will extend this with "PENDING_HEAL" / "FAILED_PERMANENT" once
+// the sync_queue + heal-engine ships. Not in Phase A scope.
+
 /**
  * A resolved footnote reference attached to a specific field on a row.
  * Inlined at load time so agents see human-readable prose instead of cryptic
@@ -3523,6 +3648,18 @@ export interface InsiderTransactionV2 {
 
   // ─── Footnote dereferencing ───────────────────────────────────────────────
   footnote_refs: InlineFootnoteRef[];
+
+  // ─── Phase A: Data-Integrity Engine (2026-05-24) ─────────────────────────
+  // transaction_nature is OPTIONAL on InsiderTransactionV2 because Option A
+  // backfill = forward-write only. Historical rows (loaded before Phase A)
+  // don't carry it in storage; the read shim derives it on-the-fly. Rows
+  // ingested AFTER Phase A ship will carry it in Firestore directly.
+  transaction_nature?: TransactionNature;
+  // verification_status reflects parse-integrity at ingestion. For v2 bulk
+  // loads, INSUFFICIENT_DATA iff any footnote ref on the row failed to
+  // resolve against the FOOTNOTES table. Absent on historical rows
+  // (forward-write only).
+  verification_status?: VerificationStatus;
 }
 
 /**

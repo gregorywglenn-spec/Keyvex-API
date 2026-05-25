@@ -30,6 +30,7 @@ import type {
 import {
   applyV2BackwardCompatShim,
   deriveLegacyBuyOrSell,
+  deriveTransactionNature,
   type InsiderTransactionV2Compat,
 } from "./insider-transactions-v2-shim.js";
 
@@ -232,6 +233,11 @@ export const definition: Tool = {
         description:
           "bulk_v2 only. Form-version era. 'pre_2023' = filings made 2006q1 through 2022q4 (no AFF10B5ONE column). '2023_plus' = filings made 2023q1 onward (AFF10B5ONE column present, matches SEC Rule 10b5-1 amendment compliance date). Driven by FILING-quarter, not transaction_date — a late 2024 filing of an old 2009 trade still gets schema_era=2023_plus.",
       },
+      include_non_open_market: {
+        type: "boolean",
+        description:
+          "Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows (gifts code G, tax withholding code F, dispositions to issuer code D, voting-trust deposits Z, inheritance W, tender-offer dispositions U) appear in the result. Honest-by-default: when transaction_type='buy'|'sell' is set, defaults to FALSE (excludes transfers — a gift isn't a trade); pass true to opt back in. When transaction_type is NOT set, defaults to TRUE (returns everything, tagged via transaction_nature); pass false for a clean trade-only view. The transaction_type field on each row is never mutated by this filter — only whether the row appears in the result set.",
+      },
     },
     additionalProperties: false,
   },
@@ -287,9 +293,28 @@ async function handleLegacy(
     baselinesPromise,
   ]);
 
+  // Phase A (2026-05-24): apply transaction_nature filtering. Legacy rows
+  // don't store transaction_nature, so we derive on-the-fly via the same
+  // SEC-verified mapping the v2 shim uses (one rule, all paths). Filter
+  // semantic: include_non_open_market resolves context-driven defaults —
+  // true (incl.) when no direction filter is set, false (excl.) when a
+  // direction filter IS set. The transaction_type field on each returned
+  // row is NEVER mutated by this filter — only whether the row appears.
+  const includeNonOpenMarket = resolveIncludeNonOpenMarket(
+    query.transaction_type,
+    query.include_non_open_market,
+  );
+  const filteredResults = includeNonOpenMarket
+    ? results
+    : results.filter(
+        (r) =>
+          deriveTransactionNature(r.transaction_code) !==
+          "NON_OPEN_MARKET_TRANSFER",
+      );
+
   const envelope: InsiderTransactionsEnvelope = {
-    results,
-    count: results.length,
+    results: filteredResults,
+    count: filteredResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     query: query as Record<string, unknown>,
@@ -300,6 +325,29 @@ async function handleLegacy(
   }
 
   return envelope;
+}
+
+/**
+ * Resolve the context-driven default for include_non_open_market.
+ *
+ * The semantic per Greg's Phase A directive:
+ *   - When a directional filter is active (transaction_type="buy"|"sell"):
+ *     default to EXCLUDING transfers (false). A gift isn't a trade.
+ *     "Honest by default for sell-total semantics."
+ *   - When no directional filter is set:
+ *     default to INCLUDING everything (true), honestly tagged via
+ *     transaction_nature so the agent can filter further.
+ *
+ * Explicit boolean from the caller ALWAYS wins over the context default.
+ */
+function resolveIncludeNonOpenMarket(
+  transactionType: string | undefined,
+  callerValue: boolean | undefined,
+): boolean {
+  if (callerValue !== undefined) return callerValue;
+  // Context-driven default
+  if (transactionType === "buy" || transactionType === "sell") return false;
+  return true;
 }
 
 async function handleV2(
@@ -314,14 +362,39 @@ async function handleV2(
   // so this filter has to run AFTER Firestore returns rows. The
   // queryInsiderTransactionsV2 paginates internally so has_more
   // reflects post-filter matches, not pre-filter row count.
+  //
+  // PHASE A (2026-05-24): the postFilter ALSO applies the
+  // include_non_open_market rule. When excluding transfers, drop rows
+  // whose deriveTransactionNature(trans_code) === "NON_OPEN_MARKET_TRANSFER".
+  // Both filters compose into a single postFilter so the paging logic in
+  // queryInsiderTransactionsV2 keeps accurate has_more semantics under both.
   const wantedDirection = query.transaction_type;
-  const queryOpts = wantedDirection
+  const includeNonOpenMarket = resolveIncludeNonOpenMarket(
+    wantedDirection,
+    query.include_non_open_market,
+  );
+  const needsPostFilter = wantedDirection !== undefined || !includeNonOpenMarket;
+  const queryOpts = needsPostFilter
     ? {
-        postFilter: (row: InsiderTransactionV2) =>
-          deriveLegacyBuyOrSell(
-            row.trans_code,
-            row.trans_acquired_disp_cd,
-          ) === wantedDirection,
+        postFilter: (row: InsiderTransactionV2) => {
+          if (
+            wantedDirection &&
+            deriveLegacyBuyOrSell(
+              row.trans_code,
+              row.trans_acquired_disp_cd,
+            ) !== wantedDirection
+          ) {
+            return false;
+          }
+          if (
+            !includeNonOpenMarket &&
+            deriveTransactionNature(row.trans_code) ===
+              "NON_OPEN_MARKET_TRANSFER"
+          ) {
+            return false;
+          }
+          return true;
+        },
       }
     : {};
 
@@ -506,6 +579,17 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
     out.include_baseline = args.include_baseline;
   }
 
+  // Phase A (2026-05-24): include_non_open_market — see InsiderTransactionsQuery
+  // type for the context-driven default semantics. Validator stores the
+  // caller-provided value (or leaves undefined); handler resolves the default
+  // based on whether transaction_type is set.
+  if (args.include_non_open_market !== undefined) {
+    if (typeof args.include_non_open_market !== "boolean") {
+      throw new Error("include_non_open_market must be a boolean");
+    }
+    out.include_non_open_market = args.include_non_open_market;
+  }
+
   return out;
 }
 
@@ -670,6 +754,14 @@ function validateAndNormalizeV2(raw: unknown): InsiderTransactionsV2Query {
       );
     }
     out.limit = args.limit;
+  }
+
+  // Phase A (2026-05-24): include_non_open_market — same semantic as legacy
+  if (args.include_non_open_market !== undefined) {
+    if (typeof args.include_non_open_market !== "boolean") {
+      throw new Error("include_non_open_market must be a boolean");
+    }
+    out.include_non_open_market = args.include_non_open_market;
   }
 
   return out;

@@ -31,6 +31,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import AdmZip from "adm-zip";
+import { deriveTransactionNature } from "../tools/insider-transactions-v2-shim.js";
 import type {
   BulkReportingOwner,
   InlineFootnoteRef,
@@ -504,6 +505,25 @@ function buildTransaction(args: {
 
     footnote_refs: inlineFootnotes(row, fnCols, footnoteMap),
   };
+
+  // ─── Phase A: transaction_nature derivation (forward-write only) ──────────
+  // SEC trans_code → bucket via the shared deriveTransactionNature helper.
+  // Reads trans_code ONLY — never reads trans_acquired_disp_cd.
+  doc.transaction_nature = deriveTransactionNature(row.TRANS_CODE);
+
+  // ─── Phase A: parse-integrity check via footnote-ref resolution ──────────
+  // Greg's §1 spec for Form 4: "Validate structural parse-integrity by
+  // ensuring that every transaction line item ... successfully resolves
+  // its internal relational references (matching footnotes, ownership
+  // forms) without dropped parsing tokens."
+  // If any inlined footnote ref came back as the sentinel "(footnote not
+  // found)", the row had a dangling FN_ID pointer — parse-integrity FAIL.
+  const hasUnresolvedFootnote = doc.footnote_refs.some(
+    (fn) => fn.text === "(footnote not found)",
+  );
+  doc.verification_status = hasUnresolvedFootnote
+    ? "INSUFFICIENT_DATA"
+    : "VERIFIED";
 
   return doc;
 }

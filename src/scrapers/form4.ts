@@ -20,6 +20,7 @@
 
 import { XMLParser } from "fast-xml-parser";
 import type { InsiderTransaction } from "../types.js";
+import { deriveTransactionNature } from "../tools/insider-transactions-v2-shim.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -285,6 +286,10 @@ export function parseForm4Xml(
       officer_title: officerTitle,
       is_director: isDirector,
       transaction_type: deriveType(code, acqDispRaw),
+      // Phase A (2026-05-24): event-kind tag. Reads trans_code ONLY, never
+      // the acquired/disposed flag (which has overlapping letter values).
+      // See insider-transactions-v2-shim.ts for the SEC-verified mapping.
+      transaction_nature: deriveTransactionNature(code),
       transaction_code: code,
       security_title: securityTitle,
       is_derivative: false,
@@ -355,6 +360,8 @@ export function parseForm4Xml(
       officer_title: officerTitle,
       is_director: isDirector,
       transaction_type: deriveType(code, acqDispRaw),
+      // Phase A (2026-05-24): event-kind tag — trans_code ONLY, no acqDisp
+      transaction_nature: deriveTransactionNature(code),
       transaction_code: code,
       security_title: securityTitle,
       is_derivative: true,

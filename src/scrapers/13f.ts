@@ -190,6 +190,25 @@ interface FilingMeta {
   /** Period ending date in YYYY-MM-DD form */
   period: string;
   url: string;
+  /**
+   * Phase A (2026-05-24): canonical verification landmark from primary_doc.xml.
+   *
+   * SEC requires every 13F filing to declare the total holding count in the
+   * SUMMARY PAGE of primary_doc.xml via the <infoTableEntryTotal> element.
+   * This is the AUTHORITATIVE row count for the filing — what the filer
+   * told the SEC the table contains. Compare against our successfully-
+   * parsed row count to detect:
+   *   - parser bugs that drop rows silently
+   *   - truncated downloads
+   *   - schema variants we don't yet handle
+   *
+   * `null` ONLY when primary_doc.xml couldn't be fetched or didn't carry
+   * the field (rare but possible on legacy / malformed filings). The
+   * "no count" case defaults to verification_status=INSUFFICIENT_DATA per
+   * The Tourniquet doctrine — never assume VERIFIED in the absence of a
+   * canonical landmark.
+   */
+  infoTableEntryTotal: number | null;
 }
 
 /**
@@ -352,6 +371,35 @@ async function fetchLatest13F(fund: FundRef): Promise<{
   const holdingsUrl = `${CONFIG.EDGAR_URL}/Archives/edgar/data/${fund.cikRaw}/${accessionNoSlash}/${holdingsFile.name}`;
   const xmlText = await fetchText(holdingsUrl);
 
+  // Phase A: fetch primary_doc.xml in parallel for the canonical count.
+  // Per SEC 13F instructions, primary_doc.xml carries the SUMMARY PAGE
+  // including <infoTableEntryTotal>, which is the FILER's own declared
+  // row count. We use it as the integrity landmark per The Tourniquet
+  // doctrine: prove the parsed-row count matches the declared count, or
+  // mark the filing INSUFFICIENT_DATA rather than silently trust ourselves.
+  const primaryDocFile = xmlFiles.find((f) =>
+    f.name.toLowerCase().includes("primary_doc"),
+  );
+  let infoTableEntryTotal: number | null = null;
+  if (primaryDocFile) {
+    try {
+      const primaryDocUrl = `${CONFIG.EDGAR_URL}/Archives/edgar/data/${fund.cikRaw}/${accessionNoSlash}/${primaryDocFile.name}`;
+      const primaryDocXml = await fetchText(primaryDocUrl);
+      infoTableEntryTotal = parseInfoTableEntryTotal(primaryDocXml);
+    } catch (e) {
+      // Couldn't fetch / parse primary_doc.xml — null count means
+      // downstream consumers (saveFlow stamps verification_status) will
+      // default to INSUFFICIENT_DATA. Honest failure mode.
+      console.error(
+        `[13f] primary_doc.xml fetch/parse failed for ${accession}: ${(e as Error).message}`,
+      );
+    }
+  } else {
+    console.error(
+      `[13f] No primary_doc.xml found in ${accession} — verification_status will default to INSUFFICIENT_DATA`,
+    );
+  }
+
   return {
     meta: {
       fundName: subs.name ?? fund.name,
@@ -360,9 +408,47 @@ async function fetchLatest13F(fund: FundRef): Promise<{
       filingDate,
       period,
       url: holdingsUrl,
+      infoTableEntryTotal,
     },
     xml: xmlText,
   };
+}
+
+/**
+ * Extract `<tableEntryTotal>N</tableEntryTotal>` from a 13F primary_doc.xml.
+ * Returns null on parse failure / missing element so the caller can stamp
+ * INSUFFICIENT_DATA per the no-count rule.
+ *
+ * VERIFIED 2026-05-24 against a live primary_doc.xml fetch (Atlas Brown
+ * accession 0001388168-26-000002):
+ *
+ *     <summaryPage>
+ *       <otherIncludedManagersCount>0</otherIncludedManagersCount>
+ *       <tableEntryTotal>339</tableEntryTotal>
+ *       <tableValueTotal>332174291</tableValueTotal>
+ *       ...
+ *
+ * The SEC schema element is `tableEntryTotal` (in the summaryPage section).
+ * Phase A's original spec referenced `infoTableEntryTotal` as the concept —
+ * the actual schema element is `tableEntryTotal`. Verified live; both names
+ * accepted to be defensive against schema-name drift, but `tableEntryTotal`
+ * is what real 13F filings emit.
+ *
+ * SEC schema reference:
+ *   https://www.sec.gov/info/edgar/specifications/form13fxml-tdoc
+ *
+ * Regex-based for robustness against optional namespace prefixes. Accepts
+ * both spellings to be defensive.
+ */
+function parseInfoTableEntryTotal(primaryDocXml: string): number | null {
+  // Match `<tableEntryTotal>` (canonical) OR `<infoTableEntryTotal>` (alias),
+  // with or without namespace prefix
+  const m = primaryDocXml.match(
+    /<\s*(?:[a-zA-Z0-9_]+:)?(?:info)?tableEntryTotal\s*>\s*(\d+)\s*</i,
+  );
+  if (!m || !m[1]) return null;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 // ─── Position change calculation ────────────────────────────────────────────
@@ -391,7 +477,26 @@ export async function applyPositionChanges(
   const fund_cik = current[0]!.fund_cik;
   const current_quarter = current[0]!.quarter;
   const prior_quarter = priorQuarterEndDate(current_quarter);
-  if (!prior_quarter) return current;
+
+  // ─── Phase A: read the current quarter's verification_status from the
+  // first holding in the batch. All holdings in a single saveFlow share the
+  // same status (it's a per-filing check). The §1 count comparison was
+  // computed ONCE in saveFlow and stamped on every row — we reuse that
+  // result here for the §2 phantom-closed guard (don't recompute).
+  const currentIsVerified =
+    current[0]!.verification_status === "VERIFIED";
+
+  if (!prior_quarter) {
+    // Can't compute a prior_quarter date — emit INSUFFICIENT_DATA on every
+    // current holding rather than silently leaving position_change null
+    // (which previously meant "we didn't try"). Explicit honesty.
+    for (const holding of current) {
+      holding.position_change = "INSUFFICIENT_DATA";
+      holding.shares_change = null;
+      holding.shares_change_pct = null;
+    }
+    return current;
+  }
 
   // Pull prior quarter's holdings for this fund
   const snap = await db
@@ -406,8 +511,26 @@ export async function applyPositionChanges(
     if (data.cusip) priorByCusip.set(data.cusip, data);
   }
 
+  // ─── Phase A FALSE-"new" GUARD ────────────────────────────────────────────
+  // If the prior-quarter lookup returned ZERO holdings for this fund, we
+  // can't tell whether (a) the fund genuinely had no prior positions or
+  // (b) we just don't have the prior data ingested. Confidently labeling
+  // every current holding "new" in case (b) creates a phantom-acquisition
+  // narrative ("Citadel just opened 500 new positions this quarter!" when
+  // reality is "Citadel's prior quarter isn't in our database").
+  //
+  // The honest answer is INSUFFICIENT_DATA: we don't know.
+  const priorIsMissingEntirely = priorByCusip.size === 0;
+
   // Annotate current holdings
   for (const holding of current) {
+    if (priorIsMissingEntirely) {
+      // Prior baseline missing — can't compute deltas honestly
+      holding.position_change = "INSUFFICIENT_DATA";
+      holding.shares_change = null;
+      holding.shares_change_pct = null;
+      continue;
+    }
     const prior = priorByCusip.get(holding.cusip);
     if (!prior || prior.shares_held === 0) {
       holding.position_change = "new";
@@ -426,7 +549,34 @@ export async function applyPositionChanges(
     }
   }
 
-  // Synthesize closed positions: in prior, not in current
+  // ─── Phase A PHANTOM-"closed" GUARD ──────────────────────────────────────
+  // Synthesize "closed" labels ONLY when the current quarter's filing
+  // passed its infoTableEntryTotal count check. If the current filing is
+  // incomplete (parser dropped rows, truncated download, schema variant
+  // we didn't handle), prior positions that don't appear in our parsed
+  // current set might EXIST in the actual filing — we just didn't see them.
+  // Labeling them "closed" in that case is a phantom liquidation event.
+  //
+  // Reuse the verification_status that saveFlow stamped on each holding
+  // (the §1 count check) — DO NOT recompute it here (Greg's directive:
+  // "Reuse the §1 13F count-check result — don't compute it twice.").
+  //
+  // If verification failed, WITHHOLD synthetic closed rows AND ALSO tag
+  // any remaining ambiguous deltas as INSUFFICIENT_DATA (a parser miss
+  // could swing increased/decreased the wrong way too).
+  if (!currentIsVerified) {
+    // Mark all annotated holdings INSUFFICIENT_DATA — we can't trust the
+    // delta calculation when we don't know if the current set is complete.
+    for (const holding of current) {
+      holding.position_change = "INSUFFICIENT_DATA";
+      holding.shares_change = null;
+      holding.shares_change_pct = null;
+    }
+    return current; // explicitly no synthesized closed rows
+  }
+
+  // Verified path: it's safe to emit synthetic "closed" rows for prior
+  // CUSIPs absent in the (complete) current set.
   const currentCusips = new Set(current.map((h) => h.cusip));
   const closed: InstitutionalHolding[] = [];
   for (const [cusip, prior] of priorByCusip) {
@@ -445,6 +595,9 @@ export async function applyPositionChanges(
       shares_change_pct: -100,
       accession_number: current[0]!.accession_number,
       filing_url: current[0]!.filing_url,
+      // The synthesized closed row inherits the parent quarter's
+      // verification_status (VERIFIED — we only reach this branch when so).
+      verification_status: "VERIFIED",
     });
   }
 
@@ -486,6 +639,39 @@ export async function scrape13FByFund(
     `[13f] ${fund.name}: ${allHoldings.length} positions parsed (filing ${meta.accession}, period ${meta.period})`,
   );
 
+  // ─── Phase A §1: count check vs primary_doc.xml infoTableEntryTotal ─────
+  // SEC declares the filing's table size in the SUMMARY PAGE. Compare to
+  // our parsed-row count. The Tourniquet doctrine: VERIFIED only if the
+  // counts match AND we successfully extracted the declared count. The
+  // "no count" case (primary_doc missing or unparseable) defaults to
+  // INSUFFICIENT_DATA — NEVER VERIFIED in the absence of the landmark.
+  //
+  // Note: parse13FXml deliberately excludes options (putCall = Put/Call).
+  // The infoTableEntryTotal landmark counts EVERY row in the table including
+  // option rows, so equity-only filings will always pass equality while
+  // options-mixed filings need a tolerant check. We use ≥ rather than ==:
+  // if SEC says N total rows and we parsed N or more equity rows, we
+  // captured everything we needed. If we parsed FEWER than N declared, we
+  // dropped real equity rows (parser bug) OR the filing had options
+  // (legitimate exclusion) — we can't distinguish without re-parsing. Per
+  // The Tourniquet, when uncertain → INSUFFICIENT_DATA.
+  let verification_status: "VERIFIED" | "INSUFFICIENT_DATA";
+  if (meta.infoTableEntryTotal === null) {
+    verification_status = "INSUFFICIENT_DATA";
+    console.error(
+      `[13f] ${fund.name} ${meta.accession}: NO CANONICAL COUNT (primary_doc.xml missing/unparseable) — verification_status=INSUFFICIENT_DATA`,
+    );
+  } else if (allHoldings.length === meta.infoTableEntryTotal) {
+    verification_status = "VERIFIED";
+  } else {
+    verification_status = "INSUFFICIENT_DATA";
+    console.error(
+      `[13f] ${fund.name} ${meta.accession}: parsed ${allHoldings.length} rows vs SEC declared ${meta.infoTableEntryTotal} — verification_status=INSUFFICIENT_DATA`,
+    );
+  }
+  const verification_expected = meta.infoTableEntryTotal ?? 0;
+  const verification_actual = allHoldings.length;
+
   const topN = options.topN ?? CONFIG.TOP_N_PER_FUND;
 
   // Take top N by value first (cheaper to enrich N tickers than thousands)
@@ -493,6 +679,16 @@ export async function scrape13FByFund(
     .slice()
     .sort((a, b) => b.market_value - a.market_value)
     .slice(0, topN);
+
+  // Stamp Phase A verification fields on every kept holding. applyPositionChanges
+  // reads verification_status from the first row to decide whether to emit
+  // synthetic "closed" labels (Greg's directive: §1 count check is computed
+  // once and reused for the §2 phantom-closed guard).
+  for (const h of top) {
+    h.verification_status = verification_status;
+    h.verification_expected = verification_expected;
+    h.verification_actual = verification_actual;
+  }
 
   // Enrich with tickers — primary path is OpenFIGI by CUSIP. The lookup
   // returns both ticker AND OpenFIGI's issuer name so we can detect wrong-

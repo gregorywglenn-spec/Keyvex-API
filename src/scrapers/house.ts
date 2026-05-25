@@ -24,6 +24,7 @@
 
 import { XMLParser } from "fast-xml-parser";
 import type { CongressionalTrade } from "../types.js";
+import { deriveCongressionalNature } from "../tools/insider-transactions-v2-shim.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -530,6 +531,13 @@ export function parseHousePtrText(
       state_district: meta.state_district,
       office: `${meta.last}, ${meta.first} (Representative)`.trim(),
       transaction_type: txType,
+      // Phase A (2026-05-24): event-kind tag derived from the PDF comment.
+      // Catches gift/contribution/donation language. Separate code path from
+      // Form 4 (no regulatory trans_code field for congressional).
+      transaction_nature: deriveCongressionalNature({
+        comment,
+        transaction_type: txType,
+      }),
       transaction_date: toISO(txDate),
       disclosure_date: toISO(meta.filing_date),
       reporting_lag_days: businessDaysBetween(txDate, meta.filing_date),
