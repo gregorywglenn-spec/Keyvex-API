@@ -24,10 +24,12 @@ import type {
   InsiderTransactionsQuery,
   InsiderTransactionsV2Envelope,
   InsiderTransactionsV2Query,
+  InsiderTransactionV2,
   ResultEnvelope,
 } from "../types.js";
 import {
   applyV2BackwardCompatShim,
+  deriveLegacyBuyOrSell,
   type InsiderTransactionV2Compat,
 } from "./insider-transactions-v2-shim.js";
 
@@ -138,7 +140,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["buy", "sell"],
         description:
-          "Filter by direction. For P/S rows this is the open-market direction; for other codes, derived from acquired_disposed (A→buy, D→sell).",
+          "Filter by direction (buy/sell). Works on BOTH data_sources. For legacy, this filters the stored field directly. For bulk_v2 (default), the field is derived per row from trans_code + trans_acquired_disp_cd (P→buy, S→sell, acqDisp=A→buy, acqDisp=D→sell, fallback A/M/X/C/I→buy else sell — same algorithm legacy uses); the v2 path pages through Firestore until enough matches are found and reports has_more accurately on the filtered set.",
       },
       is_derivative: {
         type: "boolean",
@@ -304,8 +306,27 @@ async function handleV2(
   args: unknown,
 ): Promise<InsiderTransactionsV2CompatEnvelope> {
   const query = validateAndNormalizeV2(args);
+
+  // BUG FIX (2026-05-24): when `transaction_type` (legacy buy/sell) is
+  // set, build a postFilter that applies the exact same
+  // deriveLegacyBuyOrSell rule the output shim uses. v2 doesn't store
+  // buy/sell — it's derived from trans_code + trans_acquired_disp_cd —
+  // so this filter has to run AFTER Firestore returns rows. The
+  // queryInsiderTransactionsV2 paginates internally so has_more
+  // reflects post-filter matches, not pre-filter row count.
+  const wantedDirection = query.transaction_type;
+  const queryOpts = wantedDirection
+    ? {
+        postFilter: (row: InsiderTransactionV2) =>
+          deriveLegacyBuyOrSell(
+            row.trans_code,
+            row.trans_acquired_disp_cd,
+          ) === wantedDirection,
+      }
+    : {};
+
   const { results, has_more, coverage_warning } =
-    await queryInsiderTransactionsV2(query);
+    await queryInsiderTransactionsV2(query, queryOpts);
 
   // Apply the backward-compat shim per row: each result gains the legacy
   // field aliases (disclosure_date, shares, officer_name, etc.) and
@@ -549,6 +570,23 @@ function validateAndNormalizeV2(raw: unknown): InsiderTransactionsV2Query {
       );
     }
     out.row_type = args.row_type;
+  }
+
+  // Legacy buy/sell direction filter. v2 doesn't STORE buy/sell — the
+  // queryInsiderTransactionsV2 postFilter callback applies the same
+  // deriveLegacyBuyOrSell rule the shim uses on output, so input filter
+  // and output value share one definition. See firestore.ts comment on
+  // POSTFILTER OPTION for pagination details.
+  if (args.transaction_type !== undefined) {
+    if (
+      args.transaction_type !== "buy" &&
+      args.transaction_type !== "sell"
+    ) {
+      throw new Error(
+        `INVALID transaction_type: '${String(args.transaction_type)}' — expected 'buy' or 'sell'`,
+      );
+    }
+    out.transaction_type = args.transaction_type;
   }
 
   if (args.trans_codes !== undefined) {

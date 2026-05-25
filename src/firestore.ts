@@ -1082,9 +1082,43 @@ export async function saveInsiderFilingsV2(
 // NOTE: the v2 schema's `transaction_type` field is nonderiv|deriv (NOT
 // buy|sell as in legacy). Caller-facing parameter is named `row_type` in
 // InsiderTransactionsV2Query to avoid the naming collision.
+//
+// POSTFILTER OPTION (2026-05-24): the handler can pass a post-fetch filter
+// callback. Used by the buy/sell input-filter fix — v2 doesn't STORE
+// buy/sell (it's derived from trans_code + trans_acquired_disp_cd at
+// response time via the shim), so a buy/sell filter has to run AFTER
+// Firestore returns rows. When postFilter is set, this function pages
+// through Firestore until userLimit+1 matches accumulate (or the dataset
+// is exhausted or the safety cap is hit), and has_more reflects post-
+// filter reality — NOT the pre-filter row count. Critical for honest
+// pagination semantics.
+
+export interface QueryInsiderTransactionsV2Options {
+  /**
+   * Optional callback applied to each row AFTER it's fetched from Firestore.
+   * Return true to include the row, false to drop it. When set, the function
+   * pages through Firestore (BULK_POSTFILTER_PAGE_SIZE rows per page, up to
+   * BULK_POSTFILTER_MAX_PAGES pages) until userLimit+1 matches accumulate
+   * or Firestore is exhausted. has_more reflects post-filter matches.
+   */
+  postFilter?: (row: import("./types.js").InsiderTransactionV2) => boolean;
+}
+
+// Per-page fetch size when paging through Firestore with a postFilter.
+// Larger = fewer round trips but more bandwidth; 500 is a reasonable
+// balance for the typical buy/sell mix (~60/40) — should fill a 50-row
+// userLimit in a single page in almost all cases.
+const BULK_POSTFILTER_PAGE_SIZE = 500;
+// Safety cap on total Firestore fetches per query. 10 pages × 500 = 5000
+// rows scanned. If we still don't have userLimit+1 matches at that point,
+// we return what we have with has_more=true (conservative — caller can
+// page further by narrowing filters). Prevents runaway latency on
+// pathological skews (e.g., ticker with only buys when caller asks for sells).
+const BULK_POSTFILTER_MAX_PAGES = 10;
 
 export async function queryInsiderTransactionsV2(
   query: import("./types.js").InsiderTransactionsV2Query,
+  options: QueryInsiderTransactionsV2Options = {},
 ): Promise<QueryResult<import("./types.js").InsiderTransactionV2>> {
   if (isStubMode()) {
     // No stub data for v2 — returns empty in stub mode. Tool description
@@ -1129,28 +1163,107 @@ export async function queryInsiderTransactionsV2(
   // immediately on a fresh deploy (before composite indexes propagate).
   // When the caller IS using date-range or sort, the composite index from
   // firestore.indexes.json is required.
+  //
+  // EXTRA: when postFilter is set, we paginate via .startAfter(lastDoc),
+  // which requires a stable orderBy. Force ordering on the sortField in
+  // that case (composite indexes are deployed for the common shapes).
   const needsOrderBy =
-    query.sort_by !== undefined || query.since !== undefined || query.until !== undefined;
+    query.sort_by !== undefined ||
+    query.since !== undefined ||
+    query.until !== undefined ||
+    options.postFilter !== undefined;
   if (needsOrderBy) {
     q = q.orderBy(sortField, sortOrder);
   }
 
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.reporting_owner_name ? 5000 : userLimit + 1;
-  q = q.limit(fetchLimit);
 
-  const snap = await q.get();
-  let docs = snap.docs.map((d) => d.data() as import("./types.js").InsiderTransactionV2);
+  // ─── PATH A: no postFilter — original single-fetch behavior ──────────────
+  if (!options.postFilter) {
+    const fetchLimit = query.reporting_owner_name ? 5000 : userLimit + 1;
+    const snap = await q.limit(fetchLimit).get();
+    let docs = snap.docs.map(
+      (d) => d.data() as import("./types.js").InsiderTransactionV2,
+    );
 
-  if (query.reporting_owner_name) {
-    const needle = query.reporting_owner_name.toLowerCase();
-    docs = docs.filter((t) =>
-      matchesSubstringSafe(t.reporting_owner_name, needle),
+    if (query.reporting_owner_name) {
+      const needle = query.reporting_owner_name.toLowerCase();
+      docs = docs.filter((t) =>
+        matchesSubstringSafe(t.reporting_owner_name, needle),
+      );
+    }
+
+    const has_more = docs.length > userLimit;
+    const results = docs.slice(0, userLimit);
+    return await withCoverageWarning(
+      { results, has_more },
+      query,
+      "insider_transactions_v2",
     );
   }
 
-  const has_more = docs.length > userLimit;
-  const results = docs.slice(0, userLimit);
+  // ─── PATH B: postFilter set — page through Firestore until we have ───────
+  //           userLimit+1 matches OR Firestore exhausted OR safety cap hit.
+  const substringNeedle = query.reporting_owner_name
+    ? query.reporting_owner_name.toLowerCase()
+    : null;
+  const matched: import("./types.js").InsiderTransactionV2[] = [];
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  let firestoreExhausted = false;
+  let pagesScanned = 0;
+
+  // Loop until we have enough matches OR Firestore is exhausted OR we hit
+  // the safety cap. Fetch BULK_POSTFILTER_PAGE_SIZE+1 per page to detect
+  // whether more rows exist beyond the page.
+  while (
+    matched.length <= userLimit &&
+    !firestoreExhausted &&
+    pagesScanned < BULK_POSTFILTER_MAX_PAGES
+  ) {
+    let pageQ = q.limit(BULK_POSTFILTER_PAGE_SIZE + 1);
+    if (cursor) pageQ = pageQ.startAfter(cursor);
+    const pageSnap = await pageQ.get();
+
+    if (pageSnap.empty) {
+      firestoreExhausted = true;
+      break;
+    }
+
+    // If we got fewer than PAGE_SIZE+1 rows, this is the last page.
+    firestoreExhausted = pageSnap.size <= BULK_POSTFILTER_PAGE_SIZE;
+    const pageDocs = firestoreExhausted
+      ? pageSnap.docs
+      : pageSnap.docs.slice(0, BULK_POSTFILTER_PAGE_SIZE);
+
+    for (const docSnap of pageDocs) {
+      const row = docSnap.data() as import("./types.js").InsiderTransactionV2;
+
+      // Apply substring filter (if set) FIRST — cheaper than the postFilter
+      // for rows that don't match the owner-name substring.
+      if (substringNeedle !== null) {
+        if (!matchesSubstringSafe(row.reporting_owner_name, substringNeedle)) {
+          continue;
+        }
+      }
+
+      if (options.postFilter(row)) {
+        matched.push(row);
+        if (matched.length > userLimit) break; // hot exit
+      }
+    }
+
+    cursor = pageDocs[pageDocs.length - 1];
+    pagesScanned += 1;
+  }
+
+  // has_more semantics for postFilter path:
+  //   - matched.length > userLimit → we found more matches than the limit → has_more = true
+  //   - matched.length <= userLimit AND firestoreExhausted → we saw everything → has_more = false
+  //   - matched.length <= userLimit AND hit safety cap → unknown; conservative true
+  const has_more =
+    matched.length > userLimit ||
+    (!firestoreExhausted && pagesScanned >= BULK_POSTFILTER_MAX_PAGES);
+  const results = matched.slice(0, userLimit);
   return await withCoverageWarning(
     { results, has_more },
     query,

@@ -179,6 +179,14 @@ export interface InsiderTransactionsV2Query {
   trans_codes?: string[];
   aff10b5one?: "1" | "0" | "" | "NOT_TRACKED";
   schema_era?: SchemaEra;
+  /**
+   * Legacy buy/sell direction filter. v2 doesn't STORE buy/sell — it's
+   * derived from `trans_code` + `trans_acquired_disp_cd` at response time
+   * via deriveLegacyBuyOrSell (form4.ts:174 port). Implemented as a
+   * post-fetch filter with proper pagination in queryInsiderTransactionsV2
+   * so has_more reflects post-filter matches.
+   */
+  transaction_type?: "buy" | "sell";
   since?: string;
   until?: string;
   sort_by?: "transaction_date" | "filing_date";
