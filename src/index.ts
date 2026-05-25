@@ -41,7 +41,7 @@ import { applyToolHandlers, createMcpServer } from "./server-setup.js";
 import { TOOLS } from "./tools/index.js";
 
 const SERVER_NAME = "keyvex";
-const SERVER_VERSION = "0.50.0";
+const SERVER_VERSION = "0.51.0";
 
 // ─── Boot ───────────────────────────────────────────────────────────────────
 
