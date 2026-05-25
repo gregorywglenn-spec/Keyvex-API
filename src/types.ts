@@ -1200,18 +1200,39 @@ export interface InstitutionalHolding {
   accession_number: string;
   filing_url: string;
   data_source: "SEC_EDGAR_13F";
-  /** Phase A (2026-05-24): parse-integrity per filing.
-   *  VERIFIED iff successfully-parsed holding count equals primary_doc.xml's
-   *  infoTableEntryTotal. INSUFFICIENT_DATA otherwise (incl. case where
-   *  primary_doc.xml's infoTableEntryTotal cannot be extracted — the "no
-   *  count" case defaults to INSUFFICIENT_DATA per the gate rule, never to
-   *  VERIFIED). Optional because of forward-write-only backfill; historical
-   *  rows omit this and downstream consumers treat missing as "unknown". */
+  /** Phase A (2026-05-24, fixed 2026-05-25): parse-integrity per filing.
+   *  VERIFIED iff the RAW <infoTable> element count (every row the filer
+   *  wrote — including options and sub-account dupes, BEFORE any filtering
+   *  or aggregation) equals primary_doc.xml's <tableEntryTotal>.
+   *  INSUFFICIENT_DATA otherwise (incl. case where the canonical count
+   *  cannot be extracted — per The Tourniquet, "no count" defaults to
+   *  INSUFFICIENT_DATA, never to VERIFIED). The original implementation
+   *  compared the aggregated-by-CUSIP storage shape against the raw
+   *  declared count; that was apples-to-oranges and false-positive'd
+   *  every aggregating filer (BlackRock combination reports, Berkshire,
+   *  Vanguard, the multi-manager pods) until corrected. Optional because
+   *  of forward-write-only backfill; historical rows omit this and
+   *  downstream consumers treat missing as "unknown". */
   verification_status?: VerificationStatus;
-  /** Phase A: what the verification check expected (from primary_doc.xml). */
+  /** Phase A: row-count gate — what the verification check expected
+   *  (SEC's declared <tableEntryTotal> from primary_doc.xml). */
   verification_expected?: number;
-  /** Phase A: what the verification check actually saw (rows we parsed). */
+  /** Phase A: row-count gate — what the verification check actually saw
+   *  (RAW <infoTable> element count, BEFORE option filtering or CUSIP
+   *  aggregation). */
   verification_actual?: number;
+  /** Phase A: value-sum gate (added 2026-05-25) — what the verification
+   *  check expected (SEC's declared <tableValueTotal> from primary_doc.xml).
+   *  The dollar aggregate at the filing's raw-row scope (includes options
+   *  + sub-account dupes). AND'd with the row-count gate. */
+  verification_value_expected?: number;
+  /** Phase A: value-sum gate — what the verification check actually saw
+   *  (Σ raw <value> across every <infoTable> element, no filter, no
+   *  aggregation). A voting-authority-split filing (same shares replicated
+   *  across SOLE/SHARED/NONE rows) would inflate this sum above the
+   *  declared aggregate even when the row count matches — that's what this
+   *  independent gate catches. */
+  verification_value_actual?: number;
 }
 
 /**
