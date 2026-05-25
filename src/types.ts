@@ -26,6 +26,22 @@ export interface ResultEnvelope<T> {
    * instead of a quiet zero.
    */
   coverage_warning?: string;
+  /**
+   * Phase A v0.52.0 (2026-05-24): when the result set contains rows whose
+   * `transaction_nature` is INSUFFICIENT_DATA, this counter surfaces how
+   * many such rows are present. Crucial under "honest by default" semantics
+   * — INSUFFICIENT_DATA rows are NEVER silently dropped by the directional
+   * filter (silently dropping them would re-create the Tourniquet bug), so
+   * they pass through even when `include_non_open_market: false` strictly
+   * filters EQUITY_COMP and NON_OPEN_MARKET_TRANSFER out. The counter tells
+   * the agent: "N rows in your result couldn't be classified by trans_code
+   * — they're here for transparency, not because they're confirmed market
+   * trades."
+   *
+   * Absent when zero (avoids unnecessary noise on clean result sets).
+   * Present whenever > 0, regardless of filter state.
+   */
+  unclassifiable_records_retained?: number;
   query: Record<string, unknown>;
 }
 

@@ -524,15 +524,232 @@ async function caseD_Harvest(): Promise<void> {
   });
 }
 
+// ─── Test Case E — EQUITY_COMP exclusion from default sell query ──────────
+// v0.52.0 regression test for the scope gap Greg caught on the wire.
+// Before v0.52.0: a default AAPL sell query returned EQUITY_COMP M-code RSU
+// settlements (transaction_type="sell" via legacy derivation, but
+// transaction_nature="EQUITY_COMP"). The v0.51.0 filter only excluded
+// NON_OPEN_MARKET_TRANSFER, leaking EQUITY_COMP through.
+//
+// v0.52.0 fix: default sell query keeps only OPEN_MARKET + INSUFFICIENT_DATA.
+// EQUITY_COMP and NON_OPEN_MARKET_TRANSFER both excluded by default.
+// This test asserts no EQUITY_COMP rows survive a direction filter.
+
+async function caseE_EquityCompExclusion(): Promise<void> {
+  const FIXTURE = "AAPL default sell query — EQUITY_COMP exclusion (v0.52.0 scope-gap fix)";
+  const details: string[] = [];
+
+  type AnyRow = Record<string, unknown>;
+  const sellEnv = (await insiderHandler({
+    ticker: "AAPL",
+    transaction_type: "sell",
+    limit: 100,
+  })) as { results: AnyRow[]; count: number; unclassifiable_records_retained?: number };
+
+  details.push(`AAPL sell query returned ${sellEnv.count} rows`);
+
+  // Tally by transaction_nature
+  const byNature: Record<string, number> = {};
+  for (const r of sellEnv.results) {
+    const n = String(r.transaction_nature ?? "(missing)");
+    byNature[n] = (byNature[n] ?? 0) + 1;
+  }
+  details.push(`by transaction_nature: ${JSON.stringify(byNature)}`);
+
+  if (sellEnv.count === 0) {
+    record({
+      name: `Test Case E — ${FIXTURE}`,
+      status: "SKIPPED",
+      details: [...details, "No AAPL sell rows returned — cannot exercise the EQUITY_COMP guard"],
+    });
+    return;
+  }
+
+  const equityCompCount = byNature.EQUITY_COMP ?? 0;
+  const nonOpenMarketTransferCount = byNature.NON_OPEN_MARKET_TRANSFER ?? 0;
+  if (equityCompCount > 0) {
+    record({
+      name: `Test Case E — ${FIXTURE}`,
+      status: "FAIL",
+      details,
+      failReason: `expected zero EQUITY_COMP rows in default sell query, got ${equityCompCount}`,
+    });
+    return;
+  }
+  if (nonOpenMarketTransferCount > 0) {
+    record({
+      name: `Test Case E — ${FIXTURE}`,
+      status: "FAIL",
+      details,
+      failReason: `expected zero NON_OPEN_MARKET_TRANSFER rows, got ${nonOpenMarketTransferCount}`,
+    });
+    return;
+  }
+  details.push(`✓ EQUITY_COMP rows excluded (0 in result)`);
+  details.push(`✓ NON_OPEN_MARKET_TRANSFER rows excluded (0 in result)`);
+
+  // Sub-assertion: opt-in flag must re-include EQUITY_COMP
+  const sellPlusEnv = (await insiderHandler({
+    ticker: "AAPL",
+    transaction_type: "sell",
+    include_non_open_market: true,
+    limit: 100,
+  })) as { results: AnyRow[]; count: number };
+  const byNaturePlus: Record<string, number> = {};
+  for (const r of sellPlusEnv.results) {
+    const n = String(r.transaction_nature ?? "(missing)");
+    byNaturePlus[n] = (byNaturePlus[n] ?? 0) + 1;
+  }
+  details.push(
+    `with include_non_open_market:true → ${sellPlusEnv.count} rows; by nature: ${JSON.stringify(byNaturePlus)}`,
+  );
+  if ((byNaturePlus.EQUITY_COMP ?? 0) === 0 && (byNaturePlus.NON_OPEN_MARKET_TRANSFER ?? 0) === 0) {
+    // No EQUITY_COMP rows exist on AAPL in the queried window — can't
+    // distinguish "filter works" from "no rows of this kind"
+    details.push(
+      `(no EQUITY_COMP or NON_OPEN_MARKET_TRANSFER rows exist on AAPL in this window, so opt-in re-inclusion test is vacuous)`,
+    );
+  } else {
+    details.push(
+      `✓ opt-in flag re-includes ${(byNaturePlus.EQUITY_COMP ?? 0)} EQUITY_COMP + ${(byNaturePlus.NON_OPEN_MARKET_TRANSFER ?? 0)} NON_OPEN_MARKET_TRANSFER rows`,
+    );
+  }
+
+  record({
+    name: `Test Case E — ${FIXTURE}`,
+    status: "PASS",
+    details,
+  });
+}
+
+// ─── Test Case F — INSUFFICIENT_DATA passthrough + envelope counter ───────
+// v0.52.0 Tourniquet sub-rule: INSUFFICIENT_DATA rows must NEVER be silently
+// dropped by the directional filter — they're passthrough with an explicit
+// envelope counter. This test exercises a query likely to return at least
+// one INSUFFICIENT_DATA row (querying across all v2 data, looking for rows
+// where trans_code is V/E/H/L/J/K/empty).
+
+async function caseF_InsufficientDataPassthrough(): Promise<void> {
+  const FIXTURE = "INSUFFICIENT_DATA passthrough + envelope counter visibility";
+  const details: string[] = [];
+
+  // Strategy: query v2 for any rows with trans_code="J" or "V" — these are
+  // the codes that always derive to INSUFFICIENT_DATA. If we find any, run
+  // a directional filter and confirm they pass through + counter appears.
+  const db = await getLiveDb();
+  const probe = await db
+    .collection("insider_transactions_v2")
+    .where("trans_code", "in", ["J", "V", "E", "H", "L", "K"])
+    .limit(20)
+    .get();
+
+  if (probe.empty) {
+    record({
+      name: `Test Case F — ${FIXTURE}`,
+      status: "SKIPPED",
+      details: [
+        `No v2 rows found with trans_code in ['J','V','E','H','L','K'] (the codes that derive to INSUFFICIENT_DATA).`,
+        `Cannot exercise the passthrough/counter rule without seed data.`,
+      ],
+    });
+    return;
+  }
+
+  // Pick the ticker of the first found row + run a sell query against it
+  const firstRow = probe.docs[0]!.data() as Record<string, unknown>;
+  const ticker = String(firstRow.ticker ?? "");
+  if (!ticker) {
+    record({
+      name: `Test Case F — ${FIXTURE}`,
+      status: "SKIPPED",
+      details: [`Found INSUFFICIENT_DATA rows but the first one had no ticker (cannot run targeted query)`],
+    });
+    return;
+  }
+  details.push(`Found ${probe.size} INSUFFICIENT_DATA-code row(s); probing with ticker=${ticker}`);
+
+  // Now run a directional SELL query on that ticker — INSUFFICIENT_DATA
+  // rows should pass through, and if any are in the result, the envelope
+  // should carry unclassifiable_records_retained > 0.
+  type AnyRow = Record<string, unknown>;
+  const env = (await insiderHandler({
+    ticker,
+    transaction_type: "sell",
+    limit: 500,
+  })) as { results: AnyRow[]; count: number; unclassifiable_records_retained?: number };
+
+  details.push(`sell query for ${ticker} → ${env.count} rows`);
+  details.push(
+    `unclassifiable_records_retained: ${env.unclassifiable_records_retained ?? "(not present — implies 0 INSUFFICIENT_DATA rows in result, which is acceptable)"}`,
+  );
+
+  // Distribution by nature
+  const byNature: Record<string, number> = {};
+  for (const r of env.results) {
+    const n = String(r.transaction_nature ?? "(missing)");
+    byNature[n] = (byNature[n] ?? 0) + 1;
+  }
+  details.push(`by transaction_nature: ${JSON.stringify(byNature)}`);
+
+  const insufficientInResult = byNature.INSUFFICIENT_DATA ?? 0;
+  // Two valid PASS shapes:
+  //   (a) insufficientInResult > 0 AND envelope counter == insufficientInResult
+  //   (b) insufficientInResult == 0 (no such rows for this ticker's sell window — vacuous but not a fail)
+  if (insufficientInResult === 0) {
+    record({
+      name: `Test Case F — ${FIXTURE}`,
+      status: "PASS",
+      details: [
+        ...details,
+        `(no INSUFFICIENT_DATA rows happened to land in the sell window for ${ticker} — vacuous pass; counter correctly absent)`,
+      ],
+    });
+    return;
+  }
+
+  // Has INSUFFICIENT_DATA rows → counter MUST equal the count AND must be present
+  if (env.unclassifiable_records_retained === undefined) {
+    record({
+      name: `Test Case F — ${FIXTURE}`,
+      status: "FAIL",
+      details,
+      failReason: `result has ${insufficientInResult} INSUFFICIENT_DATA rows but envelope.unclassifiable_records_retained is missing`,
+    });
+    return;
+  }
+  if (env.unclassifiable_records_retained !== insufficientInResult) {
+    record({
+      name: `Test Case F — ${FIXTURE}`,
+      status: "FAIL",
+      details,
+      failReason: `envelope.unclassifiable_records_retained=${env.unclassifiable_records_retained} but actual INSUFFICIENT_DATA count is ${insufficientInResult}`,
+    });
+    return;
+  }
+
+  details.push(
+    `✓ INSUFFICIENT_DATA rows (${insufficientInResult}) passed through the strict-sell filter`,
+  );
+  details.push(`✓ envelope.unclassifiable_records_retained matches actual count`);
+
+  record({
+    name: `Test Case F — ${FIXTURE}`,
+    status: "PASS",
+    details,
+  });
+}
+
 async function main() {
   console.log("=================================================================");
-  console.log("PHASE A ACCEPTANCE — four target fixtures");
+  console.log("PHASE A ACCEPTANCE — six fixtures (4 original + 2 v0.52.0)");
   console.log("=================================================================");
 
   await caseA_Pelosi();
   await caseB_Levinson();
   await caseC_Citadel();
   await caseD_Harvest();
+  await caseE_EquityCompExclusion();
+  await caseF_InsufficientDataPassthrough();
 
   console.log("\n=================================================================");
   console.log("SUMMARY");

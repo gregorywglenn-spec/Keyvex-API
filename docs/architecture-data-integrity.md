@@ -193,24 +193,43 @@ logic.
 
 ---
 
-## Aggregation semantic — "honest by default"
+## Aggregation semantic — "honest by default" (v0.52.0)
 
 Both `get_insider_transactions` and `get_congressional_trades` honor the
-`include_non_open_market: boolean` parameter:
+`include_non_open_market: boolean` parameter. **REFINED 2026-05-24 (v0.52.0)**
+after a cold-query verification found EQUITY_COMP rows leaking through into
+a default sell query — same Tourniquet disease as the gift-as-sell bug,
+different category.
+
+### Behavior matrix
 
 | Caller state | Default | Behavior |
 |---|---|---|
-| `transaction_type: "buy"` or `"sell"` set, no flag | `false` | EXCLUDE `NON_OPEN_MARKET_TRANSFER` rows (honest-by-default: a gift isn't a trade) |
-| `transaction_type` set, flag = `true` | (explicit) | INCLUDE transfers (opt-out of the honest default) |
-| `transaction_type` set, flag = `false` | (explicit) | EXCLUDE transfers (matches default) |
-| No `transaction_type`, no flag | `true` | INCLUDE everything, tagged honestly |
-| No `transaction_type`, flag = `true` | (explicit) | INCLUDE everything (matches default) |
-| No `transaction_type`, flag = `false` | (explicit) | EXCLUDE transfers (opt-in clean view) |
+| `transaction_type: "buy"\|"sell"` set, no flag | `false` | Keep `OPEN_MARKET` + `INSUFFICIENT_DATA`. **Drop both** `EQUITY_COMP` **and** `NON_OPEN_MARKET_TRANSFER`. A direction query asks for sales/purchases into the market — comp events and transfers don't qualify. |
+| `transaction_type` set, flag = `true` | (explicit) | Keep everything (opt-out of the honest default) |
+| `transaction_type` set, flag = `false` | (explicit) | Keep `OPEN_MARKET` + `INSUFFICIENT_DATA` (same as default) |
+| No `transaction_type`, no flag | `true` | Keep everything (no opinion when no direction is set) |
+| No `transaction_type`, flag = `true` | (explicit) | Keep everything (matches default) |
+| No `transaction_type`, flag = `false` | (explicit) | Keep `OPEN_MARKET` + `INSUFFICIENT_DATA` (opt-in clean view) |
 
-**Critical invariant:** the `transaction_type` field on each returned row is
-NEVER mutated by this filter — only whether the row appears at all in the
-result set. Existing callers reading `transaction_type` see no behavioral
-change.
+### INSUFFICIENT_DATA passthrough (the Tourniquet sub-rule)
+
+`INSUFFICIENT_DATA` rows **always pass through the filter, never silently
+dropped**, even on the strict `false` setting. Silently dropping unclassified
+rows would re-create the bug Phase A was built to fix — at a different layer.
+
+When any `INSUFFICIENT_DATA` rows survive the filter, the response envelope
+carries `unclassifiable_records_retained: N` so the agent sees the count
+explicitly. Absent when N is zero (no noise on clean result sets).
+
+### Critical invariants
+
+1. The `transaction_type` field on each returned row is NEVER mutated by
+   this filter — only whether the row appears at all in the result set.
+2. `INSUFFICIENT_DATA` is never the basis for silently dropping a row.
+3. The same rule applies symmetrically to `buy` and `sell` directions —
+   a grant (code A) is no more an open-market purchase than an RSU
+   settlement is an open-market sale.
 
 ---
 

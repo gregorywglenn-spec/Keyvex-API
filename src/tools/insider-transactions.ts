@@ -236,7 +236,7 @@ export const definition: Tool = {
       include_non_open_market: {
         type: "boolean",
         description:
-          "Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows (gifts code G, tax withholding code F, dispositions to issuer code D, voting-trust deposits Z, inheritance W, tender-offer dispositions U) appear in the result. Honest-by-default: when transaction_type='buy'|'sell' is set, defaults to FALSE (excludes transfers — a gift isn't a trade); pass true to opt back in. When transaction_type is NOT set, defaults to TRUE (returns everything, tagged via transaction_nature); pass false for a clean trade-only view. The transaction_type field on each row is never mutated by this filter — only whether the row appears in the result set.",
+          "Phase A v0.52.0 (2026-05-24): controls whether NON-MARKET events appear in the result. When false (the honest default for direction queries), the result keeps ONLY OPEN_MARKET rows (transaction_nature='OPEN_MARKET') plus INSUFFICIENT_DATA rows (passthrough — unclassified is not the same as confirmed-non-market, never silently dropped). It excludes BOTH NON_OPEN_MARKET_TRANSFER (gifts G, tax-withhold F, disposition-to-issuer D, will/inheritance W, voting-trust Z, tender U) AND EQUITY_COMP (grants A, exercises M/X/O, 401k/ESPP I, conversions C) — neither is a true open-market trade. Honest-by-default: when transaction_type='buy'|'sell' is set, defaults to FALSE; pass true to opt back in and see all natures. When transaction_type is NOT set, defaults to TRUE (returns everything, honestly tagged); pass false for a clean OPEN_MARKET+INSUFFICIENT_DATA view. The transaction_type field on each row is never mutated by this filter. The response envelope carries `unclassifiable_records_retained: N` when any INSUFFICIENT_DATA rows passed through, so the caller knows N of the returned rows couldn't be classified.",
       },
     },
     additionalProperties: false,
@@ -293,30 +293,48 @@ async function handleLegacy(
     baselinesPromise,
   ]);
 
-  // Phase A (2026-05-24): apply transaction_nature filtering. Legacy rows
-  // don't store transaction_nature, so we derive on-the-fly via the same
-  // SEC-verified mapping the v2 shim uses (one rule, all paths). Filter
-  // semantic: include_non_open_market resolves context-driven defaults —
-  // true (incl.) when no direction filter is set, false (excl.) when a
-  // direction filter IS set. The transaction_type field on each returned
-  // row is NEVER mutated by this filter — only whether the row appears.
+  // Phase A v0.52.0 (2026-05-24): refined filter — when default-excluding
+  // (transaction_type direction set + no explicit flag, OR explicit
+  // include_non_open_market:false), keep ONLY OPEN_MARKET rows AND
+  // INSUFFICIENT_DATA rows. EQUITY_COMP (RSU vests, exercises, conversions)
+  // and NON_OPEN_MARKET_TRANSFER (gifts, tax withhold, etc.) are BOTH
+  // excluded — a sell query asks for sales-into-the-market, and neither
+  // category qualifies.
+  //
+  // INSUFFICIENT_DATA passes through ALWAYS, even on strict-exclude — the
+  // Tourniquet doctrine: silently dropping unclassified rows would re-
+  // create the bug we built Phase A to fix. Instead, the envelope carries
+  // `unclassifiable_records_retained: N` so the agent sees the count.
+  //
+  // The transaction_type field on each returned row is NEVER mutated by
+  // this filter — only whether the row appears at all in the result set.
   const includeNonOpenMarket = resolveIncludeNonOpenMarket(
     query.transaction_type,
     query.include_non_open_market,
   );
   const filteredResults = includeNonOpenMarket
     ? results
-    : results.filter(
-        (r) =>
-          deriveTransactionNature(r.transaction_code) !==
-          "NON_OPEN_MARKET_TRANSFER",
-      );
+    : results.filter((r) => {
+        const nature = deriveTransactionNature(r.transaction_code);
+        // Keep OPEN_MARKET (the actual trades) + INSUFFICIENT_DATA
+        // (unclassified — passthrough for honesty). Drop the rest.
+        return nature === "OPEN_MARKET" || nature === "INSUFFICIENT_DATA";
+      });
+
+  // Count INSUFFICIENT_DATA rows retained — surface to caller for honesty
+  const unclassifiableCount = filteredResults.filter(
+    (r) =>
+      deriveTransactionNature(r.transaction_code) === "INSUFFICIENT_DATA",
+  ).length;
 
   const envelope: InsiderTransactionsEnvelope = {
     results: filteredResults,
     count: filteredResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
+    ...(unclassifiableCount > 0 && {
+      unclassifiable_records_retained: unclassifiableCount,
+    }),
     query: query as Record<string, unknown>,
   };
 
@@ -355,19 +373,15 @@ async function handleV2(
 ): Promise<InsiderTransactionsV2CompatEnvelope> {
   const query = validateAndNormalizeV2(args);
 
-  // BUG FIX (2026-05-24): when `transaction_type` (legacy buy/sell) is
-  // set, build a postFilter that applies the exact same
-  // deriveLegacyBuyOrSell rule the output shim uses. v2 doesn't store
-  // buy/sell — it's derived from trans_code + trans_acquired_disp_cd —
-  // so this filter has to run AFTER Firestore returns rows. The
-  // queryInsiderTransactionsV2 paginates internally so has_more
-  // reflects post-filter matches, not pre-filter row count.
-  //
-  // PHASE A (2026-05-24): the postFilter ALSO applies the
-  // include_non_open_market rule. When excluding transfers, drop rows
-  // whose deriveTransactionNature(trans_code) === "NON_OPEN_MARKET_TRANSFER".
-  // Both filters compose into a single postFilter so the paging logic in
-  // queryInsiderTransactionsV2 keeps accurate has_more semantics under both.
+  // PHASE A v0.52.0 (2026-05-24): composed postFilter applies BOTH the
+  // direction filter (buy/sell) AND the broadened include_non_open_market
+  // filter. When default-excluding (transaction_type set + no explicit
+  // flag, OR explicit include_non_open_market:false), drop rows where
+  // transaction_nature is EQUITY_COMP or NON_OPEN_MARKET_TRANSFER —
+  // BOTH categories represent non-market events that pollute a direction
+  // query. INSUFFICIENT_DATA rows ALWAYS pass through (Tourniquet:
+  // unclassified is not the same as excluded); the envelope's
+  // unclassifiable_records_retained counter surfaces how many.
   const wantedDirection = query.transaction_type;
   const includeNonOpenMarket = resolveIncludeNonOpenMarket(
     wantedDirection,
@@ -386,12 +400,13 @@ async function handleV2(
           ) {
             return false;
           }
-          if (
-            !includeNonOpenMarket &&
-            deriveTransactionNature(row.trans_code) ===
-              "NON_OPEN_MARKET_TRANSFER"
-          ) {
-            return false;
+          if (!includeNonOpenMarket) {
+            const nature = deriveTransactionNature(row.trans_code);
+            // Keep OPEN_MARKET (the trades) + INSUFFICIENT_DATA (passthrough
+            // for honesty). Drop EQUITY_COMP + NON_OPEN_MARKET_TRANSFER.
+            if (nature !== "OPEN_MARKET" && nature !== "INSUFFICIENT_DATA") {
+              return false;
+            }
           }
           return true;
         },
@@ -407,11 +422,20 @@ async function handleV2(
   // See insider-transactions-v2-shim.ts for the algorithm + invariant.
   const shimmedResults = results.map(applyV2BackwardCompatShim);
 
+  // Phase A v0.52.0: count INSUFFICIENT_DATA rows retained through the
+  // filter. Shim has already populated transaction_nature on every row.
+  const unclassifiableCount = shimmedResults.filter(
+    (r) => r.transaction_nature === "INSUFFICIENT_DATA",
+  ).length;
+
   return {
     results: shimmedResults,
     count: shimmedResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
+    ...(unclassifiableCount > 0 && {
+      unclassifiable_records_retained: unclassifiableCount,
+    }),
     query: { ...query, data_source: "bulk_v2" } as Record<string, unknown>,
   };
 }

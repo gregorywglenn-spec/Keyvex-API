@@ -120,7 +120,7 @@ export const definition: Tool = {
       include_non_open_market: {
         type: "boolean",
         description:
-          "Phase A (2026-05-24): controls whether NON_OPEN_MARKET_TRANSFER rows (charitable contributions, gifts, donations detected in the `comment` field) appear in the result. Honest-by-default: when transaction_type='buy'|'sell' is set, defaults to FALSE — a charitable contribution isn't a trade and shouldn't pollute a sell-total query. When transaction_type is NOT set, defaults to TRUE so the caller sees everything tagged honestly. The transaction_type field on each row is NEVER mutated by this filter. Concrete example: a `member_name:'Pelosi', transaction_type:'sell'` query by default WON'T return Pelosi's Trinity University charitable contribution (correctly excluded); pass include_non_open_market:true to opt back in.",
+          "Phase A v0.52.0 (2026-05-24): controls whether NON-MARKET events appear in the result. When false (honest default for direction queries), keeps ONLY OPEN_MARKET rows plus INSUFFICIENT_DATA rows (passthrough — unclassified is not the same as confirmed non-market, never silently dropped). Excludes both NON_OPEN_MARKET_TRANSFER (charitable contributions, gifts, donations detected in `comment`) AND EQUITY_COMP (rare for congressional but handled identically for parity). Honest-by-default: with transaction_type='buy'|'sell' → defaults to FALSE so a charitable contribution can't pollute a sell-total query. Without transaction_type → defaults to TRUE (everything tagged honestly). The transaction_type field on each row is NEVER mutated. Example: `member_name:'Pelosi', transaction_type:'sell'` by default EXCLUDES Pelosi's Trinity University contribution; `include_non_open_market:true` re-includes it. Envelope carries `unclassifiable_records_retained: N` when any INSUFFICIENT_DATA rows passed through.",
       },
     },
     additionalProperties: false,
@@ -135,35 +135,51 @@ export async function handler(
   const query = validateAndNormalize(args);
   const { results, has_more, coverage_warning } = await queryCongressionalTrades(query);
 
-  // Phase A (2026-05-24): apply transaction_nature filtering. Most legacy
-  // congressional rows don't carry transaction_nature in storage (forward-
-  // write only); we derive it on-the-fly from the `comment` field via the
-  // SAME helper that ingestion uses (one rule, all paths).
+  // Phase A v0.52.0 (2026-05-24): refined honest-by-default filter — when
+  // default-excluding (transaction_type set + no flag OR explicit false),
+  // keep ONLY OPEN_MARKET + INSUFFICIENT_DATA (passthrough). Drop
+  // NON_OPEN_MARKET_TRANSFER (gifts/contributions detected in comment).
+  // Congressional doesn't typically populate EQUITY_COMP — but the rule
+  // handles it identically for parity with insider-transactions.
   //
-  // Honest-by-default: when caller sets transaction_type, default to
-  // EXCLUDING NON_OPEN_MARKET_TRANSFER (gift/contribution language in
-  // comment). Caller passes include_non_open_market:true to opt back in.
+  // INSUFFICIENT_DATA passes through always. Envelope surfaces
+  // unclassifiable_records_retained counter when > 0.
   const includeNonOpenMarket = resolveIncludeNonOpenMarket(
     query.transaction_type,
     query.include_non_open_market,
   );
+  // Derive nature once per row (used twice: for filter + counter)
+  const withNature = results.map((r) => ({
+    row: r,
+    nature:
+      r.transaction_nature ??
+      deriveCongressionalNature({
+        comment: r.comment,
+        transaction_type: r.transaction_type,
+      }),
+  }));
   const filteredResults = includeNonOpenMarket
-    ? results
-    : results.filter((r) => {
-        const nature =
-          r.transaction_nature ??
-          deriveCongressionalNature({
-            comment: r.comment,
-            transaction_type: r.transaction_type,
-          });
-        return nature !== "NON_OPEN_MARKET_TRANSFER";
-      });
+    ? withNature.map((x) => x.row)
+    : withNature
+        .filter(
+          (x) =>
+            x.nature === "OPEN_MARKET" || x.nature === "INSUFFICIENT_DATA",
+        )
+        .map((x) => x.row);
+  const unclassifiableCount = withNature.filter(
+    (x) =>
+      x.nature === "INSUFFICIENT_DATA" &&
+      filteredResults.includes(x.row),
+  ).length;
 
   return {
     results: filteredResults,
     count: filteredResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
+    ...(unclassifiableCount > 0 && {
+      unclassifiable_records_retained: unclassifiableCount,
+    }),
     query: query as Record<string, unknown>,
   };
 }
