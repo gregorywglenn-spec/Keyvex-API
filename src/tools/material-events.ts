@@ -17,6 +17,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryMaterialEvents } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   MaterialEvent,
   MaterialEventsQuery,
@@ -204,10 +205,7 @@ function validateAndNormalize(raw: unknown): MaterialEventsQuery {
   }
 
   if (args.is_amendment !== undefined) {
-    if (typeof args.is_amendment !== "boolean") {
-      throw new Error("is_amendment must be a boolean");
-    }
-    out.is_amendment = args.is_amendment;
+    out.is_amendment = parseBooleanArg(args.is_amendment, "is_amendment");
   }
 
   if (args.since !== undefined) {

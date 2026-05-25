@@ -22,6 +22,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryProxyFilings } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ProxyFiling,
   ProxyFilingsQuery,
@@ -185,17 +186,11 @@ function validateAndNormalize(raw: unknown): ProxyFilingsQuery {
   }
 
   if (args.is_merger_related !== undefined) {
-    if (typeof args.is_merger_related !== "boolean") {
-      throw new Error("is_merger_related must be a boolean");
-    }
-    out.is_merger_related = args.is_merger_related;
+    out.is_merger_related = parseBooleanArg(args.is_merger_related, "is_merger_related");
   }
 
   if (args.is_amendment !== undefined) {
-    if (typeof args.is_amendment !== "boolean") {
-      throw new Error("is_amendment must be a boolean");
-    }
-    out.is_amendment = args.is_amendment;
+    out.is_amendment = parseBooleanArg(args.is_amendment, "is_amendment");
   }
 
   if (args.since !== undefined) out.since = parseIsoDate(args.since, "since");

@@ -10,6 +10,7 @@
  */
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryOigExclusions } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   OigExclusion,
   OigExclusionsQuery,
@@ -179,16 +180,10 @@ function validateAndNormalize(raw: unknown): OigExclusionsQuery {
     out.npi = args.npi;
   }
   if (args.is_business !== undefined) {
-    if (typeof args.is_business !== "boolean") {
-      throw new Error("is_business must be a boolean");
-    }
-    out.is_business = args.is_business;
+    out.is_business = parseBooleanArg(args.is_business, "is_business");
   }
   if (args.is_reinstated !== undefined) {
-    if (typeof args.is_reinstated !== "boolean") {
-      throw new Error("is_reinstated must be a boolean");
-    }
-    out.is_reinstated = args.is_reinstated;
+    out.is_reinstated = parseBooleanArg(args.is_reinstated, "is_reinstated");
   }
   if (args.since !== undefined) out.since = parseIsoDate(args.since, "since");
   if (args.until !== undefined) out.until = parseIsoDate(args.until, "until");

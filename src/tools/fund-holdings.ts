@@ -20,6 +20,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryNportHoldings } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   NportHolding,
   NportHoldingsQuery,
@@ -252,10 +253,7 @@ function validateAndNormalize(raw: unknown): NportHoldingsQuery {
     out.asset_cat = args.asset_cat;
   }
   if (args.is_derivative !== undefined) {
-    if (typeof args.is_derivative !== "boolean") {
-      throw new Error("is_derivative must be a boolean");
-    }
-    out.is_derivative = args.is_derivative;
+    out.is_derivative = parseBooleanArg(args.is_derivative, "is_derivative");
   }
   if (args.derivative_type !== undefined) {
     const allowed = new Set([

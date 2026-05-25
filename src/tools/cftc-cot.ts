@@ -14,6 +14,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryCftcCotReports } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   CftcCotReport,
   CftcCotReportQuery,
@@ -170,9 +171,7 @@ function validateAndNormalize(raw: unknown): CftcCotReportQuery {
     out.until = args.until;
   }
   if (args.latest_only !== undefined) {
-    if (typeof args.latest_only !== "boolean")
-      throw new Error("latest_only must be boolean");
-    out.latest_only = args.latest_only;
+    out.latest_only = parseBooleanArg(args.latest_only, "latest_only");
   }
   if (args.sort_by !== undefined) {
     if (

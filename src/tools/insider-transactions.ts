@@ -33,6 +33,7 @@ import {
   deriveTransactionNature,
   type InsiderTransactionV2Compat,
 } from "./insider-transactions-v2-shim.js";
+import { parseBooleanArg } from "./_validators.js";
 
 /**
  * Envelope shape returned when data_source resolves to "bulk_v2" (the new
@@ -518,10 +519,7 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
   }
 
   if (args.is_derivative !== undefined) {
-    if (typeof args.is_derivative !== "boolean") {
-      throw new Error("is_derivative must be a boolean");
-    }
-    out.is_derivative = args.is_derivative;
+    out.is_derivative = parseBooleanArg(args.is_derivative, "is_derivative");
   }
 
   if (args.transaction_codes !== undefined) {
@@ -592,15 +590,13 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
   }
 
   if (args.include_baseline !== undefined) {
-    if (typeof args.include_baseline !== "boolean") {
-      throw new Error("include_baseline must be a boolean");
-    }
-    if (args.include_baseline && !out.ticker && !out.company_cik) {
+    const v = parseBooleanArg(args.include_baseline, "include_baseline");
+    if (v && !out.ticker && !out.company_cik) {
       throw new Error(
         "INVALID_BASELINE_QUERY: include_baseline=true requires ticker or company_cik to be set",
       );
     }
-    out.include_baseline = args.include_baseline;
+    out.include_baseline = v;
   }
 
   // Phase A (2026-05-24): include_non_open_market — see InsiderTransactionsQuery
@@ -608,10 +604,10 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
   // caller-provided value (or leaves undefined); handler resolves the default
   // based on whether transaction_type is set.
   if (args.include_non_open_market !== undefined) {
-    if (typeof args.include_non_open_market !== "boolean") {
-      throw new Error("include_non_open_market must be a boolean");
-    }
-    out.include_non_open_market = args.include_non_open_market;
+    out.include_non_open_market = parseBooleanArg(
+      args.include_non_open_market,
+      "include_non_open_market",
+    );
   }
 
   return out;
@@ -782,10 +778,10 @@ function validateAndNormalizeV2(raw: unknown): InsiderTransactionsV2Query {
 
   // Phase A (2026-05-24): include_non_open_market — same semantic as legacy
   if (args.include_non_open_market !== undefined) {
-    if (typeof args.include_non_open_market !== "boolean") {
-      throw new Error("include_non_open_market must be a boolean");
-    }
-    out.include_non_open_market = args.include_non_open_market;
+    out.include_non_open_market = parseBooleanArg(
+      args.include_non_open_market,
+      "include_non_open_market",
+    );
   }
 
   return out;

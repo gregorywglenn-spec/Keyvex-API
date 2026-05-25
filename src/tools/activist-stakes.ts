@@ -10,6 +10,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryActivistOwnership } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ActivistOwnership,
   ActivistOwnershipQuery,
@@ -199,10 +200,7 @@ function validateAndNormalize(raw: unknown): ActivistOwnershipQuery {
   }
 
   if (args.is_activist !== undefined) {
-    if (typeof args.is_activist !== "boolean") {
-      throw new Error("is_activist must be a boolean");
-    }
-    out.is_activist = args.is_activist;
+    out.is_activist = parseBooleanArg(args.is_activist, "is_activist");
   }
 
   if (args.filing_type !== undefined) {

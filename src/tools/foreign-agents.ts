@@ -21,6 +21,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryForeignAgents } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ForeignAgent,
   ForeignAgentsQuery,
@@ -168,10 +169,10 @@ function validateAndNormalize(raw: unknown): ForeignAgentsQuery {
     out.foreign_principal_country = args.foreign_principal_country.toUpperCase();
   }
   if (args.has_foreign_principal !== undefined) {
-    if (typeof args.has_foreign_principal !== "boolean") {
-      throw new Error("has_foreign_principal must be a boolean");
-    }
-    out.has_foreign_principal = args.has_foreign_principal;
+    out.has_foreign_principal = parseBooleanArg(
+      args.has_foreign_principal,
+      "has_foreign_principal",
+    );
   }
   if (args.since !== undefined) {
     out.since = parseIsoDate(args.since, "since");

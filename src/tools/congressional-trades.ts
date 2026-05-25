@@ -12,6 +12,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryCongressionalTrades } from "../firestore.js";
 import { deriveCongressionalNature } from "./insider-transactions-v2-shim.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   CongressionalTrade,
   CongressionalTradesQuery,
@@ -345,10 +346,10 @@ function validateAndNormalize(raw: unknown): CongressionalTradesQuery {
 
   // Phase A (2026-05-24): see CongressionalTradesQuery for full semantic
   if (args.include_non_open_market !== undefined) {
-    if (typeof args.include_non_open_market !== "boolean") {
-      throw new Error("include_non_open_market must be a boolean");
-    }
-    out.include_non_open_market = args.include_non_open_market;
+    out.include_non_open_market = parseBooleanArg(
+      args.include_non_open_market,
+      "include_non_open_market",
+    );
   }
 
   return out;

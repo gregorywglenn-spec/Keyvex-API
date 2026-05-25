@@ -23,6 +23,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryFecContributions } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   FecContribution,
   FecContributionQuery,
@@ -303,10 +304,7 @@ function validateAndNormalize(raw: unknown): FecContributionQuery {
   }
 
   if (args.exclude_memos !== undefined) {
-    if (typeof args.exclude_memos !== "boolean") {
-      throw new Error("exclude_memos must be a boolean");
-    }
-    out.exclude_memos = args.exclude_memos;
+    out.exclude_memos = parseBooleanArg(args.exclude_memos, "exclude_memos");
   }
 
   if (args.sort_by !== undefined) {
