@@ -231,9 +231,16 @@ The shim/handler re-derives for read-time consistency.
 
 ### 13F collection (`institutional_holdings`)
 
-Same two optional fields, plus extended `position_change` enum to include
-`"INSUFFICIENT_DATA"`. Verification metadata (`verification_expected`,
-`verification_actual`) preserved alongside.
+Extended `position_change` enum to include `"INSUFFICIENT_DATA"`, plus three
+new fields: `verification_status?`, `verification_expected?`,
+`verification_actual?`.
+
+**Critically:** `institutional_holdings` does **NOT** carry `transaction_nature`.
+A 13F holding is a position snapshot, not a transaction event — there is no
+SEC trans_code on the row and no buy/sell/gift/comp distinction to derive.
+The 13F integrity signal lives entirely in `verification_status` +
+`position_change="INSUFFICIENT_DATA"`. Any test that expects
+`transaction_nature` on a 13F row is mis-targeted.
 
 ### Congressional collections (`congressional_trades`)
 
