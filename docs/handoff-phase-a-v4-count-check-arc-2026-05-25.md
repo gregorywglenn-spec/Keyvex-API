@@ -403,3 +403,82 @@ Worth pinning explicitly in next-session bootstrap: **fabrication is not a hypot
 ---
 
 **End of amendment.** Phase B LOCKED. A not authorized. D unscoped. Orphan cleanup not authorized. Standing by for Greg's review of Commit A hunks, then progression to Commits B and C per the stage-and-show sequence.
+
+---
+
+## Amendment 2 — P0 reframe: parser-innocent, source-faithful (2026-05-26)
+
+The P0 sized in Amendment 1 was characterized as "bulk_v2 date corruption" — a pipeline bug to be reconstructed in a Phase 2 backfill. A read-only investigation through three layers (dry-run, source-TSV grep, EDGAR primary-filing spot-check) has refuted that framing at the root. **There is no KeyVex bug.** The dates are byte-faithful to SEC's authoritative source data; the "corruption" is a mix of SEC-side sentinels and filer-side data-entry errors that flow through our pipeline correctly.
+
+This amendment closes the investigation record with the corrected characterization. Forward product work (interpretation layer, tool descriptions, positioning) is a separate Phase 2 effort and is intentionally not bundled into this close.
+
+### Parser-innocent verdict
+
+The bulk_v2 ingestion path was inspected in full. The only date transformation is `parseSecDate` at `src/scrapers/form345-bulk.ts:68-77` — a stateless `DD-MON-YYYY` → `YYYY-MM-DD` regex converter that returns `null` on bad input. No default, no clamp, no ceiling, no mutation. Bad input either yields `null` (preserved for `exercise_date` / `expiration_date`) or triggers a row-skip (for `TRANS_DATE`, line 419 in the same file). The save path (`saveInsiderTransactionsV2` at `src/firestore.ts:1026-1039`) calls `commitBatchesParallel` directly — no transformation in the storage path either. **Every value in `insider_transactions_v2` is a faithful translation of the corresponding `DD-MON-YYYY` value in SEC's source TSV.**
+
+### SEC-source characterization — two distinct phenomena
+
+What looked like "year-digit corruption" is two unrelated patterns in SEC's authoritative bulk distribution:
+
+1. **The 2050-sentinel (~183 affected rows).** SEC's convention for "no-expiration / perpetual" instruments. Spot-checked rows show `EXCERCISE_DATE=31-DEC-2050` and `EXPIRATION_DATE=31-DEC-2050` on Deferred Stock Units, Units of Limited Partnership Interest, and certain Non-Qualified Stock Options — instruments with no calendar expiration date. SEC's bulk extract serializes "no expiration" as a far-future placeholder. This is correct data that the dry-run misread as corruption because the parser sees `2050-12-31` and the threshold catches it.
+
+2. **Filer data-entry errors (~29,400 affected rows).** Two faces:
+   - **2-digit-year typos** (the `00XX` face — ~29,363 rows): filer enters "12" / "15" / "23" / "25" into a year field, SEC's primary filing system accepts it verbatim as XML year `0012` / `0015` / `0023` / `0025`, the bulk extract preserves it, our parser produces `0012-XX-YY` etc. faithfully.
+   - **Single-digit transpositions** (the `203X` face — ~205 rows): filer enters "2028" instead of "2024", "2031" instead of "2021", "2027" instead of "2026" — single-digit typos in the year. SEC accepts as-filed; bulk and parser preserve faithfully.
+
+The taxonomy was confused by treating both faces as "corruption" and one transform. They're independent.
+
+### Spot-check evidence — strong directional, NOT a census
+
+A stratified spot-check of 19 evaluated rows (across all four corruption faces: 6 NONDERIV `00XX` transaction_date · 6 DERIV `00XX` exercise/expiration · 4 NONDERIV `203X` transaction_date · 3 multi-field DERIV) compared each corrupt date field against the original SEC primary Form 4/5 EDGAR XML.
+
+**Result: 22 / 22 corrupt field-comparisons were byte-identical between the bulk extract and the SEC primary filing. Zero bulk-vs-primary discrepancies. Zero primary-missing.**
+
+**Bound the claim explicitly.** This is a **stratified sample, not a full audit** of all ~29,400 affected rows. It is strong directional evidence that the filer-error characterization holds at the population level, but it does not formally certify zero discrepancies across the full ~10M-row collection. A single bulk-vs-primary discrepancy in unsampled rows would not be inconsistent with this evidence. The committee's read: 22/22 with 0 discrepancies across all four corruption faces is sufficient to close the investigation and commit to the publisher-posture remediation — but the language stays "strongly confirms," not "proves" or "definitively establishes."
+
+Concrete examples from the spot-check (logfile: `.tmp/edgar-spotcheck-20260526-150902.log`):
+
+| Doc ID | Filed | Bulk value | EDGAR primary value | Verdict |
+|---|---|---|---|---|
+| `0001900188-25-000010-NT` | 2025-07-25 | `transaction_date: 0025-07-25` | `0025-07-25` | filer typed "25" |
+| `0001434728-24-000220-NT-7996300` | 2024-06-07 | `transaction_date: 0023-11-14` | `0023-11-14` | filer typed "23" |
+| `0001193125-26-025268-NT` (Alphabet/Google) | 2026-01-27 | `transaction_date: 2027-01-25` | `2027-01-25` | filer typed "2027" for 2026 |
+| `0001214659-14-002126-DT` | 2014-03-21 | `trans / exer / exp = 0012-11-21 / 0012-11-21 / 0017-11-21` | all three IDENTICAL in primary | multi-field co-occurrence in source |
+
+**Footnote on the 3 AMBIGUOUS_MATCH rows.** Three of the 19 evaluated rows returned multiple XML candidates after the 4-field match key (security_title + transaction_code + transaction_shares + transaction_price_per_share). For 2 of the 3, the ambiguity was only on `transaction_date` (clean field, multiple candidates with different transaction dates) — every XML candidate's *corrupt* forward-field date was identical, so the verdict would have been CONFIRMED_FILER_ERROR regardless of which candidate matched. For 1 row (`0001133416-25-000047-DT-3324625`), the candidates had genuinely different exercise dates; that single row is indeterminate. These ambiguities do not weaken the result; they're match-key footnotes for the record.
+
+### Ongoing-occurrence finding
+
+The earliest spot-check row is from 2014; the **latest is 2026-02-11**, including a recent Alphabet filing (`0001193125-26-025268`). This pattern is not a legacy artifact — filers continue to enter 2-digit years and transposed-digit years in 2025 and 2026 filings, and SEC's primary filing system continues to accept and publish them. **Implication for the eventual interpretation layer: it is permanent standing behavior, not a one-time cleanup.** New bad dates will keep arriving via the live feed indefinitely. Whatever read-time annotation or documentation strategy is chosen in Phase 2 needs to be production-permanent, not a backfill-and-forget intervention.
+
+### Reconstruction path: CLOSED, with the strengthened reason
+
+The Phase 1 close already gated reconstruction as "risky." The investigation strengthens that closure to a categorical one: **backfilling these dates would fabricate data that diverges from the authoritative SEC source.** That is a direct violation of KeyVex's pure-publisher posture — a customer auditing a KeyVex record against EDGAR would find KeyVex's "fixed" date does not match SEC's published record. The reconstruction would have replaced ~14,541 faithful-to-source rows with KeyVex's *guess* of what the filer meant, including ~27,639 forward-field reconstructions that the dry-run's last-2-digit diagnostic measured as 99.96% systematically wrong.
+
+**The gate held.** Catching this before any production write was the system working — but the lesson is bigger than "the gate worked." It's that the premise (data was internally corrupted by our pipeline) was unverified for most of the session; the cheap source-grep that refuted it (one TSV line read) was done at the END instead of the start. Earned standing protection below.
+
+### Standing protection — added 2026-05-26
+
+(v4-record version; a standalone memory file landing as Phase 2 will mirror this, linked from `MEMORY.md`)
+
+> **Verify against the authoritative upstream source before naming any pipeline as the cause of anomalous data.** When values look wrong, the first check is "what does the upstream source actually contain?" — not "where did our pipeline mangle this?" Cached or locally-retained source files are the cheapest first check (one row, ~30 seconds of grep). Documentation summaries, second-hand characterizations, and "the value looks wrong" are not verification. This is the data-side companion to the existing `feedback_verify_facts_dont_assume.md` rule (the documentation-side version, which cost 14 hours of OAuth chase). Same failure mode: building elaborate scaffolding on an unverified premise. The 2026-05-26 P0 reframe session built a sized, gated, designed reconstruction on the premise that the bulk_v2 dates were internally corrupted; a one-row source grep — done at the end instead of the start — showed the data was SEC-faithful. **Verify the root before designing remediation.**
+
+Standing-protections list grows from four to five.
+
+### Parked items unchanged by this amendment
+
+- The 6 missing-`filing_date` `insider_trades` rows (live-feed Form 4 scraper schema gap) — still Phase 2 / next-session.
+- The 142 corrupt-looking `period_of_report` rows in `insider_transactions_v2` — same SEC-source-faithful framing applies; will be covered by the Phase 2 interpretation layer alongside `transaction_date` / `exercise_date` / `expiration_date`.
+- Axis 6 copy fixes (Commit B `3bdd56d`) — already committed locally, still pre-deploy.
+- Axis 7 (`matchesSubstringSafe` + 5000-cap) — design task still open for a separate session.
+- Track-2 sweep of remaining ~23 collections — still a follow-on track, not a blocker.
+
+### State of the world at Amendment 2 close
+
+- **Investigation record:** closed. Parser innocent, dates SEC-faithful, reconstruction permanently off the table.
+- **Production state:** unchanged. No writes since `25feed4`. The local commit batch (A `90dce88` · B `3bdd56d` · C `9546d47` · housekeeping `6e77a39`) is still pre-push.
+- **Phase 2 (forward product work):** designed in shape (interpretation layer = documentation + read-time annotation per Model B; positioning = provenance-faithful trust claim) but **not yet drafted, not committed, not designed in code** — separate session, separate review, separate gate.
+- **Standing protections:** five.
+- **Track-2 axes:** seven.
+
+**End of Amendment 2.** Phase B LOCKED. Backfill/reconstruction CLOSED — and now permanently, on the strengthened reason: fabrication against the authoritative source violates pure-publisher posture. Re-ingest NOT authorized (would change nothing — values are SEC-faithful). CIK swap NOT authorized. Axis-7 fix NOT authorized. Orphan cleanup NOT authorized. The 6 missing-filing_date live-feed rows + 142 period_of_report rows remain parked for Phase 2.
