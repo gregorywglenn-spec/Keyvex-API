@@ -197,7 +197,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["legacy", "bulk_v2"],
         description:
-          "Which backing collection to query. 'bulk_v2' (DEFAULT as of 2026-05-24) = SEC quarterly bulk dataset, 2006q1→latest (footnote_refs[] inlined, aff10b5one present, full reporting_owners array, deeper coverage). Rows carry legacy field aliases for backward compat. 'legacy' = daily EDGAR scraper output (insider_trades collection, 2022+ only, no footnotes, no 10b5-1 flag).",
+          "Which backing collection to query. 'bulk_v2' (DEFAULT as of 2026-05-24) = SEC quarterly bulk dataset, 2006q1→latest (footnote_refs[] inlined, aff10b5one present, full reporting_owners array, deeper coverage). Rows carry legacy field aliases for backward compat. 'legacy' = daily EDGAR scraper output (insider_trades collection, 2022+ only, no footnotes, no 10b5-1 flag) — AND holds ~91% fewer filings than bulk_v2 for the same window. Use 'legacy' ONLY when you specifically need the legacy document shape with no v2-extension fields; bulk_v2 (the default) is authoritative for coverage.",
       },
       reporting_owner_cik: {
         type: "string",
