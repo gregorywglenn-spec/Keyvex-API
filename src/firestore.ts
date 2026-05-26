@@ -749,7 +749,7 @@ const SHALLOW_COVERAGE_NOTICES: Record<string, string> = {
  * each document at ingestion (matched server-side via array-contains).
  * The build-vs-buy call is Greg's; tracked in REVIEW_QUEUE.md.
  */
-function matchesSubstringSafe(
+export function matchesSubstringSafe(
   haystack: string | null | undefined,
   needle: string | null | undefined,
 ): boolean {
@@ -764,6 +764,42 @@ function matchesSubstringSafe(
     return re.test(h);
   }
   return h.includes(n);
+}
+
+/**
+ * Axis-7 Issue A helper — broadens reporting-owner-name substring matching
+ * to traverse the `reporting_owners[]` array in addition to the denormalized
+ * primary `reporting_owner_name` field.
+ *
+ * Why this exists: `insider_transactions_v2` rows carry both
+ * `reporting_owner_name: string` (the PRIMARY filer, denormalized for indexed
+ * queries) AND `reporting_owners: BulkReportingOwner[]` (the full list of
+ * all reporting persons on the filing — for joint disclosures by funds,
+ * 10%-holders, etc.). The substring filter at the v2 query sites used to
+ * check only the primary field, silently missing rows where the searched
+ * name appeared only as a co-filer in the array (e.g., joint 13D-style or
+ * multi-owner Form 4 filings where the primary is the fund and the
+ * person-name lives in reporting_owners[1].name).
+ *
+ * Factored as a single source of truth so PATH A (no postFilter, single
+ * fetch) and PATH B (postFilter set, paginated loop) in
+ * queryInsiderTransactionsV2 both call exactly the same matching logic.
+ * The previous shape — substring check inlined at both call sites — was
+ * the trap that created Issue A: when a future change broadens coverage,
+ * inlining risks fixing one path and leaving the other broken.
+ *
+ * Additive: any row that matched today still matches. The OR-arm only
+ * adds candidates; it never excludes a match the primary-field check
+ * would have returned. Backward-compatible by construction.
+ */
+export function matchesOwnerNameSubstring(
+  row: import("./types.js").InsiderTransactionV2,
+  needle: string,
+): boolean {
+  if (matchesSubstringSafe(row.reporting_owner_name, needle)) return true;
+  return (row.reporting_owners ?? []).some((o) =>
+    matchesSubstringSafe(o.name, needle),
+  );
 }
 
 /**
@@ -1188,9 +1224,10 @@ export async function queryInsiderTransactionsV2(
 
     if (query.reporting_owner_name) {
       const needle = query.reporting_owner_name.toLowerCase();
-      docs = docs.filter((t) =>
-        matchesSubstringSafe(t.reporting_owner_name, needle),
-      );
+      // Axis-7 Issue A fix: traverse reporting_owners[].name in addition
+      // to the primary reporting_owner_name (see matchesOwnerNameSubstring
+      // docstring). Single source of truth shared with PATH B below.
+      docs = docs.filter((t) => matchesOwnerNameSubstring(t, needle));
     }
 
     const has_more = docs.length > userLimit;
@@ -1240,8 +1277,10 @@ export async function queryInsiderTransactionsV2(
 
       // Apply substring filter (if set) FIRST — cheaper than the postFilter
       // for rows that don't match the owner-name substring.
+      // Axis-7 Issue A fix: same helper as PATH A above — traverses
+      // reporting_owners[].name in addition to primary reporting_owner_name.
       if (substringNeedle !== null) {
-        if (!matchesSubstringSafe(row.reporting_owner_name, substringNeedle)) {
+        if (!matchesOwnerNameSubstring(row, substringNeedle)) {
           continue;
         }
       }
