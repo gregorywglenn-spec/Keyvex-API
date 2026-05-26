@@ -215,4 +215,191 @@ The count-check arc closed today. B+ (dual-gate raw-count + value-sum verificati
 
 ---
 
-**End of v4.** Phase B LOCKED. A not authorized. D unscoped. Orphan cleanup not authorized. Standing by for fresh decisions.
+**End of v4 as originally written.** Phase B LOCKED. A not authorized. D unscoped. Orphan cleanup not authorized. Standing by for fresh decisions.
+
+---
+
+# AMENDMENT — post-v4, same-day 2026-05-25
+
+After the v4 doc (`0c54105`) and recon-scripts (`25feed4`) commits landed, the session continued with a Track-2 fan-out across remaining collections. This amendment captures findings that emerged post-v4 + corrections to the doctrine the original v4 wrote.
+
+Confidence labels: same convention as the original — **HIGH / CONTRADICTED / UNDETERMINED / SPECULATION**. Verification provenance for amendment content: Code-side Firestore aggregate counts + source-code reads; wire-Claude's recon reads on `activist_ownership`, `insider_transactions_v2`, `congressional_trades`, `planned_insider_sales`, `material_events`, `annual_financial_disclosures`, `tender_offers`, `registration_statements`. Findings marked HIGH where Code and wire-Claude triangulated; UNDETERMINED where only one side observed; CONTRADICTED where a prior framing was disproved by source.
+
+---
+
+## Findings that emerged post-v4
+
+### P0: insider date-field corruption (Axis 1 — data correctness) [HIGH]
+
+Wire-Claude's recon on `insider_transactions_v2` surfaced records with malformed years (transaction_date "2047-06-07" on a row whose period_of_report and filing_date said 2017; ancient-side records with year "0012" on rows whose siblings said 2012). Mechanism characterized from a 10-record sample, then sized by Code via field-aware Firestore count (`scripts/_diag-bulk-v2-date-corruption-count.ts`).
+
+**Mechanism (corrected from wire-Claude's initial framing, now grounded):**
+- Year-digit corruption: month/day always intact; year's high-order digits mangled
+- Pattern: predominantly **20XX → 00XX** (century-prefix drop, ancient-side ~29,500 instances) with a small minority **20XX → 204X** (high-end, ~240 instances)
+- NOT a fixed offset (the original "+30" framing was falsified by the low-end data)
+- Isolated to: `transaction_date`, `exercise_date`, `expiration_date` (the bulk-ingested date fields). Some `period_of_report` rows also corrupt (142 instances) — see reconstruction note below.
+
+**Size — pinned honestly post-recount:**
+- `insider_trades` (live-feed Form 4, 162,067 docs): **6 corrupt field-instances** (1 future + 5 ancient on transaction_date). All `data_source: "SEC_EDGAR_FORM4"`.
+- `insider_transactions_v2` (bulk quarterly TSV, 9,923,755 docs): **29,893 corrupt field-instances** across transaction_date / exercise_date / expiration_date / period_of_report. All `data_source: (absent)` — v2 docs don't populate that field.
+- **Combined: ~29,899 corrupt field-instances → estimated ~15-25K unique corrupt docs (~0.15-0.25% of v2).** This is an estimate, not an exact unique-doc count: a single doc can carry multiple corrupt fields, so the field-instance total overstates unique docs, and the range reflects that uncorrected overlap. An exact unique-doc count was not run.
+- Bounded (< 1% of either collection), ancient-side prefix-drop dominant.
+
+**Attribution corrected from initial wire-Claude framing:**
+- Initial framing: "bulk_v2 TSV ingestion path, identified via data_source field"
+- Corrected: corruption exists in BOTH live-feed Form 4 path AND bulk_v2 path. The `data_source` field is **unreliable as a path-distinguisher** — absent on every v2 record (the field isn't populated by v2 ingestion), only labels the live-feed `insider_trades` collection. Path attribution must come from the collection itself, not the field.
+
+**Reconstruction source (CONTRADICTED from initial framing):**
+- Initial framing (wire-Claude): "reconstruct from period_of_report or filing_date, both intact"
+- Corrected: `period_of_report` has 142 corrupt rows in v2 — **unsafe as sole reconstruction source**
+- `filing_date` is universally clean across 10M+ rows (0 corrupt at both extremes) — **canonical reconstruction source**
+- Repair design must use filing_date with sibling-consistency check, NOT period_of_report alone
+
+**Threshold-design correction earned this round** (mechanism: my initial recount over-counted by treating forward-looking fields as backward-looking):
+- `exercise_date` per [`types.ts:1128`](../src/types.ts#L1128) is "ISO date the derivative becomes exercisable" — **forward-looking** for unvested options. Future values are legitimate.
+- `expiration_date` similarly forward-looking — long-dated options legitimately expire in 2030s/2040s.
+- A blanket `>2027` threshold on these fields treated 5,209 legitimate exercise dates and **254,123 legitimate expiration dates** as corruption. Recount with `>2050` reduced these to 28 and 155 respectively.
+- v4 standing-protections list grew by one because of this: *"field semantics drive threshold choice"* (and probes must be at least as defensive as the production code they validate — earned twice now: the namespace-blind grep in Step 4a, the field-blind threshold here).
+
+**Consumer impact:**
+- Sort `transaction_date desc` returns the small future-dated corruption first (visible-wrong on flagship query)
+- Sort `transaction_date asc` returns year-0012 records first (visible-wrong on ancient query)
+- Date-range filters that intersect either extreme include corrupt records
+- Severity: P0 because consumer-visible on the flagship query. Magnitude: bounded backfill (~15-25K docs), reconstructable.
+
+**Remediation status: PARKED to next-session design task.** Now genuinely needs a design pass (filing_date-based reconstruction, sibling-consistency validator, field-aware thresholds, dry-run on sample, derived-field recompute including `reporting_lag_days`). NOT a quick fix. Gated to its own authorization.
+
+### Axis 7: query-path consistency (NEW, HIGH severity)
+
+Distinct from Axes 1-5 framed in original v4 and distinct from Axis 6 added below. **Cannot be remediated by copy/disclaimer** — requires code-level serving-layer fix.
+
+**Definition:** Different access paths to the same logical query return different result sets. Demonstrated:
+- `activist_ownership` filter `filer_name="Pershing"` misses a Jan-2025 Howard Hughes filing that `company_cik=<HHC>` catches (wire-Claude observation)
+- `insider_trades` filter `officer_name="3G Special Situations Fund"` misses an Avis Budget Group filing where the name appears in `reporting_owners[]` but not in the primary single-field name (wire-Claude observation on QSR / 3G Capital)
+
+**Source inspection (Code, this round) — DEFINITIVE:**
+All four name-search implementations in `src/firestore.ts` use the **identical pattern**:
+- `queryInsiderTransactions` (line ~858, `officer_name`)
+- `queryInsiderTransactionsV2` (line ~1183, `reporting_owner_name`)
+- `queryForm144Filings` (line ~1836, `filer_name`)
+- (at least one more at line ~1925, `filer_name`)
+
+The pattern is: fetch up to 5000 docs from Firestore → client-side `.filter(d => matchesSubstringSafe(d.<single_primary_field>, needle))`. The shared `matchesSubstringSafe` helper is applied to a single primary-name field on each row.
+
+**Two structural issues, both in the same code path:**
+
+- **Issue 1 — multi-reporter blind spot:** The helper targets a single primary-name field. Multi-reporter filings store the full reporter list in arrays (`reporting_owners[]`). A name in the array but not in the primary field is silently missed. This is the Pershing/Howard Hughes + 3G Capital/QSR shape.
+- **Issue 2 — 5000-doc pre-substring cap:** When the Firestore-side filter (ticker/CIK/date range) would match more than 5000 docs, the client-side substring filter only sees the first 5000. A second silent-undercount on high-volume name queries (common surnames, heavily-traded issuers). Independent of Issue 1, same path.
+
+**Fix scope (revised from original v4 assumption):**
+- Original v4 estimate: "weeks, architectural, scope TBD post source-inspection"
+- Now: **ONE shared fix at `matchesSubstringSafe` + the 5000-cap ceiling, lands across all 4+ name-search collections at once.** Plausibly **days, not weeks.**
+- v1.1 polish direction already noted in firestore.ts comments: "move substring search to Firestore-side via tokenized indexes" — would solve both issues in one redesign.
+- Axis-7 is no longer the longer-tail item on the launch-readiness ladder.
+
+**Confirmed-affected collections (HIGH):** `activist_ownership`, `insider_trades` (legacy), `insider_transactions_v2` (bulk), `planned_insider_sales`.
+**Probable platform-wide (UNDETERMINED):** all collections with a name-substring filter share the helper. A full audit per Track-2 would enumerate.
+
+### Axis 6: label-claim integrity (NEW, copy-fixable)
+
+The collection's surface name + tool description claim a broader scope than what the data actually covers. Distinct from Axis 7 because **remediation is copy/docstring edits, not code changes.** Distinct from Axes 1-5 because the data is correct within actual scope.
+
+**Confirmed instances** (citation-backed from this session's wire reads):
+- `registration_statements` — claims "registration statements"; actual coverage is S-1 (IPO) and S-3 (shelf) only. S-8 employee-plan registrations not ingested.
+- `activist_ownership` — description references "Pre-2023 paper-style filings"; actual coverage floor is January 2024.
+- `insider_transactions` — `data_source: "legacy"` option doesn't disclose that it holds ~91% fewer filings than `bulk_v2` (the default) for the same window. Consumer who explicitly picks legacy gets ~a tenth of the data silently.
+- `annual_financial_disclosures` — Senate eFD coverage only; House Form 278 not yet ingested. Description discloses this; the tool name does not (mild — low priority).
+
+**Additional rider — clarity item, not strictly an overclaim:**
+- `activist_ownership` 13G/A exit filings have `shares_owned: 0` / `percent_of_class: 0` rows. These are correct data (an exit IS zero) but consumer-misreadable as missing data / nulls. Worth a docstring line clarifying the semantic.
+
+**Remediation status:** Drafted as Commit B (Axis-6 tool description edits + 13G/A rider), separate authorization required before commit.
+
+### Annual Financial Disclosures probe (resolved clean)
+
+Wire-Claude's probe on Pelosi (bioguide P000197) returned zero docs from `annual_financial_disclosures`. Could have been per-entity coverage gap or dead scraper. Resolved by tool description: collection covers Senate eFD Form 278 only; House Clerk Form 278 is v1.1 (per the tool's own description). Pelosi is House → correctly empty by documented scope. Cross-confirmed: collection has recent Senate data (Cantwell 2026-05-18, Markey 2026-05-15) — scraper is current and parsing cleanly. Filed as resolved, not a finding.
+
+---
+
+## Doctrine refinements
+
+### Standing-protections list grew from 2 to 4
+
+The original v4 implicitly carried two protections from prior sessions. This round earned two more:
+
+1. **Verify against source, not paraphrase.** (existing — Anthropic doc on auth, etc.)
+2. **Every test result must cite an executable reproduction step.** (existing — earned from the Gemini Pentwater fabrication this session: a confident, plausible writeup of a probe that never ran, caught by comparing claimed test to execution history. Same pattern recurred a second time mid-session.)
+3. **A mechanism sample is not a size estimate, ever.** (NEW — earned from the P0 sizing drift: wire-Claude's 10-record sample correctly characterized the mechanism but the framing implied "bounded, probably small"; the actual size was orders of magnitude larger at first count, then required threshold-design correction to be honest. Characterized ≠ sized.)
+4. **Probes must be as defensive as the production code they validate.** (NEW — earned twice: (a) the Step 4a v1 namespace-blind grep regex misclassified 3 genuine shortfalls as parser-bugs; corrected via Code's mid-flight self-catch; (b) the initial recount blanket `>2027` threshold treated forward-looking fields as backward-looking; corrected via source-grounded resolution from `types.ts:1128`. Both times: the probe was less defensive than the production code it was supposedly validating.)
+
+These should ride with every future audit / handoff. Worth pinning in the bootstrap section of the next handoff.
+
+### Track-2 audit axes grew from 5 to 7
+
+Original v4 framing had 5 axes. This round adds two more:
+
+1. Silent misclassification (e.g., `transaction_nature` wrong)
+2. Silent incompleteness / staleness (e.g., Berkshire's 11 missing 13F-HRs)
+3. Count-check correctness (e.g., B+ dual-gate)
+4. `TRACKED_FUNDS` entity/CIK integrity (e.g., BlackRock stale 0001364742)
+5. Orphan accumulation (e.g., Harvest's 29 stale Q1-2026 docs pre-heal)
+6. **Label-claim integrity (NEW).** Surface name + tool description matches actual data coverage. Remediation: copy/docstring edits.
+7. **Query-path consistency (NEW).** Different access paths to same logical query return same result set. Remediation: code-level serving-layer change.
+
+Every collection in the Track-2 scope should be audited against all 7 axes. The remediation paths differ:
+- Axes 1-5: data-side fixes (parser, backfill, registry edits)
+- Axis 6: copy fixes (cheapest, ship-anytime)
+- Axis 7: code-level serving-layer fixes (one shared fix per the source-inspection finding)
+
+### Launch-readiness ladder, revised
+
+Original v4 implied a single integrity ladder. This amendment splits it into three independent unlocks, each gated by a specific fix:
+
+| Fix | Shape | Effort | Unlocks |
+|---|---|---|---|
+| **Axis 6 (scope labels)** | Copy / docstring edits | Hours | Subscriber-facing claims honest about coverage |
+| **P0 date corruption** | Parser fix + sibling-reconstruction backfill (~15-25K docs) | Days | "Recent insider activity" feature integrity |
+| **Axis 7 (query-path consistency)** | One shared serving-layer fix (`matchesSubstringSafe` + 5000-cap), revised from "weeks" to plausibly "days" pending fix-design | Days (revised down) | "Search by filer/person/officer" feature integrity |
+
+Each fix unlocks distinct surface area. The platform is not on hold behind one monolithic remediation. Sequencing is Greg's call; the dependencies are independent.
+
+### Product boundary — the latest-only finding now generalizes
+
+Original v4 named the latest-filing-at-ingestion qualifier as a product boundary specific to 13F. This amendment notes a pattern: multiple collections have narrower coverage than their names imply (Axis 6 family). The marketing/legal copy implication broadens:
+
+- Any subscriber-facing claim about "comprehensive data" / "full coverage" / "verified data" must be qualified by the actual scope of the collection it describes.
+- The honest claim pattern is "X covers Y (scope) verified at Z (operational boundary)." Each variable specific per collection.
+- This is foundation-level copy discipline, not a per-feature carve-out.
+
+---
+
+## Process pattern: fabrication caught against execution history (recurring)
+
+Twice in two sessions, a node has produced a confident, plausible writeup of a probe that never ran. The most recent example: a writeup referencing a "Pentwater Capital / Avis Budget" test with specific accession numbers and observed values, where no such query was actually executed against the live collection. Caught both times by comparing claimed test to execution history.
+
+This is the failure mode the standing-protection (#2 above — "every test result cites an executable reproduction step") exists to prevent. The catch mechanism works **only** because:
+- Execution history is reliable and cross-checkable across nodes
+- At least one node compares claimed-vs-actual at the moment a claim enters the record
+- The discipline is held in both directions (Code's count caught wire-Claude's attribution error; wire-Claude's read on `congressional_trades` would have caught a Code overclaim, etc.)
+
+Worth pinning explicitly in next-session bootstrap: **fabrication is not a hypothetical risk; it has been observed twice. The catch mechanism is mandatory, not optional.**
+
+---
+
+## State of the world at amendment close
+
+**Recon arc:** characterized, scoped, sized. Findings catalog has the P0 sized, Axis 7 sourced, Axis 6 enumerated. The Track-2 sweep of remaining ~23 collections is a follow-on track, not a blocker.
+
+**Production state:** unchanged from original v4 close. Phase B LOCKED. A not authorized. D-architecture unscoped (now scoped pending Greg's go on the matchesSubstringSafe fix). Orphan cleanup not authorized. No production writes since `25feed4`.
+
+**Open queue ordered by remediation severity (per launch-readiness ladder above):**
+1. Axis 6 copy fixes (Commit B, drafted, awaiting Greg's go) — hours
+2. P0 backfill — days, design-task next session
+3. Axis 7 architectural fix — days (revised down), design-task next session
+
+**Standing protections active:** all four.
+**Track-2 axes:** 7.
+
+---
+
+**End of amendment.** Phase B LOCKED. A not authorized. D unscoped. Orphan cleanup not authorized. Standing by for Greg's review of Commit A hunks, then progression to Commits B and C per the stage-and-show sequence.
