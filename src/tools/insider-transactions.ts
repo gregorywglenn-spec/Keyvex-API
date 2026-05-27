@@ -34,6 +34,7 @@ import {
   type InsiderTransactionV2Compat,
 } from "./insider-transactions-v2-shim.js";
 import { parseBooleanArg } from "./_validators.js";
+import { annotateRowsSourceMetadata } from "../source-metadata.js";
 
 /**
  * Envelope shape returned when data_source resolves to "bulk_v2" (the new
@@ -153,6 +154,19 @@ export const definition: Tool = {
     "never silently 'corrects' a value to KeyVex's guess of what was",
     "meant. A customer auditing KeyVex against EDGAR will find a",
     "byte-for-byte match.",
+    "",
+    "MACHINE-READABLE FLAGS — responses include a `source_metadata` block",
+    "on rows where the above SEC-source patterns are detected. The block",
+    "is keyed by field name, with an array of flag strings per field:",
+    "`sec_perpetual_sentinel` (assertive — exact-string match on a known",
+    "SEC sentinel value); `anomalous_year_likely_filer_entry` (calibrated",
+    "— year outside the plausible range, likely a filer typo). Presence",
+    "is the signal: clean rows have NO `source_metadata` field at all",
+    "(not an empty object — the field is omitted entirely). Absence",
+    "means 'no SEC source quirks detected,' NOT 'certified clean by",
+    "audit' — agents weigh the difference. The raw source date values",
+    "are preserved unchanged; the flag block carries KeyVex's labeled",
+    "interpretation alongside, never replacing.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -361,9 +375,15 @@ async function handleLegacy(
       deriveTransactionNature(r.transaction_code) === "INSUFFICIENT_DATA",
   ).length;
 
+  // Phase 2b: read-time source-metadata annotation. Same shared helper
+  // as handleV2 above — single source of truth so a future detection-
+  // rule revision lands in one place. Pure function, no Firestore I/O,
+  // never mutates source values. See src/source-metadata.ts.
+  const annotatedResults = annotateRowsSourceMetadata(filteredResults);
+
   const envelope: InsiderTransactionsEnvelope = {
-    results: filteredResults,
-    count: filteredResults.length,
+    results: annotatedResults,
+    count: annotatedResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     ...(unclassifiableCount > 0 && {
@@ -462,9 +482,17 @@ async function handleV2(
     (r) => r.transaction_nature === "INSUFFICIENT_DATA",
   ).length;
 
+  // Phase 2b: read-time source-metadata annotation. Adds optional
+  // `source_metadata` field per row when SEC-source quirks are detected
+  // (2050 perpetual-instrument sentinel; anomalous-year filer-entry).
+  // Pure function, no Firestore I/O, never mutates source values. See
+  // src/source-metadata.ts. Shared with handleLegacy below — single
+  // source of truth.
+  const annotatedResults = annotateRowsSourceMetadata(shimmedResults);
+
   return {
-    results: shimmedResults,
-    count: shimmedResults.length,
+    results: annotatedResults,
+    count: annotatedResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     ...(unclassifiableCount > 0 && {

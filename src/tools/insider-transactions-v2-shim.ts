@@ -254,6 +254,16 @@ export interface InsiderTransactionV2Compat
   data_source: "SEC_EDGAR_FORM4" | "SEC_EDGAR_FORM5" | string;
   // sec_filing_url alias — legacy had it; v2 has source_url
   sec_filing_url: string;
+
+  /**
+   * Phase 2b (read-time): SEC-source quirk flags applied by the
+   * annotateRowsSourceMetadata shim at response time. Present ONLY when
+   * at least one field on the row matches a detection rule (the 2050
+   * perpetual-instrument sentinel; the anomalous-year filer-entry
+   * pattern). Absence indicates "no SEC source quirks detected" — NOT
+   * "certified clean by audit." See src/source-metadata.ts.
+   */
+  source_metadata?: import("../source-metadata.js").SourceMetadataFlags;
 }
 
 /**

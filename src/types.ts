@@ -121,6 +121,15 @@ export interface InsiderTransaction {
    *  internal relational reference (footnote ID) failed to resolve at
    *  ingestion. Absent on historical rows (forward-write only). */
   verification_status?: VerificationStatus;
+  /**
+   * Phase 2b (read-time): SEC-source quirk flags applied by the
+   * annotateRowsSourceMetadata shim at response time. Present ONLY when
+   * at least one field on the row matches a detection rule (the 2050
+   * perpetual-instrument sentinel; the anomalous-year filer-entry
+   * pattern). Absence indicates "no SEC source quirks detected" — NOT
+   * "certified clean by audit." See src/source-metadata.ts.
+   */
+  source_metadata?: import("./source-metadata.js").SourceMetadataFlags;
 }
 
 /**
