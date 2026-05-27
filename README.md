@@ -231,6 +231,24 @@ scripts/
 
 KeyVex returns clean, normalized, query-ready data — parsed, ticker-resolved, schema-unified, shaped for direct use by your agent. **What we don't add: derived signals, convergence scores, "buy"/"sell" language, investment advice.** That keeps the product cleanly outside investment-advisor territory under the publisher's exemption (Lowe v. SEC, 1985). Agent consumers can layer their own analysis on top.
 
+**Source-faithful, byte-exact, auditable.** Beyond not adding derived signals, KeyVex doesn't silently alter what SEC published. The source data carries its own quirks — perpetual-instrument sentinels (a `2050-12-31` on an instrument that has no calendar expiration), filer data-entry typos that SEC's primary filings accepted and that flow through the bulk extract. KeyVex preserves these byte-for-byte from SEC's record; runtime annotation via a `source_metadata` block on flagged rows labels the quirks as KeyVex's interpretation, never SEC's. **A consumer can audit any KeyVex record against EDGAR and find a byte-for-byte match.** A 19-row stratified spot-check against SEC primary XML returned 22/22 matches — strong directional evidence, not a census; see [`docs/handoff-phase-a-v4-count-check-arc-2026-05-25.md`](docs/handoff-phase-a-v4-count-check-arc-2026-05-25.md) Amendment 2 for the verification record.
+
+What this looks like in a response:
+
+```json
+{
+  "ticker": "...",
+  "exercise_date": "2050-12-31",
+  "expiration_date": "2050-12-31",
+  "source_metadata": {
+    "exercise_date":  ["sec_perpetual_sentinel"],
+    "expiration_date": ["sec_perpetual_sentinel"]
+  }
+}
+```
+
+Read `exercise_date` and you get SEC's literal byte value; read `source_metadata.exercise_date` and you learn KeyVex's interpretation — assertive for known SEC conventions (`sec_perpetual_sentinel`), calibrated for inferred filer errors (`anomalous_year_likely_filer_entry`). Clean rows omit `source_metadata` entirely — presence is the signal. Each tool's description catalogs the conventions that apply to it; `get_insider_transactions` is the canonical example.
+
 The Firebase project ID `capitaledge-api` is permanent infrastructure (Google does not allow renaming project IDs). The KeyVex brand is independent of that internal identifier; everything customer-facing reads as KeyVex.
 
 ---
