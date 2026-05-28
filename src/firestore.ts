@@ -312,6 +312,9 @@ const COLLECTION_DATE_FIELD: Record<string, string> = {
   fec_committees: "last_file_date",
   fec_contributions: "contribution_receipt_date",
   fec_independent_expenditures: "expenditure_date",
+  insider_transactions_v2: "transaction_date",
+  insider_holdings_v2: "period_of_report",
+  insider_filings_v2: "filing_date",
 };
 
 /**
@@ -746,7 +749,7 @@ const SHALLOW_COVERAGE_NOTICES: Record<string, string> = {
  * each document at ingestion (matched server-side via array-contains).
  * The build-vs-buy call is Greg's; tracked in REVIEW_QUEUE.md.
  */
-function matchesSubstringSafe(
+export function matchesSubstringSafe(
   haystack: string | null | undefined,
   needle: string | null | undefined,
 ): boolean {
@@ -761,6 +764,42 @@ function matchesSubstringSafe(
     return re.test(h);
   }
   return h.includes(n);
+}
+
+/**
+ * Axis-7 Issue A helper — broadens reporting-owner-name substring matching
+ * to traverse the `reporting_owners[]` array in addition to the denormalized
+ * primary `reporting_owner_name` field.
+ *
+ * Why this exists: `insider_transactions_v2` rows carry both
+ * `reporting_owner_name: string` (the PRIMARY filer, denormalized for indexed
+ * queries) AND `reporting_owners: BulkReportingOwner[]` (the full list of
+ * all reporting persons on the filing — for joint disclosures by funds,
+ * 10%-holders, etc.). The substring filter at the v2 query sites used to
+ * check only the primary field, silently missing rows where the searched
+ * name appeared only as a co-filer in the array (e.g., joint 13D-style or
+ * multi-owner Form 4 filings where the primary is the fund and the
+ * person-name lives in reporting_owners[1].name).
+ *
+ * Factored as a single source of truth so PATH A (no postFilter, single
+ * fetch) and PATH B (postFilter set, paginated loop) in
+ * queryInsiderTransactionsV2 both call exactly the same matching logic.
+ * The previous shape — substring check inlined at both call sites — was
+ * the trap that created Issue A: when a future change broadens coverage,
+ * inlining risks fixing one path and leaving the other broken.
+ *
+ * Additive: any row that matched today still matches. The OR-arm only
+ * adds candidates; it never excludes a match the primary-field check
+ * would have returned. Backward-compatible by construction.
+ */
+export function matchesOwnerNameSubstring(
+  row: import("./types.js").InsiderTransactionV2,
+  needle: string,
+): boolean {
+  if (matchesSubstringSafe(row.reporting_owner_name, needle)) return true;
+  return (row.reporting_owners ?? []).some((o) =>
+    matchesSubstringSafe(o.name, needle),
+  );
 }
 
 /**
@@ -918,6 +957,357 @@ export async function saveInsiderTransactions(
   }
 
   return { saved, collection: COLLECTION };
+}
+
+// ─── SEC Bulk Insider Dataset v2 — write paths ────────────────────────────
+//
+// Three sibling collections, parallel save shape to saveInsiderTransactions
+// above. Idempotent merge (Firestore set merge:true) — re-runs of the same
+// quarter hit the same doc IDs and overwrite-in-place. NEVER duplicates.
+//
+// Per Greg's Gate 2/4 approval: tagged source: "sec_bulk", era-aware via
+// schema_era field; pre-2023 records carry aff10b5one: "NOT_TRACKED" sentinel.
+//
+// 2026-05-24 perf: switched from single-threaded await loop (~70 min per
+// 400K-doc quarter from a residential connection) to an N-way concurrent
+// semaphore.
+//
+// First attempt at N=50 hit gRPC DEADLINE_EXCEEDED after 60s — 50 batches
+// × ~800KB each = 40MB queued for upload, draining over 16-32s on
+// residential bandwidth, plus Firestore commit/ack pushed last-in-queue
+// batches past the 60s default deadline. The Firebase Admin SDK retries
+// were burning their full budget before firstError fired.
+//
+// Reset to N=10: 10 × 800KB = 8MB queued, drains in 5-10s, leaves
+// plenty of margin under 60s. Still 3-4x faster than single-threaded
+// (~287 docs/sec at N=50 before fault → projected ~250 docs/sec sustained
+// at N=10). RETRY logic stays for transient throttling / blips so the
+// loader self-recovers without halting.
+
+const BULK_BATCH_SIZE = 400;
+const BULK_PARALLEL_BATCHES = 10;
+const BULK_MAX_RETRIES = 5;
+
+/**
+ * Save a batch of docs using a semaphore-bounded parallel-commit pool.
+ * - Up to BULK_PARALLEL_BATCHES Firestore batch commits in flight at once.
+ * - Each batch carries up to BULK_BATCH_SIZE docs.
+ * - Transient throttling (429 / RESOURCE_EXHAUSTED / UNAVAILABLE) is
+ *   retried with exponential backoff per batch (BULK_MAX_RETRIES attempts).
+ * - Other errors fail the whole save (orchestrator catches and marks the
+ *   quarter "in_progress"; resume re-runs idempotently).
+ */
+async function commitBatchesParallel<T extends { id: string }>(
+  db: FirestoreInstance,
+  collectionName: string,
+  docs: T[],
+): Promise<number> {
+  if (docs.length === 0) return 0;
+  const collection = db.collection(collectionName);
+
+  // Slice docs into batch-sized chunks up front
+  const chunks: T[][] = [];
+  for (let i = 0; i < docs.length; i += BULK_BATCH_SIZE) {
+    chunks.push(docs.slice(i, i + BULK_BATCH_SIZE));
+  }
+
+  let nextIdx = 0;
+  let saved = 0;
+  let firstError: Error | null = null;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      if (firstError) return; // short-circuit if a peer worker hit a non-retryable failure
+      const myIdx = nextIdx++;
+      if (myIdx >= chunks.length) return;
+      const chunk = chunks[myIdx]!;
+
+      let attempt = 0;
+      while (true) {
+        try {
+          const batch = db.batch();
+          for (const doc of chunk) {
+            batch.set(collection.doc(doc.id), doc, { merge: true });
+          }
+          await batch.commit();
+          saved += chunk.length;
+          break;
+        } catch (e) {
+          const msg = (e as Error).message ?? String(e);
+          const isRetryable =
+            /429|RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|INTERNAL/i.test(msg);
+          attempt += 1;
+          if (!isRetryable || attempt >= BULK_MAX_RETRIES) {
+            firstError = e as Error;
+            return;
+          }
+          // Exponential backoff with jitter: 1s, 2s, 4s, 8s, 16s
+          const baseMs = 1000 * Math.pow(2, attempt - 1);
+          const jitter = Math.floor(Math.random() * 500);
+          await new Promise((r) => setTimeout(r, baseMs + jitter));
+        }
+      }
+    }
+  }
+
+  const workerCount = Math.min(BULK_PARALLEL_BATCHES, chunks.length);
+  const workers: Promise<void>[] = [];
+  for (let i = 0; i < workerCount; i++) workers.push(worker());
+  await Promise.all(workers);
+
+  if (firstError) throw firstError;
+  return saved;
+}
+
+export async function saveInsiderTransactionsV2(
+  docs: import("./types.js").InsiderTransactionV2[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "insider_transactions_v2";
+  if (docs.length === 0) return { saved: 0, collection: COLLECTION };
+  const db = await getLiveDb();
+  const saved = await commitBatchesParallel(db, COLLECTION, docs);
+  return { saved, collection: COLLECTION };
+}
+
+export async function saveInsiderHoldingsV2(
+  docs: import("./types.js").InsiderHoldingV2[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "insider_holdings_v2";
+  if (docs.length === 0) return { saved: 0, collection: COLLECTION };
+  const db = await getLiveDb();
+  const saved = await commitBatchesParallel(db, COLLECTION, docs);
+  return { saved, collection: COLLECTION };
+}
+
+export async function saveInsiderFilingsV2(
+  docs: import("./types.js").InsiderFilingV2[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "insider_filings_v2";
+  if (docs.length === 0) return { saved: 0, collection: COLLECTION };
+  const db = await getLiveDb();
+  const saved = await commitBatchesParallel(db, COLLECTION, docs);
+  return { saved, collection: COLLECTION };
+}
+
+// ─── SEC Bulk Insider Dataset v2 — read path ──────────────────────────────
+//
+// Parallel to queryInsiderTransactions but reads from insider_transactions_v2
+// and returns the full v2 doc shape (including footnote_refs[] and
+// aff10b5one). Branched into by get_insider_transactions when the tool is
+// called with data_source="bulk_v2".
+//
+// Greg's Item 3 acceptance test (Gate 5 follow-up, 2026-05-23): "Query that
+// row through the live MCP and show the 10b5-1 footnote text coming back in
+// the response." This is the read path that makes that possible.
+//
+// NOTE: the v2 schema's `transaction_type` field is nonderiv|deriv (NOT
+// buy|sell as in legacy). Caller-facing parameter is named `row_type` in
+// InsiderTransactionsV2Query to avoid the naming collision.
+//
+// POSTFILTER OPTION (2026-05-24): the handler can pass a post-fetch filter
+// callback. Used by the buy/sell input-filter fix — v2 doesn't STORE
+// buy/sell (it's derived from trans_code + trans_acquired_disp_cd at
+// response time via the shim), so a buy/sell filter has to run AFTER
+// Firestore returns rows. When postFilter is set, this function pages
+// through Firestore until userLimit+1 matches accumulate (or the dataset
+// is exhausted or the safety cap is hit), and has_more reflects post-
+// filter reality — NOT the pre-filter row count. Critical for honest
+// pagination semantics.
+
+export interface QueryInsiderTransactionsV2Options {
+  /**
+   * Optional callback applied to each row AFTER it's fetched from Firestore.
+   * Return true to include the row, false to drop it. When set, the function
+   * pages through Firestore (BULK_POSTFILTER_PAGE_SIZE rows per page, up to
+   * BULK_POSTFILTER_MAX_PAGES pages) until userLimit+1 matches accumulate
+   * or Firestore is exhausted. has_more reflects post-filter matches.
+   */
+  postFilter?: (row: import("./types.js").InsiderTransactionV2) => boolean;
+}
+
+// Per-page fetch size when paging through Firestore with a postFilter.
+// Larger = fewer round trips but more bandwidth; 500 is a reasonable
+// balance for the typical buy/sell mix (~60/40) — should fill a 50-row
+// userLimit in a single page in almost all cases.
+const BULK_POSTFILTER_PAGE_SIZE = 500;
+// Safety cap on total Firestore fetches per query. 10 pages × 500 = 5000
+// rows scanned. If we still don't have userLimit+1 matches at that point,
+// we return what we have with has_more=true (conservative — caller can
+// page further by narrowing filters). Prevents runaway latency on
+// pathological skews (e.g., ticker with only buys when caller asks for sells).
+const BULK_POSTFILTER_MAX_PAGES = 10;
+
+export async function queryInsiderTransactionsV2(
+  query: import("./types.js").InsiderTransactionsV2Query,
+  options: QueryInsiderTransactionsV2Options = {},
+): Promise<QueryResult<import("./types.js").InsiderTransactionV2>> {
+  if (isStubMode()) {
+    // No stub data for v2 — returns empty in stub mode. Tool description
+    // makes it clear data only exists once the bulk loader has run.
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("insider_transactions_v2");
+
+  if (query.ticker) q = q.where("ticker", "==", query.ticker);
+  if (query.company_cik) q = q.where("company_cik", "==", query.company_cik);
+  if (query.reporting_owner_cik) {
+    q = q.where("reporting_owner_cik", "==", query.reporting_owner_cik);
+  }
+  if (query.row_type) {
+    q = q.where("transaction_type", "==", query.row_type);
+  }
+  if (query.trans_codes && query.trans_codes.length > 0) {
+    q = q.where("trans_code", "in", query.trans_codes);
+  }
+  if (query.aff10b5one !== undefined) {
+    q = q.where("aff10b5one", "==", query.aff10b5one);
+  }
+  if (query.schema_era) {
+    q = q.where("schema_era", "==", query.schema_era);
+  }
+
+  const sortField = query.sort_by ?? "transaction_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  // Date-range filters apply to the active sort field. The v2 collection's
+  // sortable date fields are both ISO YYYY-MM-DD strings so this is safe to
+  // use without numeric-sort guarding.
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  // INDEX HYGIENE: only add orderBy when the caller actually needs ordered
+  // results — i.e. they passed since/until or an explicit sort_by. A plain
+  // equality query without orderBy doesn't require a composite index, so
+  // ticker-only / company_cik-only / reporting_owner-only queries work
+  // immediately on a fresh deploy (before composite indexes propagate).
+  // When the caller IS using date-range or sort, the composite index from
+  // firestore.indexes.json is required.
+  //
+  // EXTRA: when postFilter is set, we paginate via .startAfter(lastDoc),
+  // which requires a stable orderBy. Force ordering on the sortField in
+  // that case (composite indexes are deployed for the common shapes).
+  const needsOrderBy =
+    query.sort_by !== undefined ||
+    query.since !== undefined ||
+    query.until !== undefined ||
+    options.postFilter !== undefined;
+  if (needsOrderBy) {
+    q = q.orderBy(sortField, sortOrder);
+  }
+
+  const userLimit = query.limit ?? 50;
+
+  // ─── PATH A: no postFilter — original single-fetch behavior ──────────────
+  if (!options.postFilter) {
+    const fetchLimit = query.reporting_owner_name ? 5000 : userLimit + 1;
+    const snap = await q.limit(fetchLimit).get();
+    let docs = snap.docs.map(
+      (d) => d.data() as import("./types.js").InsiderTransactionV2,
+    );
+
+    if (query.reporting_owner_name) {
+      const needle = query.reporting_owner_name.toLowerCase();
+      // Axis-7 Issue A fix: traverse reporting_owners[].name in addition
+      // to the primary reporting_owner_name (see matchesOwnerNameSubstring
+      // docstring). Single source of truth shared with PATH B below.
+      docs = docs.filter((t) => matchesOwnerNameSubstring(t, needle));
+    }
+
+    const has_more = docs.length > userLimit;
+    const results = docs.slice(0, userLimit);
+    return await withCoverageWarning(
+      { results, has_more },
+      query,
+      "insider_transactions_v2",
+    );
+  }
+
+  // ─── PATH B: postFilter set — page through Firestore until we have ───────
+  //           userLimit+1 matches OR Firestore exhausted OR safety cap hit.
+  const substringNeedle = query.reporting_owner_name
+    ? query.reporting_owner_name.toLowerCase()
+    : null;
+  const matched: import("./types.js").InsiderTransactionV2[] = [];
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+  let firestoreExhausted = false;
+  let pagesScanned = 0;
+
+  // Loop until we have enough matches OR Firestore is exhausted OR we hit
+  // the safety cap. Fetch BULK_POSTFILTER_PAGE_SIZE+1 per page to detect
+  // whether more rows exist beyond the page.
+  while (
+    matched.length <= userLimit &&
+    !firestoreExhausted &&
+    pagesScanned < BULK_POSTFILTER_MAX_PAGES
+  ) {
+    let pageQ = q.limit(BULK_POSTFILTER_PAGE_SIZE + 1);
+    if (cursor) pageQ = pageQ.startAfter(cursor);
+    const pageSnap = await pageQ.get();
+
+    if (pageSnap.empty) {
+      firestoreExhausted = true;
+      break;
+    }
+
+    // If we got fewer than PAGE_SIZE+1 rows, this is the last page.
+    firestoreExhausted = pageSnap.size <= BULK_POSTFILTER_PAGE_SIZE;
+    const pageDocs = firestoreExhausted
+      ? pageSnap.docs
+      : pageSnap.docs.slice(0, BULK_POSTFILTER_PAGE_SIZE);
+
+    for (const docSnap of pageDocs) {
+      const row = docSnap.data() as import("./types.js").InsiderTransactionV2;
+
+      // Apply substring filter (if set) FIRST — cheaper than the postFilter
+      // for rows that don't match the owner-name substring.
+      // Axis-7 Issue A fix: same helper as PATH A above — traverses
+      // reporting_owners[].name in addition to primary reporting_owner_name.
+      if (substringNeedle !== null) {
+        if (!matchesOwnerNameSubstring(row, substringNeedle)) {
+          continue;
+        }
+      }
+
+      if (options.postFilter(row)) {
+        matched.push(row);
+        if (matched.length > userLimit) break; // hot exit
+      }
+    }
+
+    cursor = pageDocs[pageDocs.length - 1];
+    pagesScanned += 1;
+  }
+
+  // has_more semantics for postFilter path:
+  //   - matched.length > userLimit → we found more matches than the limit → has_more = true
+  //   - matched.length <= userLimit AND firestoreExhausted → we saw everything → has_more = false
+  //   - matched.length <= userLimit AND hit safety cap → unknown; conservative true
+  const has_more =
+    matched.length > userLimit ||
+    (!firestoreExhausted && pagesScanned >= BULK_POSTFILTER_MAX_PAGES);
+  const results = matched.slice(0, userLimit);
+  return await withCoverageWarning(
+    { results, has_more },
+    query,
+    "insider_transactions_v2",
+  );
 }
 
 // ─── Institutional holdings (13F) query ─────────────────────────────────────

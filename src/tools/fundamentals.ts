@@ -11,6 +11,7 @@
  */
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryXbrlFundamentals } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ResultEnvelope,
   XbrlFundamental,
@@ -222,10 +223,7 @@ function validateAndNormalize(raw: unknown): XbrlFundamentalsQuery {
   if (args.since !== undefined) out.since = parseIsoDate(args.since, "since");
   if (args.until !== undefined) out.until = parseIsoDate(args.until, "until");
   if (args.latest_only !== undefined) {
-    if (typeof args.latest_only !== "boolean") {
-      throw new Error("latest_only must be a boolean");
-    }
-    out.latest_only = args.latest_only;
+    out.latest_only = parseBooleanArg(args.latest_only, "latest_only");
   }
   if (args.sort_by !== undefined) {
     if (

@@ -16,12 +16,33 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   queryForm3Holdings,
   queryInsiderTransactions,
+  queryInsiderTransactionsV2,
 } from "../firestore.js";
 import type {
   Form3Holding,
   InsiderTransactionsEnvelope,
   InsiderTransactionsQuery,
+  InsiderTransactionsV2Envelope,
+  InsiderTransactionsV2Query,
+  InsiderTransactionV2,
+  ResultEnvelope,
 } from "../types.js";
+import {
+  applyV2BackwardCompatShim,
+  deriveLegacyBuyOrSell,
+  deriveTransactionNature,
+  type InsiderTransactionV2Compat,
+} from "./insider-transactions-v2-shim.js";
+import { parseBooleanArg } from "./_validators.js";
+import { annotateRowsSourceMetadata } from "../source-metadata.js";
+
+/**
+ * Envelope shape returned when data_source resolves to "bulk_v2" (the new
+ * default). Rows carry both v2 native fields AND the legacy field aliases —
+ * see InsiderTransactionV2Compat in the shim module for details.
+ */
+export type InsiderTransactionsV2CompatEnvelope =
+  ResultEnvelope<InsiderTransactionV2Compat>;
 
 // ─── Tool definition ────────────────────────────────────────────────────────
 
@@ -72,6 +93,84 @@ export const definition: Tool = {
     "to know how big a sale is relative to the insider's full position —",
     "Form 4 alone shows the delta, Form 3 anchors the baseline. Requires",
     "ticker or company_cik to be set.",
+    "",
+    "data_source SELECTS WHICH BACKING COLLECTION:",
+    "  'bulk_v2' (DEFAULT as of 2026-05-24) — `insider_transactions_v2`",
+    "    collection populated by SEC quarterly bulk Forms 3/4/5 TSV bundles.",
+    "    Deeper history (2006q1 → latest published quarter, ~9.9M rows),",
+    "    INLINED FOOTNOTES (footnote_refs[] with resolved text on every row),",
+    "    aff10b5one 10b5-1 plan flag, full reporting_owners array, schema_era.",
+    "    Filters: ticker, company_cik, reporting_owner_cik,",
+    "    reporting_owner_name (substring), row_type ('nonderiv'|'deriv'),",
+    "    trans_codes, aff10b5one, schema_era ('pre_2023'|'2023_plus'),",
+    "    since/until, sort_by ('transaction_date'|'filing_date').",
+    "    BACKWARD-COMPAT: every v2 row also carries the LEGACY field aliases",
+    "    (disclosure_date, transaction_code, shares, price_per_share,",
+    "    total_value, acquired_disposed, shares_owned_after, officer_name,",
+    "    is_derivative, reporting_lag_days, data_source, sec_filing_url) so",
+    "    callers reading the old field names keep working. The",
+    "    `transaction_type` field carries the legacy 'buy'|'sell' semantic",
+    "    (synthesized from trans_code + trans_acquired_disp_cd, identical",
+    "    algorithm to the legacy scraper); the v2 nonderiv|deriv discriminator",
+    "    lives at `row_type`.",
+    "  'legacy' — `insider_trades` collection populated by KeyVex's daily",
+    "    EDGAR scraper. Shallower coverage (2022+), no footnotes, no",
+    "    aff10b5one, ~91% fewer filings in the same window than bulk_v2.",
+    "    Filters: ticker, company_cik, officer_name, transaction_type",
+    "    (buy|sell), is_derivative, transaction_codes, min_value, since/until,",
+    "    sort_by (disclosure_date|transaction_date|total_value).",
+    "    Use this only when you specifically need the legacy doc shape with",
+    "    NO v2-extension fields.",
+    "",
+    "SEC-SOURCE DATE CONVENTIONS — read raw values with these in mind:",
+    "",
+    "KeyVex preserves SEC's authoritative bytes exactly as published. Two",
+    "recurring source-data patterns are worth recognizing so agents interpret",
+    "raw date values correctly:",
+    "",
+    "  (1) PERPETUAL-INSTRUMENT SENTINEL — exercise_date or expiration_date",
+    "  values of 2050-12-31 / 2050-08-31 ARE SEC's established convention",
+    "  for instruments with no calendar expiration (Deferred Stock Units,",
+    "  certain Non-Qualified Stock Options, Units of Limited Partnership",
+    "  Interest, similar perpetual or condition-vested derivatives). Read",
+    "  these as 'no expiration,' not as literal calendar dates in 2050.",
+    "  This is a fact about SEC's schema, not an inference.",
+    "",
+    "  (2) ANOMALOUS-YEAR FILER-ENTRY PATTERN — date values with",
+    "  out-of-range year components — e.g., 0012-11-21 or 0025-07-25",
+    "  (likely 2-digit years entered into a 4-digit field), or 2027-01-25",
+    "  on a 2026 filing / 2028-03-19 on a 2024 filing (likely single-digit",
+    "  transpositions) — appear to be filer data-entry typos preserved",
+    "  verbatim from SEC's primary filings. KeyVex verified on a stratified",
+    "  spot-check that these values are byte-identical between SEC's primary",
+    "  XML and SEC's bulk extract (22 / 22 matches across all observed",
+    "  pattern faces); the SEC-to-KeyVex transit is faithful. The pattern",
+    "  is ongoing — observed across filings from 2014 through 2026, not",
+    "  legacy-only. Cross-reference filing_date to infer the likely",
+    "  intended year.",
+    "",
+    "Pure-publisher posture: KeyVex mirrors SEC's exact bytes, documents",
+    "these conventions and filer quirks rather than altering them, and",
+    "never silently 'corrects' a value to KeyVex's guess of what was",
+    "meant. A customer auditing KeyVex against EDGAR will find a",
+    "byte-for-byte match.",
+    "",
+    "MACHINE-READABLE FLAGS — responses include a `source_metadata` block",
+    "on rows where the above SEC-source patterns are detected. The block",
+    "is keyed by field name, with an array of flag strings per field:",
+    "`sec_perpetual_sentinel` (assertive — exact-string match on a known",
+    "SEC sentinel value); `anomalous_year_likely_filer_entry` (calibrated",
+    "— year outside the plausible range on transaction_date, exercise_date,",
+    "expiration_date, or period_of_report; covers filing-pipeline data",
+    "quality issues across the upstream-actor stack including filer typos,",
+    "filing-agent default-epoch substitutions, and other cause-classes",
+    "where the year falls outside any plausible range). Presence",
+    "is the signal: clean rows have NO `source_metadata` field at all",
+    "(not an empty object — the field is omitted entirely). Absence",
+    "means 'no SEC source quirks detected,' NOT 'certified clean by",
+    "audit' — agents weigh the difference. The raw source date values",
+    "are preserved unchanged; the flag block carries KeyVex's labeled",
+    "interpretation alongside, never replacing.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -94,7 +193,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["buy", "sell"],
         description:
-          "Filter by direction. For P/S rows this is the open-market direction; for other codes, derived from acquired_disposed (A→buy, D→sell).",
+          "Filter by direction (buy/sell). Works on BOTH data_sources. For legacy, this filters the stored field directly. For bulk_v2 (default), the field is derived per row from trans_code + trans_acquired_disp_cd (P→buy, S→sell, acqDisp=A→buy, acqDisp=D→sell, fallback A/M/X/C/I→buy else sell — same algorithm legacy uses); the v2 path pages through Firestore until enough matches are found and reports has_more accurately on the filtered set.",
       },
       is_derivative: {
         type: "boolean",
@@ -143,7 +242,53 @@ export const definition: Tool = {
       include_baseline: {
         type: "boolean",
         description:
-          "When true, the response includes matching Form 3 initial-ownership records under a `baselines` field — lets you anchor Form 4 deltas to the insider's starting position. Requires ticker or company_cik. Default false.",
+          "When true, the response includes matching Form 3 initial-ownership records under a `baselines` field — lets you anchor Form 4 deltas to the insider's starting position. Requires ticker or company_cik. Default false. (Legacy data_source only.)",
+      },
+      data_source: {
+        type: "string",
+        enum: ["legacy", "bulk_v2"],
+        description:
+          "Which backing collection to query. 'bulk_v2' (DEFAULT as of 2026-05-24) = SEC quarterly bulk dataset, 2006q1→latest (footnote_refs[] inlined, aff10b5one present, full reporting_owners array, deeper coverage). Rows carry legacy field aliases for backward compat. 'legacy' = daily EDGAR scraper output (insider_trades collection, 2022+ only, no footnotes, no 10b5-1 flag) — AND holds ~91% fewer filings than bulk_v2 for the same window. Use 'legacy' ONLY when you specifically need the legacy document shape with no v2-extension fields; bulk_v2 (the default) is authoritative for coverage.",
+      },
+      reporting_owner_cik: {
+        type: "string",
+        description:
+          "Reporting owner CIK (10-digit, zero-padded). bulk_v2 only — legacy uses officer_name substring instead.",
+      },
+      reporting_owner_name: {
+        type: "string",
+        description:
+          "Reporting owner name substring (case-insensitive). bulk_v2 only — legacy uses officer_name instead.",
+      },
+      row_type: {
+        type: "string",
+        enum: ["nonderiv", "deriv"],
+        description:
+          "bulk_v2 only. Source-table discriminator: 'nonderiv' for NONDERIV_TRANS rows (direct common-stock activity), 'deriv' for DERIV_TRANS rows (options/RSUs/warrants). For legacy data, use is_derivative instead.",
+      },
+      trans_codes: {
+        type: "array",
+        items: { type: "string" },
+        maxItems: 30,
+        description:
+          "bulk_v2 only. OR-filter on raw SEC trans_code values (P, S, A, M, X, C, F, G, D, I, V, etc.). Same semantics as legacy transaction_codes but applied to the v2 field name. Max 30 codes.",
+      },
+      aff10b5one: {
+        type: "string",
+        enum: ["1", "0", "", "NOT_TRACKED"],
+        description:
+          "bulk_v2 only. 10b5-1 trading-plan flag. '1' = plan adopted, '0' = no plan, '' = filer left the box blank (most common in 2023q1+ era), 'NOT_TRACKED' = pre-2023 era where the column did not exist on the SEC form. Filers often leave the box blank but disclose the plan in narrative footnotes — check footnote_refs[] for trans_code annotations.",
+      },
+      schema_era: {
+        type: "string",
+        enum: ["pre_2023", "2023_plus"],
+        description:
+          "bulk_v2 only. Form-version era. 'pre_2023' = filings made 2006q1 through 2022q4 (no AFF10B5ONE column). '2023_plus' = filings made 2023q1 onward (AFF10B5ONE column present, matches SEC Rule 10b5-1 amendment compliance date). Driven by FILING-quarter, not transaction_date — a late 2024 filing of an old 2009 trade still gets schema_era=2023_plus.",
+      },
+      include_non_open_market: {
+        type: "boolean",
+        description:
+          "Phase A v0.52.0 (2026-05-24): controls whether NON-MARKET events appear in the result. When false (the honest default for direction queries), the result keeps ONLY OPEN_MARKET rows (transaction_nature='OPEN_MARKET') plus INSUFFICIENT_DATA rows (passthrough — unclassified is not the same as confirmed-non-market, never silently dropped). It excludes BOTH NON_OPEN_MARKET_TRANSFER (gifts G, tax-withhold F, disposition-to-issuer D, will/inheritance W, voting-trust Z, tender U) AND EQUITY_COMP (grants A, exercises M/X/O, 401k/ESPP I, conversions C) — neither is a true open-market trade. Honest-by-default: when transaction_type='buy'|'sell' is set, defaults to FALSE; pass true to opt back in and see all natures. When transaction_type is NOT set, defaults to TRUE (returns everything, honestly tagged); pass false for a clean OPEN_MARKET+INSUFFICIENT_DATA view. The transaction_type field on each row is never mutated by this filter. The response envelope carries `unclassifiable_records_retained: N` when any INSUFFICIENT_DATA rows passed through, so the caller knows N of the returned rows couldn't be classified.",
       },
     },
     additionalProperties: false,
@@ -153,6 +298,36 @@ export const definition: Tool = {
 // ─── Handler ────────────────────────────────────────────────────────────────
 
 export async function handler(
+  args: unknown,
+): Promise<
+  | InsiderTransactionsEnvelope
+  | InsiderTransactionsV2CompatEnvelope
+> {
+  // Two branches, fully separated by data_source. Default flipped to
+  // "bulk_v2" on 2026-05-24 after Gate 6 finished — v2 has ~12x more
+  // coverage and a richer schema than legacy. v2 responses go through
+  // applyV2BackwardCompatShim so the row carries BOTH v2 native fields
+  // AND the legacy field aliases (disclosure_date, shares, officer_name,
+  // etc.) for backward compatibility with callers reading the old names.
+  const dataSource = pickDataSource(args);
+
+  if (dataSource === "bulk_v2") {
+    return await handleV2(args);
+  }
+  return await handleLegacy(args);
+}
+
+function pickDataSource(args: unknown): "legacy" | "bulk_v2" {
+  if (typeof args !== "object" || args === null) return "bulk_v2";
+  const ds = (args as Record<string, unknown>).data_source;
+  if (ds === "legacy") return "legacy";
+  if (ds === "bulk_v2" || ds === undefined) return "bulk_v2";
+  throw new Error(
+    `INVALID data_source: '${String(ds)}' — expected 'legacy' or 'bulk_v2'`,
+  );
+}
+
+async function handleLegacy(
   args: unknown,
 ): Promise<InsiderTransactionsEnvelope> {
   const query = validateAndNormalize(args);
@@ -170,11 +345,54 @@ export async function handler(
     baselinesPromise,
   ]);
 
+  // Phase A v0.52.0 (2026-05-24): refined filter — when default-excluding
+  // (transaction_type direction set + no explicit flag, OR explicit
+  // include_non_open_market:false), keep ONLY OPEN_MARKET rows AND
+  // INSUFFICIENT_DATA rows. EQUITY_COMP (RSU vests, exercises, conversions)
+  // and NON_OPEN_MARKET_TRANSFER (gifts, tax withhold, etc.) are BOTH
+  // excluded — a sell query asks for sales-into-the-market, and neither
+  // category qualifies.
+  //
+  // INSUFFICIENT_DATA passes through ALWAYS, even on strict-exclude — the
+  // Tourniquet doctrine: silently dropping unclassified rows would re-
+  // create the bug we built Phase A to fix. Instead, the envelope carries
+  // `unclassifiable_records_retained: N` so the agent sees the count.
+  //
+  // The transaction_type field on each returned row is NEVER mutated by
+  // this filter — only whether the row appears at all in the result set.
+  const includeNonOpenMarket = resolveIncludeNonOpenMarket(
+    query.transaction_type,
+    query.include_non_open_market,
+  );
+  const filteredResults = includeNonOpenMarket
+    ? results
+    : results.filter((r) => {
+        const nature = deriveTransactionNature(r.transaction_code);
+        // Keep OPEN_MARKET (the actual trades) + INSUFFICIENT_DATA
+        // (unclassified — passthrough for honesty). Drop the rest.
+        return nature === "OPEN_MARKET" || nature === "INSUFFICIENT_DATA";
+      });
+
+  // Count INSUFFICIENT_DATA rows retained — surface to caller for honesty
+  const unclassifiableCount = filteredResults.filter(
+    (r) =>
+      deriveTransactionNature(r.transaction_code) === "INSUFFICIENT_DATA",
+  ).length;
+
+  // Phase 2b: read-time source-metadata annotation. Same shared helper
+  // as handleV2 above — single source of truth so a future detection-
+  // rule revision lands in one place. Pure function, no Firestore I/O,
+  // never mutates source values. See src/source-metadata.ts.
+  const annotatedResults = annotateRowsSourceMetadata(filteredResults);
+
   const envelope: InsiderTransactionsEnvelope = {
-    results,
-    count: results.length,
+    results: annotatedResults,
+    count: annotatedResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
+    ...(unclassifiableCount > 0 && {
+      unclassifiable_records_retained: unclassifiableCount,
+    }),
     query: query as Record<string, unknown>,
   };
 
@@ -183,6 +401,109 @@ export async function handler(
   }
 
   return envelope;
+}
+
+/**
+ * Resolve the context-driven default for include_non_open_market.
+ *
+ * The semantic per Greg's Phase A directive:
+ *   - When a directional filter is active (transaction_type="buy"|"sell"):
+ *     default to EXCLUDING transfers (false). A gift isn't a trade.
+ *     "Honest by default for sell-total semantics."
+ *   - When no directional filter is set:
+ *     default to INCLUDING everything (true), honestly tagged via
+ *     transaction_nature so the agent can filter further.
+ *
+ * Explicit boolean from the caller ALWAYS wins over the context default.
+ */
+function resolveIncludeNonOpenMarket(
+  transactionType: string | undefined,
+  callerValue: boolean | undefined,
+): boolean {
+  if (callerValue !== undefined) return callerValue;
+  // Context-driven default
+  if (transactionType === "buy" || transactionType === "sell") return false;
+  return true;
+}
+
+async function handleV2(
+  args: unknown,
+): Promise<InsiderTransactionsV2CompatEnvelope> {
+  const query = validateAndNormalizeV2(args);
+
+  // PHASE A v0.52.0 (2026-05-24): composed postFilter applies BOTH the
+  // direction filter (buy/sell) AND the broadened include_non_open_market
+  // filter. When default-excluding (transaction_type set + no explicit
+  // flag, OR explicit include_non_open_market:false), drop rows where
+  // transaction_nature is EQUITY_COMP or NON_OPEN_MARKET_TRANSFER —
+  // BOTH categories represent non-market events that pollute a direction
+  // query. INSUFFICIENT_DATA rows ALWAYS pass through (Tourniquet:
+  // unclassified is not the same as excluded); the envelope's
+  // unclassifiable_records_retained counter surfaces how many.
+  const wantedDirection = query.transaction_type;
+  const includeNonOpenMarket = resolveIncludeNonOpenMarket(
+    wantedDirection,
+    query.include_non_open_market,
+  );
+  const needsPostFilter = wantedDirection !== undefined || !includeNonOpenMarket;
+  const queryOpts = needsPostFilter
+    ? {
+        postFilter: (row: InsiderTransactionV2) => {
+          if (
+            wantedDirection &&
+            deriveLegacyBuyOrSell(
+              row.trans_code,
+              row.trans_acquired_disp_cd,
+            ) !== wantedDirection
+          ) {
+            return false;
+          }
+          if (!includeNonOpenMarket) {
+            const nature = deriveTransactionNature(row.trans_code);
+            // Keep OPEN_MARKET (the trades) + INSUFFICIENT_DATA (passthrough
+            // for honesty). Drop EQUITY_COMP + NON_OPEN_MARKET_TRANSFER.
+            if (nature !== "OPEN_MARKET" && nature !== "INSUFFICIENT_DATA") {
+              return false;
+            }
+          }
+          return true;
+        },
+      }
+    : {};
+
+  const { results, has_more, coverage_warning } =
+    await queryInsiderTransactionsV2(query, queryOpts);
+
+  // Apply the backward-compat shim per row: each result gains the legacy
+  // field aliases (disclosure_date, shares, officer_name, etc.) and
+  // `transaction_type` is redefined to legacy "buy"|"sell" semantic.
+  // See insider-transactions-v2-shim.ts for the algorithm + invariant.
+  const shimmedResults = results.map(applyV2BackwardCompatShim);
+
+  // Phase A v0.52.0: count INSUFFICIENT_DATA rows retained through the
+  // filter. Shim has already populated transaction_nature on every row.
+  const unclassifiableCount = shimmedResults.filter(
+    (r) => r.transaction_nature === "INSUFFICIENT_DATA",
+  ).length;
+
+  // Phase 2b: read-time source-metadata annotation. Adds optional
+  // `source_metadata` field per row when SEC-source quirks are detected
+  // (2050 perpetual-instrument sentinel; anomalous-year filer-entry).
+  // Pure function, no Firestore I/O, never mutates source values. See
+  // src/source-metadata.ts. Shared with handleLegacy below — single
+  // source of truth.
+  const annotatedResults = annotateRowsSourceMetadata(shimmedResults);
+
+  return {
+    results: annotatedResults,
+    count: annotatedResults.length,
+    has_more,
+    ...(coverage_warning && { coverage_warning }),
+    ...(unclassifiableCount > 0 && {
+      unclassifiable_records_retained: unclassifiableCount,
+    }),
+    query: { ...query, data_source: "bulk_v2" } as Record<string, unknown>,
+  };
 }
 
 /**
@@ -263,10 +584,7 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
   }
 
   if (args.is_derivative !== undefined) {
-    if (typeof args.is_derivative !== "boolean") {
-      throw new Error("is_derivative must be a boolean");
-    }
-    out.is_derivative = args.is_derivative;
+    out.is_derivative = parseBooleanArg(args.is_derivative, "is_derivative");
   }
 
   if (args.transaction_codes !== undefined) {
@@ -337,15 +655,24 @@ function validateAndNormalize(raw: unknown): InsiderTransactionsQuery {
   }
 
   if (args.include_baseline !== undefined) {
-    if (typeof args.include_baseline !== "boolean") {
-      throw new Error("include_baseline must be a boolean");
-    }
-    if (args.include_baseline && !out.ticker && !out.company_cik) {
+    const v = parseBooleanArg(args.include_baseline, "include_baseline");
+    if (v && !out.ticker && !out.company_cik) {
       throw new Error(
         "INVALID_BASELINE_QUERY: include_baseline=true requires ticker or company_cik to be set",
       );
     }
-    out.include_baseline = args.include_baseline;
+    out.include_baseline = v;
+  }
+
+  // Phase A (2026-05-24): include_non_open_market — see InsiderTransactionsQuery
+  // type for the context-driven default semantics. Validator stores the
+  // caller-provided value (or leaves undefined); handler resolves the default
+  // based on whether transaction_type is set.
+  if (args.include_non_open_market !== undefined) {
+    out.include_non_open_market = parseBooleanArg(
+      args.include_non_open_market,
+      "include_non_open_market",
+    );
   }
 
   return out;
@@ -361,4 +688,166 @@ function parseIsoDate(value: unknown, fieldName: string): string {
     );
   }
   return value;
+}
+
+// ─── v2 input validation (data_source="bulk_v2" branch) ─────────────────────
+
+function validateAndNormalizeV2(raw: unknown): InsiderTransactionsV2Query {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("Arguments must be an object");
+  }
+  const args = raw as Record<string, unknown>;
+  const out: InsiderTransactionsV2Query = {};
+
+  if (args.ticker !== undefined) {
+    if (
+      typeof args.ticker !== "string" ||
+      !/^[A-Za-z][A-Za-z0-9./-]{0,9}$/.test(args.ticker)
+    ) {
+      throw new Error(
+        `INVALID_TICKER: '${String(args.ticker)}' — expected 1-10 chars, letters first, optional . / - for share classes`,
+      );
+    }
+    out.ticker = args.ticker.toUpperCase();
+  }
+
+  if (args.company_cik !== undefined) {
+    if (typeof args.company_cik !== "string") {
+      throw new Error("company_cik must be a string");
+    }
+    out.company_cik = args.company_cik.padStart(10, "0");
+  }
+
+  if (args.reporting_owner_cik !== undefined) {
+    if (typeof args.reporting_owner_cik !== "string") {
+      throw new Error("reporting_owner_cik must be a string");
+    }
+    out.reporting_owner_cik = args.reporting_owner_cik.padStart(10, "0");
+  }
+
+  if (args.reporting_owner_name !== undefined) {
+    if (typeof args.reporting_owner_name !== "string") {
+      throw new Error("reporting_owner_name must be a string");
+    }
+    out.reporting_owner_name = args.reporting_owner_name;
+  }
+
+  if (args.row_type !== undefined) {
+    if (args.row_type !== "nonderiv" && args.row_type !== "deriv") {
+      throw new Error(
+        `INVALID row_type: '${String(args.row_type)}' — expected 'nonderiv' or 'deriv'`,
+      );
+    }
+    out.row_type = args.row_type;
+  }
+
+  // Legacy buy/sell direction filter. v2 doesn't STORE buy/sell — the
+  // queryInsiderTransactionsV2 postFilter callback applies the same
+  // deriveLegacyBuyOrSell rule the shim uses on output, so input filter
+  // and output value share one definition. See firestore.ts comment on
+  // POSTFILTER OPTION for pagination details.
+  if (args.transaction_type !== undefined) {
+    if (
+      args.transaction_type !== "buy" &&
+      args.transaction_type !== "sell"
+    ) {
+      throw new Error(
+        `INVALID transaction_type: '${String(args.transaction_type)}' — expected 'buy' or 'sell'`,
+      );
+    }
+    out.transaction_type = args.transaction_type;
+  }
+
+  if (args.trans_codes !== undefined) {
+    if (
+      !Array.isArray(args.trans_codes) ||
+      args.trans_codes.length === 0 ||
+      args.trans_codes.length > 30 ||
+      args.trans_codes.some(
+        (c) => typeof c !== "string" || !/^[A-Z]$/.test(c),
+      )
+    ) {
+      throw new Error(
+        "INVALID trans_codes — expected non-empty array of single-letter uppercase SEC codes (max 30)",
+      );
+    }
+    out.trans_codes = args.trans_codes as string[];
+  }
+
+  if (args.aff10b5one !== undefined) {
+    if (
+      args.aff10b5one !== "1" &&
+      args.aff10b5one !== "0" &&
+      args.aff10b5one !== "" &&
+      args.aff10b5one !== "NOT_TRACKED"
+    ) {
+      throw new Error(
+        `INVALID aff10b5one: '${String(args.aff10b5one)}' — expected '1', '0', '', or 'NOT_TRACKED'`,
+      );
+    }
+    out.aff10b5one = args.aff10b5one;
+  }
+
+  if (args.schema_era !== undefined) {
+    if (args.schema_era !== "pre_2023" && args.schema_era !== "2023_plus") {
+      throw new Error(
+        `INVALID schema_era: '${String(args.schema_era)}' — expected 'pre_2023' or '2023_plus'`,
+      );
+    }
+    out.schema_era = args.schema_era;
+  }
+
+  if (args.since !== undefined) {
+    out.since = parseIsoDate(args.since, "since");
+  }
+
+  if (args.until !== undefined) {
+    out.until = parseIsoDate(args.until, "until");
+  }
+
+  if (args.sort_by !== undefined) {
+    // v2 sort_by is a different (smaller) enum than legacy. If a caller passes
+    // a legacy-only sort field (e.g. "disclosure_date" or "total_value") with
+    // data_source="bulk_v2", reject early with a clear error rather than
+    // silently re-mapping — neither field exists on the v2 schema.
+    if (args.sort_by !== "transaction_date" && args.sort_by !== "filing_date") {
+      throw new Error(
+        `INVALID sort_by for data_source='bulk_v2': '${String(args.sort_by)}' — expected 'transaction_date' or 'filing_date'. Legacy-only values (disclosure_date, total_value) are not available on the v2 schema.`,
+      );
+    }
+    out.sort_by = args.sort_by;
+  }
+
+  if (args.sort_order !== undefined) {
+    if (args.sort_order !== "desc" && args.sort_order !== "asc") {
+      throw new Error(
+        `INVALID sort_order: '${String(args.sort_order)}' — expected 'desc' or 'asc'`,
+      );
+    }
+    out.sort_order = args.sort_order;
+  }
+
+  if (args.limit !== undefined) {
+    if (
+      typeof args.limit !== "number" ||
+      !Number.isInteger(args.limit) ||
+      args.limit < 1 ||
+      args.limit > 500
+    ) {
+      throw new Error(
+        `INVALID limit: '${String(args.limit)}' — expected integer 1..500`,
+      );
+    }
+    out.limit = args.limit;
+  }
+
+  // Phase A (2026-05-24): include_non_open_market — same semantic as legacy
+  if (args.include_non_open_market !== undefined) {
+    out.include_non_open_market = parseBooleanArg(
+      args.include_non_open_market,
+      "include_non_open_market",
+    );
+  }
+
+  return out;
 }

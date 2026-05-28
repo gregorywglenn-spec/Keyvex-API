@@ -18,6 +18,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryFecIndependentExpenditures } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   FecIndependentExpenditure,
   FecIndependentExpenditureQuery,
@@ -261,9 +262,7 @@ function validateAndNormalize(raw: unknown): FecIndependentExpenditureQuery {
     out.cycle = args.cycle;
   }
   if (args.exclude_memos !== undefined) {
-    if (typeof args.exclude_memos !== "boolean")
-      throw new Error("exclude_memos must be boolean");
-    out.exclude_memos = args.exclude_memos;
+    out.exclude_memos = parseBooleanArg(args.exclude_memos, "exclude_memos");
   }
   if (args.sort_by !== undefined) {
     if (

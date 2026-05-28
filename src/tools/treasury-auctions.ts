@@ -16,6 +16,7 @@
  */
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryTreasuryAuctions } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ResultEnvelope,
   TreasuryAuction,
@@ -141,10 +142,7 @@ function validateAndNormalize(raw: unknown): TreasuryAuctionsQuery {
     out.security_type = args.security_type;
   }
   if (args.reopening !== undefined) {
-    if (typeof args.reopening !== "boolean") {
-      throw new Error("reopening must be a boolean");
-    }
-    out.reopening = args.reopening;
+    out.reopening = parseBooleanArg(args.reopening, "reopening");
   }
   if (args.min_offering_amount !== undefined) {
     if (

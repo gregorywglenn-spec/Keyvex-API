@@ -122,7 +122,7 @@ Rules that follow from this:
 
 A Model Context Protocol (MCP) server that exposes US public financial disclosures — congressional trades, executive insider transactions (Form 4), institutional holdings (13F), federal contracts, lobbying, 8-K material events, and member profiles — as agent-native tools. **Brand: KeyVex.** Public domain: `keyvex.com` (mapping to the Cloud Function endpoint pending). Package name: `keyvex`.
 
-Sibling product to the Capital Edge dashboard at `C:\CapitalEdge`. Dashboard sells derived intelligence (convergence score + tax engine) to retail investors. This project sells clean, normalized public-record data to developers and AI agents — the cleanup work (parsing, ticker resolution, schema unification, idempotent doc IDs) is done; what we deliberately don't ship is derived signals or opinions on top. Different audience, different legal posture, different product entirely.
+Sibling product to the Capital Edge dashboard at `C:\CapitalEdge`. Dashboard sells derived intelligence (convergence score + tax engine) to retail investors. This project sells clean, source-faithful public-record data to developers and AI agents — the cleanup work (parsing, ticker resolution, schema unification, idempotent doc IDs) is done; what we deliberately don't ship is derived signals or opinions on top. Different audience, different legal posture, different product entirely.
 
 **The wedge:** every existing financial-data MCP (Unusual Whales, FMP, Alpha Vantage) bolted MCP onto a pre-existing REST API and ended up with 100–250 tools that overwhelm agent context windows. This project is designed for the agent as the customer from the ground up: fewer tools, smarter parameters, descriptions that help the agent decide when to use each one. See `TOOL_DESIGN.md` for the full design rationale.
 
@@ -550,6 +550,7 @@ These apply across all his Claudes — copied here so a cold session has them in
 5. **Flag opportunity in the moment.** If you spot a genuine business opportunity adjacent to what you're working on, surface it without being asked.
 6. **Pure-publisher posture stays.** No derived intelligence in tool outputs. Ever. Convergence score and similar belong to the dashboard product, not here.
 7. **Project boundary discipline.** This project never writes to Capital Edge's Firestore collections. Scraper changes that affect this project's data happen here only.
+8. **Source-faithful, byte-exact, auditable.** KeyVex mirrors SEC's authoritative bytes verbatim, including source-side quirks (sentinels, filer-entry typos). Conventions get documented in tool descriptions; runtime annotation via `source_metadata` flags (`src/source-metadata.ts`) labels quirks as KeyVex's interpretation, never the source's. Never silently normalize: substituting KeyVex's guess for the source's recorded value is fabrication against the authoritative record. Verifiable consequence — any KeyVex record audits byte-for-byte against EDGAR. Evidence is per-record-verifiable (spot-check: 19-row stratified sample, 22/22 matches per v4 amendment 2), not a census — keep claims to "audit any record," not "100% verified." Applies to every tool and scraper added.
 
 ## Decisions Greg Locked In Tonight
 

@@ -25,6 +25,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryTenderOffers } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ResultEnvelope,
   TenderOffer,
@@ -236,16 +237,10 @@ function validateAndNormalize(raw: unknown): TenderOffersQuery {
   }
 
   if (args.third_party_only !== undefined) {
-    if (typeof args.third_party_only !== "boolean") {
-      throw new Error("third_party_only must be a boolean");
-    }
-    out.third_party_only = args.third_party_only;
+    out.third_party_only = parseBooleanArg(args.third_party_only, "third_party_only");
   }
   if (args.issuer_only !== undefined) {
-    if (typeof args.issuer_only !== "boolean") {
-      throw new Error("issuer_only must be a boolean");
-    }
-    out.issuer_only = args.issuer_only;
+    out.issuer_only = parseBooleanArg(args.issuer_only, "issuer_only");
   }
   if (out.third_party_only && out.issuer_only) {
     throw new Error(
@@ -254,10 +249,7 @@ function validateAndNormalize(raw: unknown): TenderOffersQuery {
   }
 
   if (args.exclude_amendments !== undefined) {
-    if (typeof args.exclude_amendments !== "boolean") {
-      throw new Error("exclude_amendments must be a boolean");
-    }
-    out.exclude_amendments = args.exclude_amendments;
+    out.exclude_amendments = parseBooleanArg(args.exclude_amendments, "exclude_amendments");
   }
 
   if (args.since !== undefined) {

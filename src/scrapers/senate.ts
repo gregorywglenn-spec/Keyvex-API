@@ -37,6 +37,7 @@ import * as cheerio from "cheerio";
 import fetchCookie from "fetch-cookie";
 import { CookieJar } from "tough-cookie";
 import type { CongressionalTrade } from "../types.js";
+import { deriveCongressionalNature } from "../tools/insider-transactions-v2-shim.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -508,6 +509,16 @@ export function parseSenatePtr(
 
     const transaction_type: "buy" | "sell" = isBuy ? "buy" : "sell";
 
+    // Phase A (2026-05-24): derive transaction_nature from the comment text.
+    // Pelosi's "Contribution of N shares to Trinity University" gets caught
+    // here as NON_OPEN_MARKET_TRANSFER. transaction_type field stays "sell"
+    // (back-compat). Separate code path from Form 4 — congressional has no
+    // regulatory trans_code field, the signal lives in free text only.
+    const transaction_nature = deriveCongressionalNature({
+      comment,
+      transaction_type,
+    });
+
     trades.push({
       id: `senate-${meta.ptrId}-${i}`,
       ticker,
@@ -523,6 +534,7 @@ export function parseSenatePtr(
       state_district: "",
       office: meta.office,
       transaction_type,
+      transaction_nature,
       transaction_date: toISO(transactionDate),
       disclosure_date: toISO(meta.dateFiled),
       reporting_lag_days: businessDaysBetween(transactionDate, meta.dateFiled),

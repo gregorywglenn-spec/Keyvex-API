@@ -10,6 +10,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryActivistOwnership } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ActivistOwnership,
   ActivistOwnershipQuery,
@@ -46,8 +47,18 @@ export const definition: Tool = {
     "much higher signal-to-noise than the 13G firehose, which is dominated",
     "by routine quarterly disclosures from Vanguard, BlackRock, etc.",
     "",
-    "Filings since October 2023 ship structured XML and parse cleanly.",
-    "Pre-2023 paper-style filings produce 0 records (silently skipped).",
+    "COVERAGE FLOOR: KeyVex's ingestion of Schedule 13D/G filings begins",
+    "January 2024. Filings before 2024 are not in the collection. A 13D/G",
+    "query for activity in 2023 or earlier returns zero records — this",
+    "is the collection's coverage boundary, not a per-entity gap.",
+    "",
+    "13D/A and 13G/A AMENDMENT EXIT FILINGS: when a filer reports they",
+    "have divested below the 5% threshold, the resulting row carries",
+    "shares_owned: 0 and percent_of_class: 0. These rows are CORRECT —",
+    "an exit IS zero — not missing data. To distinguish active stakes",
+    "from exit filings, filter by shares_owned > 0 or by",
+    "min_percent_of_class.",
+    "",
     "The full 'Item 4: Purpose of Transaction' narrative on a 13D lives",
     "on the HTML side of the filing — not exposed by this tool. Follow",
     "the sec_filing_url for that.",
@@ -199,10 +210,7 @@ function validateAndNormalize(raw: unknown): ActivistOwnershipQuery {
   }
 
   if (args.is_activist !== undefined) {
-    if (typeof args.is_activist !== "boolean") {
-      throw new Error("is_activist must be a boolean");
-    }
-    out.is_activist = args.is_activist;
+    out.is_activist = parseBooleanArg(args.is_activist, "is_activist");
   }
 
   if (args.filing_type !== undefined) {

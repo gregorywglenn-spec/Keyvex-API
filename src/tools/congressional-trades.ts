@@ -11,6 +11,8 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryCongressionalTrades } from "../firestore.js";
+import { deriveCongressionalNature } from "./insider-transactions-v2-shim.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   CongressionalTrade,
   CongressionalTradesQuery,
@@ -116,6 +118,11 @@ export const definition: Tool = {
         maximum: 500,
         description: "Maximum records to return. Default 50, max 500.",
       },
+      include_non_open_market: {
+        type: "boolean",
+        description:
+          "Phase A v0.52.0 (2026-05-24): controls whether NON-MARKET events appear in the result. When false (honest default for direction queries), keeps ONLY OPEN_MARKET rows plus INSUFFICIENT_DATA rows (passthrough — unclassified is not the same as confirmed non-market, never silently dropped). Excludes both NON_OPEN_MARKET_TRANSFER (charitable contributions, gifts, donations detected in `comment`) AND EQUITY_COMP (rare for congressional but handled identically for parity). Honest-by-default: with transaction_type='buy'|'sell' → defaults to FALSE so a charitable contribution can't pollute a sell-total query. Without transaction_type → defaults to TRUE (everything tagged honestly). The transaction_type field on each row is NEVER mutated. Example: `member_name:'Pelosi', transaction_type:'sell'` by default EXCLUDES Pelosi's Trinity University contribution; `include_non_open_market:true` re-includes it. Envelope carries `unclassifiable_records_retained: N` when any INSUFFICIENT_DATA rows passed through.",
+      },
     },
     additionalProperties: false,
   },
@@ -128,13 +135,68 @@ export async function handler(
 ): Promise<ResultEnvelope<CongressionalTrade>> {
   const query = validateAndNormalize(args);
   const { results, has_more, coverage_warning } = await queryCongressionalTrades(query);
+
+  // Phase A v0.52.0 (2026-05-24): refined honest-by-default filter — when
+  // default-excluding (transaction_type set + no flag OR explicit false),
+  // keep ONLY OPEN_MARKET + INSUFFICIENT_DATA (passthrough). Drop
+  // NON_OPEN_MARKET_TRANSFER (gifts/contributions detected in comment).
+  // Congressional doesn't typically populate EQUITY_COMP — but the rule
+  // handles it identically for parity with insider-transactions.
+  //
+  // INSUFFICIENT_DATA passes through always. Envelope surfaces
+  // unclassifiable_records_retained counter when > 0.
+  const includeNonOpenMarket = resolveIncludeNonOpenMarket(
+    query.transaction_type,
+    query.include_non_open_market,
+  );
+  // Derive nature once per row (used twice: for filter + counter)
+  const withNature = results.map((r) => ({
+    row: r,
+    nature:
+      r.transaction_nature ??
+      deriveCongressionalNature({
+        comment: r.comment,
+        transaction_type: r.transaction_type,
+      }),
+  }));
+  const filteredResults = includeNonOpenMarket
+    ? withNature.map((x) => x.row)
+    : withNature
+        .filter(
+          (x) =>
+            x.nature === "OPEN_MARKET" || x.nature === "INSUFFICIENT_DATA",
+        )
+        .map((x) => x.row);
+  const unclassifiableCount = withNature.filter(
+    (x) =>
+      x.nature === "INSUFFICIENT_DATA" &&
+      filteredResults.includes(x.row),
+  ).length;
+
   return {
-    results,
-    count: results.length,
+    results: filteredResults,
+    count: filteredResults.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
+    ...(unclassifiableCount > 0 && {
+      unclassifiable_records_retained: unclassifiableCount,
+    }),
     query: query as Record<string, unknown>,
   };
+}
+
+/**
+ * Phase A: resolve the context-driven default for include_non_open_market.
+ * Identical semantic to insider-transactions: when transaction_type is set,
+ * default to excluding transfers; otherwise include them all by default.
+ */
+function resolveIncludeNonOpenMarket(
+  transactionType: string | undefined,
+  callerValue: boolean | undefined,
+): boolean {
+  if (callerValue !== undefined) return callerValue;
+  if (transactionType === "buy" || transactionType === "sell") return false;
+  return true;
 }
 
 // ─── Input validation ───────────────────────────────────────────────────────
@@ -280,6 +342,14 @@ function validateAndNormalize(raw: unknown): CongressionalTradesQuery {
       );
     }
     out.limit = args.limit;
+  }
+
+  // Phase A (2026-05-24): see CongressionalTradesQuery for full semantic
+  if (args.include_non_open_market !== undefined) {
+    out.include_non_open_market = parseBooleanArg(
+      args.include_non_open_market,
+      "include_non_open_market",
+    );
   }
 
   return out;

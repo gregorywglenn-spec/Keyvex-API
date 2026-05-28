@@ -13,6 +13,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryRegistrationStatements } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   RegistrationStatement,
   RegistrationStatementsQuery,
@@ -53,6 +54,13 @@ export const definition: Tool = {
     "prospectus content (offering size, share counts, use of proceeds,",
     "risk factors, financial statements) lives at primary_document_url —",
     "agents follow for the prose.",
+    "",
+    "SCOPE — covers S-1 (IPO) and S-3 (shelf) registrations only (plus",
+    "/A amendments). S-8 employee-benefit-plan registrations, S-4",
+    "merger/acquisition registrations, F-series foreign-issuer forms,",
+    "and other registration types are NOT ingested. Companies that only",
+    "file S-8s (most mature US public companies) return zero records —",
+    "correct by scope, not a coverage gap.",
     "",
     "Amendment chains: all amendments share the same sec_file_number as",
     "the original. Use sec_file_number filter to fetch an entire amendment",
@@ -200,25 +208,16 @@ function validateAndNormalize(raw: unknown): RegistrationStatementsQuery {
   }
 
   if (args.s1_only !== undefined) {
-    if (typeof args.s1_only !== "boolean") {
-      throw new Error("s1_only must be a boolean");
-    }
-    out.s1_only = args.s1_only;
+    out.s1_only = parseBooleanArg(args.s1_only, "s1_only");
   }
   if (args.s3_only !== undefined) {
-    if (typeof args.s3_only !== "boolean") {
-      throw new Error("s3_only must be a boolean");
-    }
-    out.s3_only = args.s3_only;
+    out.s3_only = parseBooleanArg(args.s3_only, "s3_only");
   }
   if (out.s1_only && out.s3_only) {
     throw new Error("s1_only and s3_only are mutually exclusive");
   }
   if (args.exclude_amendments !== undefined) {
-    if (typeof args.exclude_amendments !== "boolean") {
-      throw new Error("exclude_amendments must be a boolean");
-    }
-    out.exclude_amendments = args.exclude_amendments;
+    out.exclude_amendments = parseBooleanArg(args.exclude_amendments, "exclude_amendments");
   }
 
   if (args.sec_file_number !== undefined) {

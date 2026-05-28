@@ -1505,6 +1505,141 @@
         { "fieldPath": "cik", "order": "ASCENDING" },
         { "fieldPath": "period_end", "order": "DESCENDING" }
       ]
+    },
+
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "company_cik", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reporting_owner_cik", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trans_code", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "trans_code", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "aff10b5one", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "aff10b5one", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "schema_era", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "insider_holdings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_holdings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "company_cik", "order": "ASCENDING" },
+        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_holdings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reporting_owner_cik", "order": "ASCENDING" },
+        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_holdings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "holding_type", "order": "ASCENDING" },
+        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+      ]
+    },
+
+    {
+      "collectionGroup": "insider_filings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_filings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "company_cik", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "insider_filings_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "document_type", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

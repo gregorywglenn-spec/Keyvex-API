@@ -702,6 +702,15 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
         of securities, no claims about future performance.
       </p>
       <p>
+        <strong>Source-faithful, byte-exact, auditable.</strong> We don't
+        silently alter what SEC published either. Sentinels, filer typos,
+        the full set of source-side quirks — preserved byte-for-byte.
+        Conventions are explained in each tool's description; a
+        <code>source_metadata</code> block annotates the quirks at read
+        time so your agent reads them correctly. <strong>Audit any KeyVex
+        record against EDGAR — the bytes match.</strong>
+      </p>
+      <p>
         This isn't a marketing distinction — it's a deliberate legal posture
         (Lowe v. SEC, 1985) that keeps KeyVex cleanly outside investment-advisor
         territory. We do the data work; what you build on top of it is yours.

@@ -10,7 +10,7 @@ Congressional trades, executive insider transactions, institutional holdings, ac
 
 ## Why KeyVex
 
-Every other financial-data MCP today wraps a pre-existing REST API and ends up with 100–250 tools that overflow agent context windows. KeyVex starts from the agent: 28 entity-based tools, rich filter parameters, no separate `get_X` and `get_X_by_ticker` and `get_recent_X` variants. One of those tools — `unified_search` — fans out across the entire disclosure surface in one call (the demo above is real).
+Every other financial-data MCP today wraps a pre-existing REST API and ends up with 100–250 tools that overflow agent context windows. KeyVex starts from the agent: 38 entity-based tools, rich filter parameters, no separate `get_X` and `get_X_by_ticker` and `get_recent_X` variants. One of those tools — `unified_search` — fans out across the entire disclosure surface in one call (the demo above is real).
 
 **The wedge — one conversation, every source that matters:**
 
@@ -69,9 +69,19 @@ Six separate disclosure sources joined by `ticker` + `bioguide_id` + `recipient_
 | `get_oig_exclusions` | HHS-OIG List of Excluded Individuals/Entities (LEIE) | Monthly 5th |
 | `get_consumer_complaints` | CFPB Consumer Complaint Database | Daily 8 AM |
 | `get_fundamentals` | SEC EDGAR XBRL — income statement / balance sheet / cash flow per 10-K + 10-Q | Weekly Sunday 4 AM |
+| `get_federal_grants` | USAspending.gov (federal grants + cooperative agreements; distinct universe from contracts — universities, non-profits, research) | Daily 6:12 AM |
+| `get_fec_contributions` | FEC Schedule A (itemized contributions to federal committees) | Daily 7:30 AM |
+| `get_fec_independent_expenditures` | FEC Schedule E (super-PAC IE ads for/against candidates; carries 'S'/'O' support_oppose flag) | Daily 7:45 AM |
+| `get_cftc_cot_reports` | CFTC Commitments of Traders (weekly futures + options-on-futures positioning by trader class) | Weekly Saturday 7 AM |
+| `get_sec_fails_to_deliver` | SEC bi-monthly Fails-to-Deliver (daily settlement-failure rows by ticker / CUSIP) | Bi-monthly (1st + 16th) |
+| `get_fund_holdings` | SEC Form N-PORT primary docs (per-security mutual fund / ETF / CEF positions including derivatives) | Daily 6:40 AM |
+| `get_product_recalls` | openFDA drug + device + food recalls + CPSC consumer-product recalls (NHTSA vehicle deferred to v1A.1) | Daily 6:50 / 6:55 AM |
+| `get_foreign_agents` | DOJ FARA registrations (US persons + firms registered as agents of a foreign principal) | Weekly Sunday 5:30 AM |
+| `get_screening_list` | US Consolidated Screening List (twelve federal export-screening lists: SDN, Entity List, Denied Persons, MEU, UVL, CMIC, Capta, ITAR Debarred, ISN, NS-MBS, PLC, SSI) | Daily 5:50 AM |
+| `get_government_publications` | GovInfo CRPT (committee reports) / PLAW (public laws) / CHRG (hearings) / GAOREPORTS (GAO oversight, archival) | Daily 9:30 AM |
 | `unified_search` | Cross-collection fan-out by ticker / bioguide_id / company_cik / recipient_uei | (federated, hits other tools' data) |
 
-**28 tools, 28+ distinct disclosure sources.** All refresh autonomously on cron — no human in the loop.
+**38 tools, 42+ distinct disclosure sources.** All refresh autonomously on cron — no human in the loop.
 
 ### Notable tool extensions
 
@@ -162,7 +172,7 @@ For the remote endpoint, one-click installation through Anthropic's MCP director
 - **Data layer:** Google Firestore via `firebase-admin`
 - **Hosting:** Firebase Cloud Functions Gen 2, region `us-central1`
 - **Auth:** API keys in Google Secret Manager (`MCP_API_KEY` for the public endpoint, `FEC_API_KEY` for upstream api.data.gov calls)
-- **Scrapers:** 20+ autonomous scrapers running on cron across the unified KeyVex operation. SEC EDGAR (Form 3 / 4 / 144 / 13D-G / 13F / 8-K / D / NPORT / S-1+S-3 / Schedule TO / Form 278), USAspending, Senate LDA, Senate eFD + House Clerk PTRs, bioguide + historical legislators, congress.gov (bills + roll-call votes), FEC (candidates + committees), FINRA OTC Transparency, OFAC sanctions, Federal Register, SEC + DOJ press releases. No human in the loop.
+- **Scrapers:** 40+ autonomous scrapers running on cron across the unified KeyVex operation. SEC EDGAR (Form 3 / 4 / 5 / 144 / 13D-G / 13F / 8-K / D / NPORT / S-1+S-3 / Schedule TO / Form 278 / XBRL / Proxy 14A / FTD), USAspending (contracts + grants), Senate LDA, Senate eFD + House Clerk PTRs, bioguide current + historical, congress.gov (bills + House roll-calls) + senate.gov (Senate roll-calls), FEC (candidates / committees / Schedule A / Schedule E), CFTC (enforcement + Commitments of Traders), FINRA OTC Transparency, OFAC sanctions, US Consolidated Screening List, Federal Register, openFDA (drug + device + food recalls), CPSC recalls, DOJ FARA, GovInfo (CRPT / PLAW / CHRG / GAOREPORTS), HHS-OIG LEIE, CFPB complaints, Treasury auctions, BLS + FRED + EIA macro/energy, SEC + DOJ + CFTC + OCC + FDIC + FTC press releases. No human in the loop.
 
 ---
 
@@ -186,7 +196,7 @@ npx tsx src/scrape.ts 8k-feed 1 --save
 npx tsx src/scrape.ts ofac-sdn --save
 npx tsx src/scrape.ts federal-register 3 --save
 
-# Run a battle test across all 28 MCP tools:
+# Run the battle test against MCP tool handlers (covers 36 of 38; get_fundamentals + unified_search not yet in harness):
 npx tsx scripts/battle-test.ts
 
 # Run the stdio MCP server (for Claude Desktop wiring):
@@ -201,7 +211,7 @@ For Firestore connectivity locally, drop a service account JSON at `secrets/serv
 
 ```
 src/
-├── tools/                 — one file per MCP tool (28 tools — definition + handler)
+├── tools/                 — one file per MCP tool (38 tools — definition + handler)
 ├── scrapers/              — one file per data source (SEC EDGAR forms, congress.gov, FEC, FINRA, OFAC, Federal Register, ...)
 ├── server-setup.ts        — shared MCP-server tool-registration logic (used by both stdio and HTTP entries)
 ├── firestore.ts           — data layer with stub/live mode auto-detection
@@ -219,7 +229,7 @@ functions/
 └── tsconfig.json          — extends parent, includes ../src
 
 scripts/
-├── battle-test.ts         — 59-query battle test across all 28 MCP tools (re-runnable QA harness)
+├── battle-test.ts         — 59-query battle test across 36 of 38 MCP tools (re-runnable QA harness; get_fundamentals + unified_search not yet covered)
 ├── smoke-*.ts             — per-tool smoke tests using real-data IDs
 ├── count-*.ts             — per-collection Firestore counters
 └── inspect-*.ts           — diagnostic scripts for data-state debugging
@@ -231,15 +241,33 @@ scripts/
 
 KeyVex returns clean, normalized, query-ready data — parsed, ticker-resolved, schema-unified, shaped for direct use by your agent. **What we don't add: derived signals, convergence scores, "buy"/"sell" language, investment advice.** That keeps the product cleanly outside investment-advisor territory under the publisher's exemption (Lowe v. SEC, 1985). Agent consumers can layer their own analysis on top.
 
+**Source-faithful, byte-exact, auditable.** Beyond not adding derived signals, KeyVex doesn't silently alter what SEC published. The source data carries its own quirks — perpetual-instrument sentinels (a `2050-12-31` on an instrument that has no calendar expiration), filer data-entry typos that SEC's primary filings accepted and that flow through the bulk extract. KeyVex preserves these byte-for-byte from SEC's record; runtime annotation via a `source_metadata` block on flagged rows labels the quirks as KeyVex's interpretation, never SEC's. **A consumer can audit any KeyVex record against EDGAR and find a byte-for-byte match.** A 19-row stratified spot-check against SEC primary XML returned 22/22 matches — strong directional evidence, not a census; see [`docs/handoff-phase-a-v4-count-check-arc-2026-05-25.md`](docs/handoff-phase-a-v4-count-check-arc-2026-05-25.md) Amendment 2 for the verification record.
+
+What this looks like in a response:
+
+```json
+{
+  "ticker": "...",
+  "exercise_date": "2050-12-31",
+  "expiration_date": "2050-12-31",
+  "source_metadata": {
+    "exercise_date":  ["sec_perpetual_sentinel"],
+    "expiration_date": ["sec_perpetual_sentinel"]
+  }
+}
+```
+
+Read `exercise_date` and you get SEC's literal byte value; read `source_metadata.exercise_date` and you learn KeyVex's interpretation — assertive for known SEC conventions (`sec_perpetual_sentinel`), calibrated for inferred filer errors (`anomalous_year_likely_filer_entry`). Clean rows omit `source_metadata` entirely — presence is the signal. Each tool's description catalogs the conventions that apply to it; `get_insider_transactions` is the canonical example.
+
 The Firebase project ID `capitaledge-api` is permanent infrastructure (Google does not allow renaming project IDs). The KeyVex brand is independent of that internal identifier; everything customer-facing reads as KeyVex.
 
 ---
 
 ## Status
 
-Production. **28 MCP tools, 20+ autonomous scrapers** running on cron. MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
+Production. **38 MCP tools, 40+ autonomous scrapers** running on cron. MCP server deployed as an authenticated HTTPS endpoint at `https://mcp.keyvex.com` (TLS via Let's Encrypt). Cross-project health-check pings Slack with `[capitaledge-api]` prefix once daily.
 
-A 59-query battle test across all 28 tools currently passes 0-error, 0-empty. Re-runnable via `npx tsx scripts/battle-test.ts`.
+A 59-query battle test currently passes 0-error, 0-empty across 36 of the 38 tools (`get_fundamentals` and `unified_search` are not yet covered by the harness). Re-runnable via `npx tsx scripts/battle-test.ts`.
 
 Custom domain (`mcp.keyvex.com`), public registry submissions (Anthropic / Smithery / Awesome-MCP / PulseMCP), and self-serve API key issuance are the next milestones. SEC Form 13H (large trader registration) is intentionally NOT covered — it's filed confidentially under SEA Rule 13h-1 with FOIA-exempt status and is not publicly indexed by EDGAR.
 

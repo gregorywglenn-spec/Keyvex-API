@@ -25,6 +25,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryFecCandidates, queryFecCommittees } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   FecCandidate,
   FecCandidateProfile,
@@ -284,10 +285,7 @@ function validateAndNormalize(raw: unknown): {
   }
 
   if (args.active_only !== undefined) {
-    if (typeof args.active_only !== "boolean") {
-      throw new Error("active_only must be a boolean");
-    }
-    out.active_only = args.active_only;
+    out.active_only = parseBooleanArg(args.active_only, "active_only");
   }
 
   if (args.sort_by !== undefined) {
@@ -331,13 +329,7 @@ function validateAndNormalize(raw: unknown): {
   const includeCommittees =
     args.include_committees === undefined
       ? true
-      : args.include_committees === true;
-  if (
-    args.include_committees !== undefined &&
-    typeof args.include_committees !== "boolean"
-  ) {
-    throw new Error("include_committees must be a boolean");
-  }
+      : parseBooleanArg(args.include_committees, "include_committees");
 
   // Suppress unused warning — FecCandidate is exported in the response type.
   void (null as unknown as FecCandidate);

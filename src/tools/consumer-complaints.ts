@@ -8,6 +8,7 @@
  */
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryConsumerComplaints } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   ConsumerComplaint,
   ConsumerComplaintsQuery,
@@ -167,10 +168,7 @@ function validateAndNormalize(raw: unknown): ConsumerComplaintsQuery {
     out.state = args.state.toUpperCase();
   }
   if (args.timely_response !== undefined) {
-    if (typeof args.timely_response !== "boolean") {
-      throw new Error("timely_response must be a boolean");
-    }
-    out.timely_response = args.timely_response;
+    out.timely_response = parseBooleanArg(args.timely_response, "timely_response");
   }
   if (args.since !== undefined) out.since = parseIsoDate(args.since, "since");
   if (args.until !== undefined) out.until = parseIsoDate(args.until, "until");

@@ -16,6 +16,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { queryNportFilings } from "../firestore.js";
+import { parseBooleanArg } from "./_validators.js";
 import type {
   NportFiling,
   NportFilingsQuery,
@@ -182,10 +183,7 @@ function validateAndNormalize(raw: unknown): NportFilingsQuery {
   }
 
   if (args.is_amendment !== undefined) {
-    if (typeof args.is_amendment !== "boolean") {
-      throw new Error("is_amendment must be a boolean");
-    }
-    out.is_amendment = args.is_amendment;
+    out.is_amendment = parseBooleanArg(args.is_amendment, "is_amendment");
   }
 
   if (args.since !== undefined) {
