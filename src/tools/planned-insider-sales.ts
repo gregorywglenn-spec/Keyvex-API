@@ -25,6 +25,7 @@ export const definition: Tool = {
   annotations: {
     title: "Planned Insider Sales (SEC Form 144)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

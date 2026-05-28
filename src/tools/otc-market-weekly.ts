@@ -34,6 +34,7 @@ export const definition: Tool = {
   annotations: {
     title: "FINRA OTC / Dark-Pool Volume",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

@@ -39,6 +39,7 @@ export const definition: Tool = {
   annotations: {
     title: "Tender Offers (SEC Schedule TO)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

@@ -28,6 +28,7 @@ export const definition: Tool = {
   annotations: {
     title: "SEC Fails-to-Deliver",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

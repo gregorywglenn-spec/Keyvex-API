@@ -32,6 +32,7 @@ export const definition: Tool = {
   annotations: {
     title: "Fund Holdings (SEC Form N-PORT)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

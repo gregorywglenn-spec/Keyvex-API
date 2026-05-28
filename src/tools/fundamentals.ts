@@ -23,6 +23,7 @@ export const definition: Tool = {
   annotations: {
     title: "Company Fundamentals (SEC XBRL)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

@@ -53,6 +53,7 @@ export const definition: Tool = {
   annotations: {
     title: "Unified Cross-Source Search",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

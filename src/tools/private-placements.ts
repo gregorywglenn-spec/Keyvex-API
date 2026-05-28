@@ -30,6 +30,7 @@ export const definition: Tool = {
   annotations: {
     title: "Private Placements (SEC Form D)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

@@ -22,6 +22,7 @@ export const definition: Tool = {
   annotations: {
     title: "Federal Register Documents",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

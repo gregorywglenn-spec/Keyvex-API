@@ -39,6 +39,7 @@ export const definition: Tool = {
   annotations: {
     title: "Annual Financial Disclosures (Form 278)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

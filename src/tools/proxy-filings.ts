@@ -36,6 +36,7 @@ export const definition: Tool = {
   annotations: {
     title: "Proxy Filings (SEC DEF 14A)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

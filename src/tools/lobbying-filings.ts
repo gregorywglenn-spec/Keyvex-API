@@ -30,6 +30,7 @@ export const definition: Tool = {
   annotations: {
     title: "Lobbying Filings (LDA)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

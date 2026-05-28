@@ -21,6 +21,7 @@ export const definition: Tool = {
   annotations: {
     title: "Institutional Holdings (SEC Form 13F)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

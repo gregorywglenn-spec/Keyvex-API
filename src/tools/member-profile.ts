@@ -35,6 +35,7 @@ export const definition: Tool = {
   annotations: {
     title: "Congressional Member Profile",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

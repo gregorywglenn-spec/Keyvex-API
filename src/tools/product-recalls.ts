@@ -36,6 +36,7 @@ export const definition: Tool = {
   annotations: {
     title: "Product Recalls (FDA / CPSC)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

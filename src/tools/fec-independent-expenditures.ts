@@ -30,6 +30,7 @@ export const definition: Tool = {
   annotations: {
     title: "FEC Independent Expenditures",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

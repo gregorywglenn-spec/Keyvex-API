@@ -24,6 +24,7 @@ export const definition: Tool = {
   annotations: {
     title: "OFAC Sanctions List (SDN)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

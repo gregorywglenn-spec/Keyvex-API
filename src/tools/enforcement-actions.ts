@@ -31,6 +31,7 @@ export const definition: Tool = {
   annotations: {
     title: "Regulatory Enforcement Actions",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

@@ -28,6 +28,7 @@ export const definition: Tool = {
   annotations: {
     title: "US Treasury Auctions",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

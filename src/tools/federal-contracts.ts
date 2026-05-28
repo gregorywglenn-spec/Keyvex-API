@@ -29,6 +29,7 @@ export const definition: Tool = {
   annotations: {
     title: "Federal Contracts (USAspending)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

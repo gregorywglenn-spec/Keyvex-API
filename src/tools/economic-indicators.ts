@@ -24,6 +24,7 @@ export const definition: Tool = {
   annotations: {
     title: "Economic Indicators (BLS / FRED / EIA)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

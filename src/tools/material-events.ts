@@ -31,6 +31,7 @@ export const definition: Tool = {
   annotations: {
     title: "Material Events (SEC Form 8-K)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

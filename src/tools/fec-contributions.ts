@@ -37,6 +37,7 @@ export const definition: Tool = {
   annotations: {
     title: "FEC Campaign Contributions",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

@@ -33,6 +33,7 @@ export const definition: Tool = {
   annotations: {
     title: "Foreign Agents (FARA)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

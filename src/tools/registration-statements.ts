@@ -25,6 +25,7 @@ export const definition: Tool = {
   annotations: {
     title: "Registration Statements (SEC S-1/S-3)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

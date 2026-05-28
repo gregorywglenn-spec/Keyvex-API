@@ -22,6 +22,7 @@ export const definition: Tool = {
   annotations: {
     title: "Congressional Bills",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

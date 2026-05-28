@@ -32,6 +32,7 @@ export const definition: Tool = {
   annotations: {
     title: "Government Publications (GovInfo)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

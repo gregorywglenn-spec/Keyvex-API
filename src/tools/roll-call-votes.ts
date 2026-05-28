@@ -26,6 +26,7 @@ export const definition: Tool = {
   annotations: {
     title: "Congressional Roll-Call Votes",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

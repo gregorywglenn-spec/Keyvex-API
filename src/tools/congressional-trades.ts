@@ -26,6 +26,7 @@ export const definition: Tool = {
   annotations: {
     title: "Congressional Trades",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

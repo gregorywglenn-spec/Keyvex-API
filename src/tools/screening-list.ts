@@ -28,6 +28,7 @@ export const definition: Tool = {
   annotations: {
     title: "Consolidated Screening List",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

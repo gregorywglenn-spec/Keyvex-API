@@ -41,6 +41,7 @@ export const definition: Tool = {
   annotations: {
     title: "FEC Candidate Profile",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

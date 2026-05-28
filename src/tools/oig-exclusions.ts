@@ -22,6 +22,7 @@ export const definition: Tool = {
   annotations: {
     title: "HHS-OIG Exclusions List",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

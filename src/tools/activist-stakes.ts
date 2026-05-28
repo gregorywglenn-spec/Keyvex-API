@@ -24,6 +24,7 @@ export const definition: Tool = {
   annotations: {
     title: "Activist Stakes (SEC Schedule 13D/13G)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

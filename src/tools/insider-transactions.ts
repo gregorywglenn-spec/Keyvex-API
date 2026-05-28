@@ -51,6 +51,7 @@ export const definition: Tool = {
   annotations: {
     title: "Insider Transactions (SEC Form 4/5)",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [

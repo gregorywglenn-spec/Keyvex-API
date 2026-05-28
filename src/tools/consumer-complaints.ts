@@ -20,6 +20,7 @@ export const definition: Tool = {
   annotations: {
     title: "CFPB Consumer Complaints",
     readOnlyHint: true,
+    destructiveHint: false,
     openWorldHint: true,
   },
   description: [
