@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Security Policy — KeyVex</title>
+  <meta name="description" content="KeyVex Security Policy — how to report a vulnerability, what's in scope, and what we commit to." />
+  <meta property="og:title" content="Security Policy — KeyVex" />
+  <meta property="og:url" content="https://keyvex.com/security" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1117'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='32' fill='%234dff20'%3EK%3C/text%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #8b949e;
+      --border: #21262d;
+      --code-bg: #161b22;
+      --accent: #4dff20;
+      --accent-hover: #6dff48;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--fg);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 0 24px 80px; }
+    header.topbar {
+      max-width: 760px; margin: 0 auto; padding: 28px 24px 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      font-weight: 800; font-size: 22px; letter-spacing: -0.01em;
+      color: var(--fg); text-decoration: none;
+    }
+    .logo .accent { color: var(--accent); }
+    nav.topnav a {
+      color: var(--muted); text-decoration: none; margin-left: 22px; font-size: 14px;
+    }
+    nav.topnav a:hover { color: var(--fg); }
+
+    h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.25; }
+    h1 { font-size: 36px; margin: 32px 0 8px; }
+    h2 { font-size: 22px; margin: 40px 0 10px; }
+    h3 { font-size: 17px; margin: 24px 0 8px; }
+    p { margin: 0 0 14px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); text-decoration: underline; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.92em;
+    }
+    ul { padding-left: 22px; margin: 0 0 14px; }
+    ul li { margin-bottom: 6px; }
+    .muted { color: var(--muted); }
+    .effective {
+      color: var(--muted); font-size: 14px; margin-bottom: 28px;
+    }
+    .summary {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      padding: 18px 22px;
+      border-radius: 6px;
+      margin: 24px 0 32px;
+    }
+    .summary p:last-child { margin-bottom: 0; }
+    footer {
+      max-width: 760px; margin: 0 auto;
+      padding: 24px 24px 48px;
+      border-top: 1px solid var(--border);
+      color: var(--muted); font-size: 13.5px;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="logo">Key<span class="accent">Vex</span></a>
+    <nav class="topnav">
+      <a href="/#sources">Sources</a>
+      <a href="/#demo">Demo</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#faq">FAQ</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Security Policy</h1>
+    <p class="effective">Effective May 28, 2026 · Last updated May 28, 2026</p>
+
+    <div class="summary">
+      <p><strong>The short version.</strong> If you've found a security vulnerability in KeyVex, email <a href="mailto:contact@keyvex.com">contact@keyvex.com</a> with reproduction steps and an impact assessment. We'll acknowledge receipt within 5 business days, investigate in good faith, and tell you what we found. We won't pursue legal action against good-faith researchers who follow this policy.</p>
+    </div>
+
+    <h2>1. Reporting a vulnerability</h2>
+    <p>Send security reports to <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>. To help us triage quickly, please include:</p>
+    <ul>
+      <li>A description of the vulnerability and the affected component or URL</li>
+      <li>Step-by-step reproduction instructions (and a proof-of-concept where applicable)</li>
+      <li>Your assessment of the potential impact</li>
+      <li>Any relevant logs, request/response captures, or screenshots</li>
+    </ul>
+    <p>This contact is also published in machine-readable form at <a href="/.well-known/security.txt"><code>/.well-known/security.txt</code></a> per <a href="https://www.rfc-editor.org/rfc/rfc9116">RFC 9116</a>.</p>
+
+    <h2>2. Scope</h2>
+    <p><strong>In scope:</strong></p>
+    <ul>
+      <li><code>mcp.keyvex.com</code> — the MCP API endpoint</li>
+      <li><code>keyvex.com</code> and <code>www.keyvex.com</code> — the marketing site</li>
+      <li>Other <code>*.keyvex.com</code> hosts we operate</li>
+    </ul>
+    <p><strong>Out of scope:</strong></p>
+    <ul>
+      <li>Third-party services KeyVex links to or sources data from (e.g., SEC EDGAR, USAspending.gov, FINRA, OFAC, FEC, and the other government repositories) — report those to the respective operator</li>
+      <li>Social engineering of KeyVex staff, contractors, or service providers</li>
+      <li>Physical security and attacks requiring physical access</li>
+      <li>Denial-of-service / volumetric attacks, and findings that only demonstrate the absence of a best-practice hardening control without a concrete exploit</li>
+    </ul>
+
+    <h2>3. What we commit to</h2>
+    <ul>
+      <li><strong>Acknowledge</strong> your report within 5 business days of receipt.</li>
+      <li><strong>Investigate</strong> in good faith with a reasonable standard of care.</li>
+      <li><strong>Communicate</strong> our disposition — whether we've confirmed the issue, what we intend to do, and when we expect to have addressed it.</li>
+    </ul>
+    <p>These are good-faith operational commitments, not contractual service-level guarantees.</p>
+
+    <h2>4. Safe harbor</h2>
+    <p>We will not pursue legal action against security researchers who, in good faith:</p>
+    <ul>
+      <li>Report a vulnerability to us promptly via the channel above</li>
+      <li>Do not access, modify, or retain data beyond the minimum necessary to demonstrate the issue</li>
+      <li>Do not degrade, disrupt, or deny service to KeyVex or its users</li>
+      <li>Give us a reasonable opportunity to investigate and remediate before any public disclosure</li>
+    </ul>
+    <p>Activity conducted consistent with this policy is considered authorized, and we will not recommend or pursue legal action for it. If legal action is initiated by a third party against you for activity conducted under this policy, we will make this authorization known.</p>
+
+    <h2>5. Out of scope by design</h2>
+    <p>KeyVex publishes US public-record disclosure data that is already public by federal mandate. The MCP API is read-only — the endpoint runs under a dedicated service account with read-only database permissions, so a request to the API physically cannot modify our data. KeyVex does not operate a user-account system, does not issue API keys for the public endpoint, and does not maintain a store of proprietary or sensitive user data to exfiltrate. The security surface is intentionally narrow, and realistic findings will generally concern availability, configuration, or the integrity of the public-data pipeline rather than confidentiality of private user data.</p>
+
+    <h2>6. Bug bounty</h2>
+    <p>KeyVex does not currently operate a paid bug-bounty program. We genuinely appreciate responsible disclosure and will credit researchers who wish to be acknowledged.</p>
+
+    <p class="muted" style="margin-top: 36px; font-size: 14px;">This is the v1 of our security policy, established to provide a clear, working vulnerability-reporting mechanism. It does not commit KeyVex to monetary rewards or specific contractual response times, and its formal commitments are subject to legal review. This policy will be updated as our security program matures.</p>
+  </main>
+
+  <footer>
+    <a href="/">← Back to keyvex.com</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,7 @@
+# KeyVex security contact (RFC 9116)
+# Full policy: https://keyvex.com/security
+Contact: mailto:contact@keyvex.com
+Expires: 2027-05-28T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://keyvex.com/.well-known/security.txt
+Policy: https://keyvex.com/security
