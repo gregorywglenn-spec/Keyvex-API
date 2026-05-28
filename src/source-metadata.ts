@@ -14,6 +14,24 @@
  * conventions in human-readable tool description text. Phase 2a explains;
  * Phase 2b makes the same interpretation machine-readable.
  *
+ * Phase 2b extension (this commit): period_of_report added to DETECT_FIELDS
+ * following Standing Protection #1 verification of the 142-row population
+ * against the authoritative SEC source. Three cause-classes documented
+ * structurally — SEC filing-agent default-epoch (architectural finding:
+ * 20 accessions sharing CIK prefix 0001225208-, single upstream
+ * toolchain), filer-side keying typos (00XX-XX-XX face), and 198X-shaped
+ * values with indeterminate cause — plus one future-side outlier
+ * (AETRIUM, 2030-08-26). Per-class row counts preserved in diagnostic
+ * outputs rather than the spec; rule behavior doesn't depend on the
+ * split. The 6 insider_trades "missing-filing_date" population was
+ * characterized and the missing_required_field rule's canonical first-
+ * use-case was retired as not-applicable (legacy schema doesn't declare
+ * filing_date as a required field; the 6 rows are already covered by
+ * anomalous_year_likely_filer_entry firing on their corrupted
+ * transaction_date values). The rule stays in the union as designed-
+ * for, reserved for future applicable populations. See
+ * docs/phase-2b-extension-period-of-report-design.md.
+ *
  * Principle enforced in code: KeyVex mirrors SEC's bytes exactly; the
  * interpretation lives at the response boundary as labeled metadata;
  * a customer auditing KeyVex against EDGAR finds a byte-for-byte match.
@@ -94,8 +112,43 @@ export type SourceMetadataFlag =
    * SEC's authoritative primary filings (22/22 byte-match on stratified
    * sample; see Amendment 2 of docs/handoff-phase-a-v4-count-check-arc-
    * 2026-05-25.md). Applies to: transaction_date, exercise_date,
-   * expiration_date (Phase 2b initial); period_of_report (Phase 2b
-   * extension, designed-for, not active in initial ship).
+   * expiration_date, period_of_report.
+   *
+   * The period_of_report population (142 rows across 49 accessions: 141
+   * past-side, 1 future-side) carries three cause-classes documented
+   * structurally; per-class row counts are preserved in diagnostic
+   * outputs (.tmp/epoch-subpopulation.ts, .tmp/singleton-enum.ts) rather
+   * than enumerated here, since the rule fires uniformly across all 142
+   * rows and per-class counts don't drive any code path:
+   *
+   *   - Class 1 — SEC filing-agent default-epoch: period_of_report =
+   *     "0001-01-01" rows across 20 accessions across 12 filer companies,
+   *     all sharing the filing-agent CIK prefix 0001225208- across a
+   *     decade-plus of filings. A single upstream intermediary's
+   *     toolchain substitutes 0001-01-01 for missing/invalid period_of_
+   *     report when assembling Form 4/5 XML for EDGAR submission. Not
+   *     independent typos; one source. This is the architectural finding
+   *     from the diagnostic — load-bearing for the cause-attribution
+   *     prose.
+   *   - Class 2 — filer-side keying typos: 00XX-XX-XX face (two-digit-
+   *     to-four-digit transposition errors) preserved verbatim through
+   *     SEC's electronic-filing pipeline.
+   *   - Class 3 — 198X-shaped values: cause indeterminate without per-
+   *     row review; could be legitimate historical filings, filer typos
+   *     landing on plausible 198X dates, or a distinct corruption
+   *     class. Flagged honestly regardless.
+   *   - The single future-side row (AETRIUM, 2030-08-26 on a 2010
+   *     filing) validates the FUTURE_THRESHOLDS choice catches what it
+   *     should.
+   *
+   * The "filer_entry" identifier is shorthand for "filing-pipeline data
+   * quality issue" covering all three attributed classes plus the
+   * indeterminate bucket under one calibrated banner; the agent reading
+   * the flag understands it as pattern-attribution, not certified cause.
+   * Renaming the identifier to broaden its scope would be a breaking
+   * response-shape change; the calibrated "likely" carries the ambiguity.
+   * See the Phase 2b extension design doc for full population
+   * characterization including the filing-agent correlation.
    */
   | "anomalous_year_likely_filer_entry"
   /**
@@ -163,6 +216,16 @@ const FUTURE_THRESHOLDS: Readonly<Record<string, string>> = {
   transaction_date: "2027-01-01",
   exercise_date: "2050-01-01",
   expiration_date: "2050-01-01",
+  // period_of_report: same threshold as transaction_date. Semantic
+  // justification: period_of_report is the filing's reporting-period
+  // date — a near-past calendar event, not a long-dated future like
+  // an option expiration. Data confirms: 141 of 142 anomalous rows
+  // are ancient-side; the 1 future-side row (AETRIUM, 2030-08-26)
+  // sits beyond this threshold and is correctly flagged.
+  //
+  // Review cadence: inherits transaction_date's annual-review schedule;
+  // bump in sync to keep the near-past-calendar semantic aligned.
+  period_of_report: "2027-01-01",
 };
 
 /**
@@ -170,23 +233,42 @@ const FUTURE_THRESHOLDS: Readonly<Record<string, string>> = {
  * that can carry SEC-source quirks" and "fields populated on the row
  * types returned to clients."
  *
- * NOT included in Phase 2b initial:
- *   - period_of_report (Phase 2b extension — same anomalous-year rule,
- *     just applied to a different field; namespace already accommodates).
- *   - filing_date missing (Phase 2b extension — missing_required_field
- *     flag for the 6 insider_trades rows; namespace already accommodates).
+ * Coverage history:
+ *   - Phase 2b initial (commit 22db470): transaction_date, exercise_date,
+ *     expiration_date.
+ *   - Phase 2b extension (this commit): + period_of_report. Same anomalous-
+ *     year rule applied to a new field; no new flag type; namespace
+ *     unchanged. See docs/phase-2b-extension-period-of-report-design.md
+ *     for the 142-row population characterization and the filing-agent
+ *     correlation finding.
+ *
+ * Designed-for but not active:
+ *   - missing_required_field as a rule. The canonical first-use-case
+ *     (6 insider_trades rows with no filing_date) dissolved on inspection:
+ *     the legacy InsiderTransaction interface doesn't declare filing_date
+ *     as a required field, so its absence carries no semantic weight; the
+ *     6 rows are already flagged by anomalous_year_likely_filer_entry on
+ *     their corrupted transaction_date values. The rule stays in the
+ *     SourceMetadataFlag union as designed-for, reserved for future
+ *     populations where the schema declares the field as required.
  */
 const DETECT_FIELDS = [
   "transaction_date",
   "exercise_date",
   "expiration_date",
+  "period_of_report",
 ] as const;
 
 /**
  * Fields that participate in Step 1 (sentinel-precedence). transaction_date
  * is NOT in this set — SEC's 2050-12-31 sentinel is for "no calendar
  * expiration" on derivatives, not for transactions (which always have a
- * real calendar date when filed).
+ * real calendar date when filed). period_of_report is ALSO NOT in this
+ * set for the same reason — it's a filing's reporting-period date, not a
+ * derivative expiration date. Empirically confirmed: 0 of 142 anomalous
+ * period_of_report rows carry the 2050-12-31 (or 2050-08-31) sentinel
+ * shape. Documented preemptively so a future reader doesn't pattern-match
+ * period_of_report into the sentinel set on reflex.
  */
 const SENTINEL_FIELDS = new Set<string>(["exercise_date", "expiration_date"]);
 
@@ -233,6 +315,7 @@ type AnnotableRow = {
   transaction_date?: string | null;
   exercise_date?: string | null;
   expiration_date?: string | null;
+  period_of_report?: string | null;
 };
 
 /**

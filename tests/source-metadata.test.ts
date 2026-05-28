@@ -67,6 +67,7 @@ interface TestRow {
   transaction_date?: string | null;
   exercise_date?: string | null;
   expiration_date?: string | null;
+  period_of_report?: string | null;
   // Any extra fields just pass through unchanged
   [k: string]: unknown;
 }
@@ -401,4 +402,103 @@ test("legacy row shape (only transaction_date present): works correctly", () => 
   assert.deepEqual(meta, {
     transaction_date: ["anomalous_year_likely_filer_entry"],
   });
+});
+
+// ─── Phase 2b extension — period_of_report coverage ─────────────────────────
+// Seven tests pinning the new field's behavior. Same flat test() convention
+// as the parent set above; each test names the property it pins.
+//
+// Population characterization for these representatives is in
+// docs/phase-2b-extension-period-of-report-design.md and in the diagnostic
+// outputs at .tmp/sample-parked-rows.ts, .tmp/epoch-subpopulation.ts, and
+// .tmp/singleton-enum.ts. The values used below are representative of the
+// three cause-classes plus the one future-side outlier; per-class row
+// counts are deliberately not encoded in the test names.
+
+test("Phase 2b extension: ancient-side period_of_report → anomalous_year_likely_filer_entry flag", () => {
+  // 00XX-XX-XX face, representative of Class 2 (filer-side keying typos).
+  const [annotated] = annotateRowsSourceMetadata([
+    row({
+      ticker: "FICO",
+      transaction_date: "2019-08-30",
+      period_of_report: "0019-08-30",
+    }),
+  ]);
+  const meta = getSourceMetadata(annotated);
+  assert.deepEqual(meta.period_of_report, ["anomalous_year_likely_filer_entry"]);
+});
+
+test("Phase 2b extension: future-side period_of_report (AETRIUM outlier, +20-year transposition)", () => {
+  // The one future-side row in the 142-population. Validates that the
+  // period_of_report future threshold catches what it should.
+  const [annotated] = annotateRowsSourceMetadata([
+    row({
+      ticker: "ATRM",
+      transaction_date: "2010-08-26",
+      period_of_report: "2030-08-26",
+    }),
+  ]);
+  const meta = getSourceMetadata(annotated);
+  assert.deepEqual(meta.period_of_report, ["anomalous_year_likely_filer_entry"]);
+});
+
+test("Phase 2b extension: SEC filing-agent default-epoch period_of_report → same calibrated flag", () => {
+  // Representative of Class 1 (the architectural finding — single
+  // upstream filing-agent toolchain substituting 0001-01-01 across a
+  // decade-plus of filings, CIK prefix 0001225208-). Pins that the
+  // calibrated flag covers all three cause-classes under one banner by
+  // design — the flag's "filer_entry" shorthand encompasses filing-
+  // pipeline data quality issues across the upstream-actor stack.
+  const [annotated] = annotateRowsSourceMetadata([
+    row({
+      ticker: "UPS",
+      transaction_date: "2014-12-23",
+      period_of_report: "0001-01-01",
+    }),
+  ]);
+  const meta = getSourceMetadata(annotated);
+  assert.deepEqual(meta.period_of_report, ["anomalous_year_likely_filer_entry"]);
+});
+
+test("Phase 2b extension boundary: period_of_report == '1990-01-01' → NO flag (ancient floor strict-less-than)", () => {
+  const [annotated] = annotateRowsSourceMetadata([
+    row({ transaction_date: "1990-01-01", period_of_report: "1990-01-01" }),
+  ]);
+  assertNoSourceMetadata(annotated);
+});
+
+test("Phase 2b extension boundary: period_of_report == '2027-01-01' → NO flag (future threshold strict-greater-than)", () => {
+  const [annotated] = annotateRowsSourceMetadata([
+    row({ transaction_date: "2026-12-31", period_of_report: "2027-01-01" }),
+  ]);
+  assertNoSourceMetadata(annotated);
+});
+
+test("Phase 2b extension Q5: clean row with period_of_report present → NO source_metadata, returned by reference", () => {
+  // Preserves the omit-on-clean rule AND the no-allocation path with the
+  // new field present.
+  const inputRow = row({
+    transaction_date: "2024-03-15",
+    period_of_report: "2024-03-15",
+  });
+  const [annotated] = annotateRowsSourceMetadata([inputRow]);
+  assertNoSourceMetadata(annotated);
+  assert.strictEqual(annotated, inputRow);
+});
+
+test("Phase 2b extension per-field isolation: period_of_report anomalous, transaction_date clean", () => {
+  // Pins that the new field is independently detected, not implicitly
+  // tied to transaction_date — source_metadata is keyed solely on
+  // period_of_report when only period_of_report carries the anomaly.
+  const [annotated] = annotateRowsSourceMetadata([
+    row({
+      transaction_date: "2024-03-15",
+      period_of_report: "0024-03-15",
+    }),
+  ]);
+  const meta = getSourceMetadata(annotated);
+  assert.deepEqual(meta, {
+    period_of_report: ["anomalous_year_likely_filer_entry"],
+  });
+  assert.equal(meta.transaction_date, undefined);
 });
