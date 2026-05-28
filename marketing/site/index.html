@@ -6,7 +6,7 @@
   <title>KeyVex — MCP server for US public financial disclosures</title>
   <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 38 tools across 42+ government sources — congressional trades, insider transactions (with option exercises), institutional + mutual-fund holdings (including derivatives), XBRL fundamentals, lobbying, FARA foreign agents, federal contracts + grants, material events, FEC campaign finance + contributions + independent expenditures, bills, House + Senate roll-call votes, dark-pool volume, proxy filings, Treasury auctions, CFTC futures positioning, SEC fails-to-deliver, BLS + FRED + EIA macro data, HHS-OIG exclusions, CFPB complaints, FDA + CPSC product recalls, GovInfo congressional + GAO documents, OFAC sanctions, the Consolidated Screening List, Federal Register, and more — all queryable by AI agents through one endpoint." />
   <meta property="og:title" content="KeyVex — MCP server for US public financial disclosures" />
-  <meta property="og:description" content="38 MCP tools across 42+ US public-disclosure sources, one Bearer-authenticated endpoint. Designed for AI agents from the ground up." />
+  <meta property="og:description" content="38 MCP tools across 42+ US public-disclosure sources. Designed for AI agents from the ground up." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://keyvex.com" />
   <link rel="icon" type="image/png" href="keyvex-mark.png" />
@@ -362,7 +362,7 @@
         positioning, SEC fails-to-deliver, BLS + FRED + EIA macro &amp; energy
         data, HHS-OIG exclusions, CFPB complaints, FDA + CPSC product recalls,
         GovInfo congressional + GAO documents, and more — all queryable by AI
-        agents through one Bearer-authenticated endpoint.
+        agents through one MCP endpoint.
       </p>
       <div class="cta-row">
         <a class="btn btn-primary" href="mailto:contact@keyvex.com?subject=KeyVex%20preview%20access">Get free preview access</a>
@@ -497,8 +497,9 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
     <section id="how">
       <h2>Connect in under five minutes.</h2>
       <p class="lead">
-        KeyVex is a stateless Streamable HTTP MCP server. Authentication is a
-        Bearer token in the <code>Authorization</code> header. That's it.
+        KeyVex is a stateless Streamable HTTP MCP server. The preview endpoint
+        is publicly accessible — no authentication required during preview
+        access. Bearer authentication will be introduced for paid tiers at launch.
       </p>
 
       <h3 style="margin-top: 28px;">Endpoint</h3>
@@ -507,16 +508,14 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
       <h3 style="margin-top: 24px;">Health check (no auth required)</h3>
       <pre><code>curl https://mcp.keyvex.com</code></pre>
 
-      <h3 style="margin-top: 24px;">List the 38 tools (auth required)</h3>
+      <h3 style="margin-top: 24px;">List the 38 tools (no auth required during preview)</h3>
       <pre><code>curl -X POST https://mcp.keyvex.com \
-  -H "Authorization: Bearer &lt;your-key&gt;" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'</code></pre>
 
       <h3 style="margin-top: 24px;">Call a tool (e.g. dark-pool flow for NVDA)</h3>
       <pre><code>curl -X POST https://mcp.keyvex.com \
-  -H "Authorization: Bearer &lt;your-key&gt;" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -d '{
@@ -529,7 +528,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
 
       <p class="muted small" style="margin-top: 12px;">
         From Claude Desktop: add KeyVex to your <code>claude_desktop_config.json</code>
-        as a remote MCP server with your Bearer token. One-click install through
+        as a remote MCP server — no token required for preview access. One-click install through
         Anthropic's MCP directory once review completes.
       </p>
     </section>
@@ -791,8 +790,9 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
       <details>
         <summary>Do I need a credit card to try the free tier?</summary>
         <p>
-          No. Email signup, get an API key, start querying. Credit card only
-          required for paid tiers.
+          No. The preview endpoint is publicly accessible — no signup or key
+          required to start querying. A credit card is only needed for paid
+          tiers, which add authentication at launch.
         </p>
       </details>
 
