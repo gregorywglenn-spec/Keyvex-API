@@ -186,3 +186,16 @@ bearer via `src/firebase-rest.ts token` and call the Admin API directly.
 - Deployed index count: `firebase firestore:indexes` → 254 collectionGroup entries.
 - Index build state: Admin API `…/collectionGroups/congressional_trades/indexes`, `state` field.
 - Authless tool calls: POST JSON-RPC `tools/call` to `https://mcp.keyvex.com/` with `Accept: application/json, text/event-stream` (response is SSE; parse the `data:` line).
+
+---
+
+## Late-session addendum (2026-05-28, after this snapshot's body was written)
+
+Four more items closed after the body above was drafted (all committed + pushed to `origin/main` through `b4b0003`):
+
+- **Security vulnerability reporting mechanism — SHIPPED.** Website-only per Greg's decision: `/.well-known/security.txt` (RFC 9116) + `/security` policy page + footer link, all live and verified (commit `5ffc777`). Routing through `contact@keyvex.com` (no dedicated `security@` — narrow read-only surface). Closes the Terms hard blocker.
+- **GitHub repo visibility — DECIDED PRIVATE.** Policy re-verified against source: no public-repo requirement exists. Footer "Repo public alongside launch" claim reconciled to `keyvex.com/docs` (commit `b4b0003`). **Posture: private now, revisit later if circumstances change (Year 1-2 with revenue) — NOT private permanently.** The competitive moat is the scraper engineering; data-honesty is preserved at the data layer via `source_url` per-record provenance, not via public code.
+- **Landing-page Bearer-auth language — RECONCILED.** The page claimed Bearer auth in 7 places; the deployed endpoint is authless (`auth: "none"`). Reconciled to Option A framing (publicly accessible preview, auth on paid tiers at launch); curl examples no longer carry `Authorization` headers; an FAQ "get an API key" contradiction with the privacy policy was also fixed (commit `6b1e31c`). Closes a §2.B description-vs-behavior gap.
+- **Standing protections doc — CODIFIED.** `docs/keyvex_standing_protections.md` (commit `2781637`).
+
+Remaining hard blocker for submission: **3.D testing-account decision** only (confirm authless deployment satisfies, or provision a reviewer account). Soft blockers + polish per `keyvex_anthropic_submission_bar.md`.

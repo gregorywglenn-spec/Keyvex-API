@@ -317,11 +317,14 @@
 
 **Source text:** *"You further agree to implement and maintain a mechanism for receiving reports of security vulnerabilities from Anthropic and from third parties and to investigate such reports with a reasonable standard of care."*
 
-**Status:** ❌ OPEN
+**Status:** ✅ VERIFIED
 
-**Artifact:** `terms.html:129` references "responsible-disclosure channels coordinated in advance with KeyVex" but in a prohibited-conduct clause with no concrete mechanism. No `SECURITY.md` in the repo. No `security@keyvex.com` published.
+**Artifact:** Website-only disclosure mechanism shipped, deployed, and verified live this session (commit `5ffc777`):
+- `https://keyvex.com/.well-known/security.txt` — RFC 9116, 200 OK / `text/plain` (Contact: mailto:contact@keyvex.com, Expires 2027-05-28, Canonical, Policy)
+- `https://keyvex.com/security` — public policy page, 200 OK (reporting channel, scope in/out, commitments incl. 5-business-day acknowledgement, conservative safe-harbor, out-of-scope-by-design, attorney-review note)
+- Footer link to `/security` on keyvex.com
 
-**Open item — concrete fix is short:** add `security@keyvex.com` contact, add `SECURITY.md` to the public repo (or website if repo stays private) with documented disclosure protocol. Greg & Derek decide architecture (private email, security.txt at well-known location, dedicated form, etc.).
+Routing decision (Greg-locked): `contact@keyvex.com` receives reports — KeyVex's narrow read-only-publisher surface doesn't warrant a dedicated `security@` alias; the policy page states the routing explicitly. Website-only (no `SECURITY.md`) per the private-repo decision below. The mechanism is published, discoverable, and working — satisfies the Terms requirement to "implement and maintain a mechanism for receiving reports."
 
 ### Terms — Trademark guidelines compliance
 
@@ -343,9 +346,9 @@
 
 ### GitHub repo visibility
 
-**Status:** ❌ OPEN (verification blocked — repo currently private per CLAUDE.md)
+**Status:** ✅ VERIFIED (decision: repo stays private)
 
-**Open item:** Confirm whether Software Directory submission requires a public GitHub repo. If yes, this is a hard blocker — repo currently private. If submission accepts closed-source servers with verified ownership of the domain and Cloud Function, no change needed. (Note: not independently verifiable from the build environment — `gh` CLI is not installed and the repo is private; status carried from CLAUDE.md.)
+**Decision (Greg-locked 2026-05-28):** KeyVex's GitHub repo stays private. Anthropic Software Directory Policy was re-verified against source (fetched fresh) — there is NO requirement that source code be public, no requirement for a GitHub repo, and no requirement for repository visibility of any kind. The policy-required public surfaces (§3.A privacy, §3.B contact, §3.C docs, §3.F domain ownership) are all satisfied without exposing the repo. Rationale: the scraper engineering is KeyVex's competitive moat; keeping it private prevents trivial clone-and-compete. The landing-page footer claim "Repo public alongside launch" was reconciled to point to `keyvex.com/docs` (commit `b4b0003`). **Posture: private now, revisit later if circumstances change (e.g. Year 1-2 with revenue, when moat-protection is less acute) — not private permanently.**
 
 ---
 
@@ -353,21 +356,24 @@
 
 Items requiring action before submission, by priority:
 
+**Closed this session (2026-05-28):**
+- ✅ **Terms — Security vulnerability reporting mechanism** — `/.well-known/security.txt` + `/security` live (commit `5ffc777`)
+- ✅ **GitHub repo visibility** — decided private; policy requires no public repo; footer reconciled (commit `b4b0003`)
+- ✅ **Footer link to ToS** on keyvex.com — `/terms` now linked in footer (commit `5ffc777`)
+- ✅ **§5.E annotations** (commit `22f9e93`) + **§3.E three working examples** (`keyvex_three_working_examples.md`)
+
 **Hard blockers (must close):**
 1. **3.D — Testing account decision** — confirm whether authless deployment satisfies, or testing account needed
-2. **Terms — Security vulnerability reporting mechanism** (`security@keyvex.com` + SECURITY.md + disclosure protocol)
-3. **GitHub repo visibility** — confirm policy requirement, decide public/private
 
 **Soft blockers (verify or close):**
-4. **1.D — Cloud Run log audit** for inadvertent tool-call-argument capture
-5. **Terms — Attorney review** of indemnification and IP-license clauses
-6. **Terms — Trademark compliance check** on marketing copy
+2. **1.D — Cloud Run log audit** for inadvertent tool-call-argument capture
+3. **Terms — Attorney review** of indemnification and IP-license clauses
+4. **Terms — Trademark compliance check** on marketing copy
 
 **Polish (Goal-2 differentiator, not Goal-1 blocker):**
-7. **5.B — Token-frugality audit** for excludable response metadata blocks
-8. **Origin-header validation** on /mcp endpoint (DNS-rebinding hardening)
-9. **Footer link to ToS** on keyvex.com
-10. **Server logo asset** for Directory display
+5. **5.B — Token-frugality audit** for excludable response metadata blocks
+6. **Origin-header validation** on /mcp endpoint (DNS-rebinding hardening)
+7. **Server logo asset** for Directory display
 
 **Audit-driven follow-ups (carry forward from session work):**
 11. **PDF parser bleed** on House Clerk PTRs (description-vs-behavior cleanliness)
@@ -389,9 +395,12 @@ What's already done and verifiable as of 2026-05-28:
 - ✅ Production MCP endpoint: mcp.keyvex.com, version 0.52.1, 38 tools, status: ok
 - ✅ §5.E annotations: all 38 tools verified end-to-end (source → deploy → live wire)
 - ✅ §3.E three working examples: locked and live-MCP-verified this session
-- ✅ §2.B description-vs-behavior: 5 of 6 May 25 dishonesty-class failures closed; 6th honestly documented
+- ✅ §2.B description-vs-behavior: 5 of 6 May 25 dishonesty-class failures closed; 6th honestly documented; landing-page Bearer-auth claims reconciled to authless reality (commit `6b1e31c`)
 - ✅ Composite-index file/production drift: closed (file = production state, 254 indexes)
-- ✅ Task 4 + Task 5 work: 4 commits on main, ready to push as full batch
+- ✅ Security disclosure mechanism: /.well-known/security.txt + /security live (commit `5ffc777`)
+- ✅ GitHub repo visibility: decided private — private now, revisit later; footer reconciled (commit `b4b0003`)
+- ✅ Standing protections doc: docs/keyvex_standing_protections.md (commit `2781637`)
+- ✅ Audit-session work (indexes, annotations, inheritance docs, security mechanism, auth reconciliation, standing protections, footer reconciliation): committed + pushed to origin/main
 
 ---
 
