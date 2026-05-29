@@ -3480,12 +3480,21 @@ export interface UnifiedSearchQuery {
  * Per-source result block in a UnifiedSearchEnvelope. `error` is set
  * when a collection's query threw or timed out — agents can decide
  * whether to retry that source directly or proceed with what landed.
+ *
+ * `coverage_warning` is propagated up from the underlying per-collection
+ * query (same string the standalone source tool would return). It fires
+ * when a slice comes back empty (or truncated) while a date filter was
+ * active and the requested window falls outside the collection's actual
+ * coverage — preventing the silent-empty-equals-no-data misread for
+ * rolling-window sources (otc_market_weekly, federal_contracts,
+ * consumer_complaints, product_recalls, enforcement_actions, etc.).
  */
 export interface UnifiedSearchSourceBlock {
   count: number;
   has_more: boolean;
   results: unknown[];
   error?: string;
+  coverage_warning?: string;
 }
 
 export interface UnifiedSearchEnvelope {

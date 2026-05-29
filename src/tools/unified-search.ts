@@ -177,9 +177,15 @@ export const definition: Tool = {
  */
 interface SourceAdapter {
   name: string;
+  // The underlying query functions return QueryResult<T>, which carries an
+  // optional coverage_warning. Capture it here so the handler can propagate
+  // it into the per-source block (Finding B fix, 2026-05-29) — otherwise an
+  // empty rolling-window slice looks like a definitive "no data" answer
+  // instead of "outside this collection's coverage window."
   call: (q: UnifiedSearchQuery, limit: number) => Promise<{
     results: unknown[];
     has_more: boolean;
+    coverage_warning?: string;
   }> | null;
 }
 
@@ -500,7 +506,7 @@ export async function handler(args: unknown): Promise<UnifiedSearchEnvelope> {
       if (promise === null) return null;
       return { adapter, promise };
     })
-    .filter((x): x is { adapter: SourceAdapter; promise: Promise<{ results: unknown[]; has_more: boolean }> } => x !== null);
+    .filter((x): x is { adapter: SourceAdapter; promise: Promise<{ results: unknown[]; has_more: boolean; coverage_warning?: string }> } => x !== null);
 
   const sourcesQueried = applicable.map((x) => x.adapter.name);
 
@@ -514,11 +520,15 @@ export async function handler(args: unknown): Promise<UnifiedSearchEnvelope> {
   settled.forEach((outcome, idx) => {
     const sourceName = applicable[idx]!.adapter.name;
     if (outcome.status === "fulfilled") {
-      const { results, has_more } = outcome.value;
+      const { results, has_more, coverage_warning } = outcome.value;
       const block: UnifiedSearchSourceBlock = {
         count: results.length,
         has_more,
         results,
+        // Propagate the upstream coverage_warning (Finding B fix). Same string
+        // the standalone source tool would return — keeps the empty-slice
+        // honest about whether 0 rows means "no data" or "outside coverage."
+        ...(coverage_warning && { coverage_warning }),
       };
       resultsBySource[sourceName] = block;
       if (results.length > 0) {
