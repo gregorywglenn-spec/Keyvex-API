@@ -285,6 +285,8 @@
 2. **Deploy:** `firebase deploy --only functions:mcp` exit 0, post-deploy health check version 0.52.1 / tools: 38 / status: ok
 3. **Live wire:** `tools/list` JSON-RPC call against `https://mcp.keyvex.com/`, SSE response parsed; 38/38 tools serialize `destructiveHint: false` correctly on the wire. Three sampled tools verified verbatim (get_congressional_trades, unified_search, get_ofac_sdn).
 
+**Submission note (client-side tool deferral):** KeyVex exposes 38 tools at the MCP protocol layer (`tools/list` returns all 38, wire-verified above). Some clients — including Claude.ai — surface a subset directly and defer the remainder behind a tool-search step. This is client-side context management, not a server limitation.
+
 ### 5.F — Streamable HTTP transport
 
 **Source text:** *"Remote MCP servers should support the Streamable HTTP transport. Servers may support SSE for the time being, but in the future it will be deprecated."*
