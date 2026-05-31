@@ -1704,17 +1704,23 @@ export const scrapeFinraOtcWeekly = onSchedule(
 const SLACK_HEALTHCHECK_WEBHOOK = defineSecret("SLACK_HEALTHCHECK_WEBHOOK");
 
 /**
- * Daily cron-freshness audit. Reads /meta/{jobName} for each monitored
- * scraper, checks lastSyncedAt is within thresholds, posts to Slack on
- * status CHANGE only (healthy weeks produce zero messages).
+ * Cron-freshness audit. Reads /meta/{jobName} for each monitored scraper,
+ * checks lastSyncedAt is within cadence-matched thresholds, and pages Slack:
+ * on any status change, on a 6h nag while still broken, and on a once-a-day
+ * green heartbeat while healthy (so silence is never mistaken for a dead
+ * monitor). See runHealthCheck() for the firing rules.
  *
- * Schedule: 12:30 ET daily — offset 30 minutes after Derek's 12:00 ET
- * health-check so the two projects don't compete for resources or hit
- * Firestore at the same instant.
+ * Schedule: every 30 minutes — matches the tightest scraper cadence (Form 4)
+ * so a sub-hourly scraper death is caught within the warn window instead of
+ * up to a day later. The change/nag/heartbeat dedup inside runHealthCheck
+ * keeps a healthy system to ~1 Slack message/day despite the 48 runs/day.
+ *
+ * Offset :07/:37 (not :00/:30) so we don't collide with the Form 4 scraper's
+ * own :00/:30 ticks or Derek's 12:00 ET project health-check.
  */
 export const scheduledHealthCheck = onSchedule(
   {
-    schedule: "30 12 * * *",
+    schedule: "7,37 * * * *",
     region: REGION,
     timeZone: TZ,
     memory: "256MiB",
