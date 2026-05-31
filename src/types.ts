@@ -1361,10 +1361,78 @@ export interface CongressionalTradesQuery {
  *   - PTRs    = real-time trade notices, filed within 30-45 days
  *   - Form 278 = year-end snapshot of net worth, assets, income, liabilities
  *
- * v1A captures filing metadata only: who filed, when, and a URL to the actual
- * report PDF. Agents follow the URL to read the per-schedule detail. Net-worth
- * roll-up parsing (Schedule A assets + Schedule C liabilities) is v1.1.
+ * v1A captured filing metadata only: who filed, when, and a URL to the actual
+ * report. v1 (2026-06-01) adds parsed Schedule A (assets) + Schedule C
+ * (liabilities) contents on the `assets[]` / `liabilities[]` arrays for the
+ * ~93-94% of annual 278s that ship as structured electronic filings. The
+ * ~6.5% Senate paper (scanned-image) filings stay metadata + link-out only
+ * (NO OCR) and carry `is_paper: true` + a `coverage_note`.
+ *
+ * Posture note: every parsed field is source-faithful. Value/amount/income
+ * ranges are stored VERBATIM as disclosed (e.g. "$50,001 - $100,000"); they
+ * are NEVER collapsed to a point estimate and carry NO numeric min/max. A
+ * net-worth roll-up is deliberately NOT in v1 — when it ships it will be an
+ * explicitly-labeled KeyVex aggregation in source_metadata, never a source
+ * field. This keeps the pure-publisher line intact.
  */
+
+/**
+ * One Schedule A (assets) row from a Form 278 annual disclosure. Source-faithful:
+ * names, type codes, owner codes, and value/income RANGES are stored exactly as
+ * the filer disclosed them. No derived numerics.
+ */
+export interface Form278Asset {
+  /** Source row number, verbatim — "1", "2.1" (sub-holding within an account). */
+  row_number: string;
+  /** Asset name exactly as disclosed. */
+  asset_name: string;
+  /** Asset type as disclosed — Senate "Corporate Securities"; House bracket code
+   *  "OL"/"OT"/"BA"/"FA" expanded when the source provides it. */
+  asset_type: string;
+  /** Asset sub-type/category detail (Senate muted "Stock"/"IRA"); "" if none. */
+  asset_subtype: string;
+  /** Owner as disclosed: Self / Spouse / Joint / Child / Dependent / "". */
+  owner: string;
+  /** Value RANGE verbatim — "$50,001 - $100,000", "Over $1,000,000",
+   *  "Unascertainable", "--", "". NEVER a point estimate; NO numeric min/max. */
+  value_range: string;
+  /** Income type(s) as disclosed: "Dividends" / "None" / "". */
+  income_type: string;
+  /** Income RANGE verbatim: "$2,501 - $5,000" / "None (or less than $201)" / "". */
+  income_range: string;
+  /** Location parenthetical when disclosed (Senate "(New York, NY)", House "L:"). */
+  location: string;
+  /** Free-text description when disclosed (Senate "Description: …", House "D:"). */
+  description: string;
+  /** Ticker symbol when the source embeds one in the asset name; "" if none. */
+  ticker: string;
+}
+
+/**
+ * One Schedule C (liabilities) row from a Form 278 annual disclosure.
+ * Source-faithful; amount stored as the disclosed RANGE, no numeric min/max.
+ */
+export interface Form278Liability {
+  /** Source row number, verbatim. */
+  row_number: string;
+  /** Year incurred, verbatim ("2021"); "" if none. */
+  incurred: string;
+  /** Debtor/owner as disclosed: Self / Spouse / Joint / …. */
+  debtor: string;
+  /** Liability type as disclosed: "Mortgage" / "Loan" / …. */
+  liability_type: string;
+  /** Interest rate + term verbatim: "2.5% (30 years)"; "" if none. */
+  rate_term: string;
+  /** Amount RANGE verbatim: "$250,001 - $500,000"; NO numeric min/max. */
+  amount_range: string;
+  /** Creditor name as disclosed: "Homepoint". */
+  creditor: string;
+  /** Creditor location when disclosed (muted "Dallas, TX"); "" if none. */
+  location: string;
+  /** Free-text comment; "" if none. */
+  comment: string;
+}
+
 export interface Form278Filing {
   /** Stable doc ID — Senate report UUID or House DocID + year */
   filing_id: string;
@@ -1407,6 +1475,28 @@ export interface Form278Filing {
 
   /** ISO timestamp of when our scraper ingested the metadata */
   scraped_at: string;
+
+  // ── v1 (2026-06-01) parsed-content fields. All OPTIONAL so v1A
+  //    metadata-only docs already in Firestore stay valid. ──────────────
+
+  /** Parsed Schedule A (assets) rows. Absent on metadata-only / paper docs. */
+  assets?: Form278Asset[];
+  /** Parsed Schedule C (liabilities) rows. Absent on metadata-only / paper docs. */
+  liabilities?: Form278Liability[];
+  /** True once the schedule contents were parsed (vs. metadata-only). */
+  content_parsed?: boolean;
+  /** True for Senate paper (scanned-image) filings — metadata + link-out only,
+   *  NO OCR. Pairs with `coverage_note`. */
+  is_paper?: boolean;
+  /** Honest coverage note when content is unavailable (paper filings, parse
+   *  skips) — names the limitation rather than silently omitting it. */
+  coverage_note?: string;
+  /** Count of parsed asset rows (cheap filter without reading the array). */
+  asset_count?: number;
+  /** Count of parsed liability rows. */
+  liability_count?: number;
+  /** True if asset/liability arrays were truncated to protect the 1MB doc cap. */
+  schedules_truncated?: boolean;
 }
 
 export interface Form278FilingsQuery {

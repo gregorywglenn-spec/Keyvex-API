@@ -19,7 +19,12 @@
  * agents consume it. No derived signals.
  */
 
-import type { Form278Filing } from "../types.js";
+import * as cheerio from "cheerio";
+import type {
+  Form278Asset,
+  Form278Filing,
+  Form278Liability,
+} from "../types.js";
 import { createSession } from "./senate.js";
 
 const CONFIG = {
@@ -245,6 +250,185 @@ function parseOffice(office: string): { state: string; district: string } {
   return { state: "", district: "" };
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+//  Senate annual content parser (v1, 2026-06-01)
+//
+//  The Senate eFD "annual" view renders the Form 278 schedules as structured
+//  HTML tables, one per Part, each inside a `<section class="card">` with an
+//  `<h3>Part N. Title</h3>`. We parse:
+//    - Part 3  Assets      → <table id="grid_items">   (Schedule A)
+//    - Part 7  Liabilities → the section's .table-striped (Schedule C)
+//  Everything is stored source-faithful: value/amount/income RANGES verbatim,
+//  owner/type codes preserved, no derived numerics. Paper (scanned-image)
+//  filings have no structured tables; the caller link-outs those with a note.
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Collapse runs of whitespace (incl. &nbsp;) to single spaces and trim. */
+function squish(s: string): string {
+  return s.replace(/ /g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** From an Asset cell's muted sub-divs, pull location (parenthetical) and a
+ *  source-faithful description (the remaining detail text, e.g. a "Type:" or
+ *  "Description:" note). Only leaf muted divs carry real text — wrapper divs
+ *  that merely contain another muted div are skipped to avoid duplicates. */
+function extractAssetDetail(
+  $: cheerio.CheerioAPI,
+  cell: cheerio.Cheerio<any>,
+): { location: string; description: string } {
+  let location = "";
+  const descParts: string[] = [];
+  cell.find("div.muted").each((_, d) => {
+    const $d = $(d);
+    if ($d.children("div.muted").length > 0) return; // wrapper, skip to leaf
+    const raw = squish($d.text());
+    if (!raw) return;
+    const paren = raw.match(/^\(([^)]+)\)$/);
+    if (paren) {
+      location = (paren[1] ?? "").trim();
+      return;
+    }
+    // Strip a redundant leading "Description:" label; keep "Type:" detail as-is.
+    descParts.push(raw.replace(/^Description\s*:\s*/i, ""));
+  });
+  return { location, description: descParts.join("; ") };
+}
+
+/** Parse the Part 3 Assets table (#grid_items) into Form278Asset rows. */
+function parseSenateAssets($: cheerio.CheerioAPI): Form278Asset[] {
+  const rows: Form278Asset[] = [];
+  $("#grid_items tbody tr").each((_, tr) => {
+    const tds = $(tr).find("td");
+    if (tds.length < 7) return;
+    const nameCell = $(tds[1]);
+    const typeCell = $(tds[2]);
+
+    const asset_name = squish(nameCell.find("strong").first().text());
+    const { location, description } = extractAssetDetail($, nameCell);
+
+    const asset_subtype = squish(typeCell.find("div.muted").text());
+    const asset_type = squish(
+      typeCell.clone().children("div.muted").remove().end().text(),
+    );
+
+    rows.push({
+      row_number: squish($(tds[0]).text()),
+      asset_name,
+      asset_type,
+      asset_subtype,
+      owner: squish($(tds[3]).text()),
+      value_range: squish($(tds[4]).text()),
+      income_type: squish($(tds[5]).text()),
+      income_range: squish($(tds[6]).text()),
+      location,
+      description,
+      ticker: "",
+    });
+  });
+  return rows;
+}
+
+/** Parse the Part 7 Liabilities table into Form278Liability rows. The table
+ *  is the `.table-striped` inside the section whose <h3> says "Liabilities"
+ *  (there are several .table-striped tables on the page — bind by section). */
+function parseSenateLiabilities($: cheerio.CheerioAPI): Form278Liability[] {
+  // Locate the Liabilities <section> first (there are several .table-striped
+  // tables on the page; bind by the section whose <h3> says "Liabilities").
+  const section = $("section.card")
+    .filter((_, sec) => /Liabilit/i.test($(sec).find("h3").first().text()))
+    .first();
+  if (section.length === 0) return [];
+  const table = section.find("table").first();
+  if (table.length === 0) return [];
+
+  const rows: Form278Liability[] = [];
+  table.find("tbody tr").each((_, tr) => {
+    const tds = $(tr).find("td");
+    if (tds.length < 9) return;
+    const creditorCell = $(tds[8]);
+    const creditor = squish(
+      creditorCell.clone().children("div.muted").remove().end().text(),
+    );
+    const location = squish(creditorCell.find("div.muted").text());
+
+    rows.push({
+      row_number: squish($(tds[1]).text()),
+      incurred: squish($(tds[2]).text()),
+      debtor: squish($(tds[3]).text()),
+      liability_type: squish($(tds[4]).text()),
+      rate_term: squish($(tds[6]).text()),
+      amount_range: squish($(tds[7]).text()),
+      creditor,
+      location,
+      comment: squish($(tds[9] ?? "").length ? $(tds[9]).text() : ""),
+    });
+  });
+  return rows;
+}
+
+export interface ParsedAnnualContent {
+  assets: Form278Asset[];
+  liabilities: Form278Liability[];
+  /** True when the page had the structured Assets table (electronic filing). */
+  parseable: boolean;
+}
+
+/** Parse a Senate eFD annual-view HTML page into structured schedule content.
+ *  Exported so it can be verified directly against a saved sample. */
+export function parseSenateAnnualHtml(html: string): ParsedAnnualContent {
+  const $ = cheerio.load(html);
+  const parseable = $("#grid_items").length > 0;
+  if (!parseable) {
+    return { assets: [], liabilities: [], parseable: false };
+  }
+  return {
+    assets: parseSenateAssets($),
+    liabilities: parseSenateLiabilities($),
+    parseable: true,
+  };
+}
+
+/** Fetch + parse one annual filing's HTML content. Returns null on paper /
+ *  unparseable views so the caller can link-out with an honest note. */
+async function fetchSenateAnnualContent(
+  session: { fetch: typeof fetch },
+  reportUrl: string,
+): Promise<ParsedAnnualContent | null> {
+  await sleep(CONFIG.RATE_LIMIT_MS);
+  const res = await session.fetch(reportUrl, {
+    headers: {
+      "User-Agent": CONFIG.USER_AGENT,
+      Referer: CONFIG.SEARCH_URL,
+    },
+  });
+  if (!res.ok) {
+    console.error(`[form278]   view HTTP ${res.status} for ${reportUrl}`);
+    return null;
+  }
+  const html = await res.text();
+  const parsed = parseSenateAnnualHtml(html);
+  return parsed.parseable ? parsed : null;
+}
+
+/** Truncate schedule arrays if a single filing's assets would blow past
+ *  Firestore's 1MB doc cap. Real annuals top out around 100-200 assets; the
+ *  cap here (600 assets / 200 liabilities) is a defensive ceiling, never hit
+ *  in normal data. Returns whether truncation occurred. */
+function capSchedules(content: ParsedAnnualContent): boolean {
+  let truncated = false;
+  const MAX_ASSETS = 600;
+  const MAX_LIABS = 200;
+  if (content.assets.length > MAX_ASSETS) {
+    content.assets = content.assets.slice(0, MAX_ASSETS);
+    truncated = true;
+  }
+  if (content.liabilities.length > MAX_LIABS) {
+    content.liabilities = content.liabilities.slice(0, MAX_LIABS);
+    truncated = true;
+  }
+  return truncated;
+}
+
 export interface ScrapeOptions {
   /** Rolling lookback in days from now. Ignored if startDate+endDate set. */
   lookbackDays?: number;
@@ -252,7 +436,26 @@ export interface ScrapeOptions {
   startDate?: string;
   /** Explicit window end (YYYY-MM-DD, inclusive). Pairs with startDate. */
   endDate?: string;
+  /** v1: when true, fetch + parse each electronic filing's Schedule A/C
+   *  contents (one extra HTTP GET per filing). Paper filings are link-out
+   *  only with a coverage note. Default false (metadata-only, v1A behavior). */
+  parseContent?: boolean;
 }
+
+/** eFD URL subtypes that ship as scanned-image (paper) filings — no
+ *  structured tables, link-out only, NO OCR in v1. */
+function isPaperSubtype(subtype: string): boolean {
+  return subtype.toLowerCase() === "paper";
+}
+
+const PAPER_COVERAGE_NOTE =
+  "Filed on paper (scanned image). Schedule contents are not machine-parsed " +
+  "in v1 — follow report_url to read the original. ~6.5% of Senate annual " +
+  "filings are paper.";
+
+const PARSE_SKIP_COVERAGE_NOTE =
+  "Electronic filing whose schedule tables could not be parsed (unexpected " +
+  "layout). Follow report_url to read the original.";
 
 /** Parse YYYY-MM-DD to a UTC Date at midnight. Throws on bad format. */
 function parseIsoDateStrict(s: string, label: string): Date {
@@ -307,11 +510,17 @@ export async function scrapeSenateForm278(
   );
 
   const scrapedAt = new Date().toISOString();
-  const filings: Form278Filing[] = entries.map((e) => {
+  const filings: Form278Filing[] = [];
+  let parsedCount = 0;
+  let paperCount = 0;
+
+  for (const e of entries) {
     const { state, district } = parseOffice(e.office);
     const filingDateIso = toIsoDate(e.dateFiled);
     const reportType = inferReportType(e.reportSubtype);
-    return {
+    const reportUrl = `${CONFIG.EFD_BASE}${e.reportPath.startsWith("/") ? "" : "/"}${e.reportPath}`;
+
+    const filing: Form278Filing = {
       filing_id: `senate-${e.reportSubtype}-${e.reportId}`,
       source: "SENATE_EFD_AFD",
       chamber: "senate",
@@ -327,13 +536,55 @@ export async function scrapeSenateForm278(
       filing_date: filingDateIso,
       report_type: reportType,
       report_subtype: e.reportSubtype,
-      report_url: `${CONFIG.EFD_BASE}${e.reportPath.startsWith("/") ? "" : "/"}${e.reportPath}`,
+      report_url: reportUrl,
       scraped_at: scrapedAt,
     };
-  });
 
-  console.error(
-    `[form278] Parsed ${filings.length} Senate Form 278 filings (Annual / New Filer / Termination / Combined)`,
-  );
+    if (options.parseContent) {
+      if (isPaperSubtype(e.reportSubtype)) {
+        filing.is_paper = true;
+        filing.content_parsed = false;
+        filing.coverage_note = PAPER_COVERAGE_NOTE;
+        paperCount++;
+      } else {
+        let content: ParsedAnnualContent | null = null;
+        try {
+          content = await fetchSenateAnnualContent(session, reportUrl);
+        } catch (err) {
+          console.error(
+            `[form278]   content fetch failed for ${filing.filing_id}: ${
+              (err as Error).message
+            }`,
+          );
+        }
+        if (content) {
+          const truncated = capSchedules(content);
+          filing.assets = content.assets;
+          filing.liabilities = content.liabilities;
+          filing.asset_count = content.assets.length;
+          filing.liability_count = content.liabilities.length;
+          filing.content_parsed = true;
+          if (truncated) filing.schedules_truncated = true;
+          parsedCount++;
+        } else {
+          filing.content_parsed = false;
+          filing.coverage_note = PARSE_SKIP_COVERAGE_NOTE;
+        }
+      }
+    }
+
+    filings.push(filing);
+  }
+
+  if (options.parseContent) {
+    console.error(
+      `[form278] Parsed ${filings.length} Senate Form 278 filings ` +
+        `(${parsedCount} with schedule contents, ${paperCount} paper link-out)`,
+    );
+  } else {
+    console.error(
+      `[form278] Parsed ${filings.length} Senate Form 278 filings (metadata only)`,
+    );
+  }
   return filings;
 }
