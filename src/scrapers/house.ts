@@ -314,17 +314,43 @@ export async function fetchHousePtrText(
  *
  * The signature can either start a fresh line OR be appended to the same
  * line as a single-line asset description. Examples observed in the wild:
- *   "P03/05/202604/07/2026$1,001 - $15,000"           — fresh line
+ *   "P03/05/202604/07/2026$1,001 - $15,000"           — fresh line (2025+ layout)
  *   "S (partial)03/24/202604/07/2026$1,001 - $15,000" — partial sale
  *   "JTCBIZ, Inc. Common Stock (CBZ) [ST]S03/05/202604/07/2026$1,001 - $15,000"
  *                                                     — single-line collapse
+ *   "Visa Inc. (V)s12/29/201412/29/2014$250,001 - $500,000"
+ *                                                     — 2014/2015 layout
  *
- * The regex captures: txCode, txDate, notifDate, amountStart. The "partial"
+ * TWO LAYOUT ERAS (verified empirically against live PDFs 2026-06-01):
+ *   • 2025/2026 — tx code is UPPERCASE (P/S/E) on its own line or appended;
+ *     footer markers are abbreviated ("F S:", "S O:", "D:").
+ *   • 2014/2015 — the eFD font renders erratically: tx codes are MIXED case
+ *     (lowercase "s" = sale, uppercase "P" = purchase), dates may use a
+ *     single-digit day ("02/9/2015"), owner codes render lowercase-first
+ *     ("sP" not "SP"), and footer markers are FULL WORDS with scrambled
+ *     casing ("FILINg sTATUs:", "sUbHoLDINg oF:", "DEsCRIPTION:", lowercase
+ *     "amount" header). The asset, code, both dates, and amount range often
+ *     collapse onto ONE line.
+ *
+ * Therefore the code class is [PSEpse] (case-insensitive on the code letter)
+ * and the day/month fields are \d{1,2}. This is what lets the 2014/2015
+ * lowercase-"s" sale rows be recognized as their own signatures — the root
+ * cause of the asset_name BLEED bug: when an "s" sale line was NOT recognized
+ * as a signature, the next uppercase-"P" trade's backward-walk vacuumed the
+ * whole skipped sale row (its embedded "$X - $Y" range included) into its own
+ * asset_name. Recognizing lowercase codes both recovers the lost sale rows AND
+ * halts the bleed (a recognized prior signature stops the backward-walk).
+ *
+ * The double MM/DD/YYYY immediately followed by "$" makes false positives
+ * inside asset names vanishingly unlikely even with the widened code class.
+ *
+ * The regex captures: txCode, txDate, notifDate, amountStart. txCode is
+ * uppercased by the caller before buy/sell classification. The "partial"
  * qualifier is detected separately for comment enrichment (it doesn't
  * change the fundamental buy/sell classification).
  */
 const TX_SIG_RE =
-  /([PSE])(?:\s*\([^)]+\))?(\d{2}\/\d{2}\/\d{4})(\d{2}\/\d{2}\/\d{4})(\$[^\n]*)/;
+  /([PSEpse])(?:\s*\([^)]+\))?(\d{1,2}\/\d{1,2}\/\d{4})(\d{1,2}\/\d{1,2}\/\d{4})(\$[^\n]*)/;
 
 /**
  * Predicate: is this line a "stop marker" that signals we've walked past
@@ -335,23 +361,52 @@ const TX_SIG_RE =
  */
 function isAssetWalkStopMarker(line: string): boolean {
   return (
+    // Abbreviated footer markers (2025/2026 layout)
     /^F\s+S\s*:/.test(line) ||
     /^S\s+O\s*:/.test(line) ||
     /^D\s*:/.test(line) ||
     /^L\s*:/.test(line) ||
+    // Full-word footer markers (2014/2015 layout — scrambled casing, so /i)
+    /^filing\s+status\b/i.test(line) ||
+    /^subholding\s+of\b/i.test(line) ||
+    /^description\s*:/i.test(line) ||
+    /^location\s*:/i.test(line) ||
+    /^comments?\b/i.test(line) ||
+    // Table header / page-break artifacts
     /^Filing\s+ID/i.test(line) ||
-    /^IDOwner/.test(line) ||
-    line === "Type" ||
-    line === "Date" ||
-    line === "DateNotification" ||
-    line === "Notification" ||
+    /^IDOwner/i.test(line) ||
+    /^ID\s+Owner/i.test(line) ||
+    /^DateNotification/i.test(line) ||
+    /^Notification$/i.test(line) ||
+    /^Type$/i.test(line) ||
+    /^Date$/i.test(line) ||
+    /^Amount$/i.test(line) ||
     line.startsWith("Amount") ||
     line === "Cap." ||
     line.startsWith("Gains") ||
     /^\$200/.test(line) ||
-    /^\*\s+For the complete list/.test(line) ||
-    /^I CERTIFY/.test(line) ||
-    /^Digitally Signed/.test(line)
+    /^\*\s+For the complete list/i.test(line) ||
+    /^I CERTIFY/i.test(line) ||
+    /^Digitally Signed/i.test(line)
+  );
+}
+
+/**
+ * Predicate: is this line nothing but a currency amount (or the second half
+ * of a wrapped amount range)? e.g. "$5,000,000", "$1,001 -", "$1,001 - $15,000".
+ *
+ * This is the load-bearing guard against the cross-trade amount BLEED: when a
+ * trade's amount range wraps across two PDF lines (TX_SIG_RE captures the first
+ * half ending in " - ", the forward-look at i+1 appends the second half), that
+ * orphaned second-half line physically sits ABOVE the NEXT trade's asset name.
+ * Without this guard, the next trade's backward-walk unshifts the stray
+ * "$5,000,000" into ITS asset_name — producing names like
+ * "$5,000,000 Hickory Nut Gap Meats LLC". An asset name never legitimately
+ * consists solely of a currency amount, so breaking the walk here is safe.
+ */
+function isCurrencyFragmentLine(line: string): boolean {
+  return /^\$[\d,]+(?:\.\d+)?\s*(?:-\s*(?:\$[\d,]+(?:\.\d+)?)?)?$/.test(
+    line.trim(),
   );
 }
 
@@ -406,7 +461,7 @@ export function parseHousePtrText(
 
     const matchIdx = sigMatch.index ?? 0;
     const beforeTx = line.slice(0, matchIdx);
-    const txCode = sigMatch[1]!;
+    const txCode = sigMatch[1]!.toUpperCase();
     const txDate = sigMatch[2]!;
     const notifDate = sigMatch[3]!;
     let amount = sigMatch[4]!.trim();
@@ -414,7 +469,7 @@ export function parseHousePtrText(
     // Detect "(partial)" / "(full)" qualifier for comment enrichment
     const qualifierMatch = line
       .slice(matchIdx)
-      .match(/^[PSE]\s*\(([^)]+)\)/);
+      .match(/^[PSEpse]\s*\(([^)]+)\)/);
     const qualifier = qualifierMatch?.[1]?.trim() ?? "";
 
     // ─── Step 4-5: gather asset description ───────────────────────────
@@ -437,8 +492,12 @@ export function parseHousePtrText(
       const prev = lines[j]!;
       if (isAssetWalkStopMarker(prev)) break;
       if (TX_SIG_RE.test(prev)) break;
+      // Guard against the cross-trade amount bleed: a stray currency fragment
+      // (the wrapped second-half of the PRIOR trade's amount range) sits above
+      // this trade's name. It is not part of the asset description — stop here.
+      if (isCurrencyFragmentLine(prev)) break;
       assetParts.unshift(prev);
-      if (/^(SP|JT|DC)\S/.test(prev)) break;
+      if (/^([Ss]P|[Jj]T|[Dd]C)\S/.test(prev)) break;
       j--;
     }
 
@@ -461,7 +520,7 @@ export function parseHousePtrText(
     // ("T. Rowe Price"), and apostrophe-starts ("O'Reilly").
     let owner: "Self" | "Spouse" | "Joint" | "Dependent" = "Self";
     let withoutOwner = fullAsset;
-    const ownerMatch = fullAsset.match(/^(SP|JT|DC)(\S.*)$/);
+    const ownerMatch = fullAsset.match(/^([Ss]P|[Jj]T|[Dd]C)(\S.*)$/);
     if (ownerMatch) {
       owner = normalizeOwner(ownerMatch[1]!);
       withoutOwner = ownerMatch[2]!.trim();
