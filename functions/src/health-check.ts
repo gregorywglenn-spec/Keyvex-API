@@ -36,7 +36,7 @@ const RENOTIFY_FAIL_MS = 6 * 3_600_000; // 6 hours
 /** While everything is healthy, send a green "alive" ping at most this often. */
 const HEARTBEAT_MS = 24 * 3_600_000; // once a day
 
-interface JobConfig {
+export interface JobConfig {
   /** Internal key used in result objects; stable across runs. */
   key: string;
   /** Human-readable label for Slack messages. */
@@ -90,7 +90,7 @@ const TIER = {
  * oigExclusionsSync, legislatorsHistoricalSync) — genuinely-dead scrapers
  * the old 8-job list was blind to. Those alerts are correct, not noise.
  */
-const JOBS: JobConfig[] = [
+export const JOBS: JobConfig[] = [
   // ── 30-minute ──
   { key: "insiderTradesSync", label: "Form 4 (insider trades) sync", metaDoc: "insiderTradesSync", cadence: "every 30 min", ...TIER.min30 },
 
