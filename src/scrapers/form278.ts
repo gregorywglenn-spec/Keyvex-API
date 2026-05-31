@@ -388,6 +388,354 @@ export function parseSenateAnnualHtml(html: string): ParsedAnnualContent {
   };
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+//  House annual content parser (v1, 2026-06-01)
+//
+//  Unlike the Senate (structured HTML tables), House annual Form 278 filings
+//  are PDFs. We extract their text with pdf-parse (the same library house.ts
+//  uses for PTRs) and walk the lines with a SCHEMA-AWARE reconstructor.
+//
+//  The hard problem is that pdf-parse loses the visual table layout: a single
+//  asset's fields land on multiple lines, names wrap, and — worst — a value
+//  can be split across a PAGE BOUNDARY, with the filing-ID banner + repeated
+//  column headers injected between the asset's first line and the rest of its
+//  value (the "bleed"). Example (Ager, DocID 10073311):
+//
+//      John Hancock Annuity, 100% Interest [OT]$50,001 -None   ← asset starts
+//      Filing ID #10073311                                     ← page-boundary
+//      AssetOwnerValue of AssetIncome Type(s)Income            ← repeated header
+//      Current Year to / Filing / Income / Preceding / Year    ← column subheads
+//      $100,000                                                ← value RESUMES
+//      D          : Annuity
+//
+//  The reconstruction technique: FILTER the page-boundary noise lines FIRST,
+//  which makes the resumed "$100,000" adjacent to its asset again, then a
+//  value-fragment line ALWAYS appends to the current asset block. This is the
+//  same schema-aware row-reconstruction discipline that fixes the live PTR
+//  "amount bleeds into next asset name" bug in house.ts.
+//
+//  Source-faithful: value RANGES verbatim ("$50,001 - $100,000"), owner codes
+//  (JT/SP/DC, "" = Self) and bracket type codes (OL/OT/BA/FA) preserved, no
+//  derived numerics. income_range is left "" for House v1 (the income columns
+//  are the most bleed-prone region of the layout — an honest empty beats a
+//  guessed value).
+// ──────────────────────────────────────────────────────────────────────────
+
+/** Strip control bytes pdf-parse leaves where the source PDF used symbol
+ *  fonts it couldn't decode (same cleanup house.ts does for PTRs). */
+const HOUSE_CONTROL_CHARS_RE = new RegExp(`[\u0000-\u0008\u000b\u000c\u000e-\u001f]`, "g");
+
+/** Known House income-type tokens that can appear on their own line. They
+ *  belong to the current asset block, never start a new one. */
+const HOUSE_INCOME_WORDS = new Set([
+  "None",
+  "Dividends",
+  "Interest",
+  "Rent",
+  "Capital Gains",
+  "Tax-Deferred",
+  "Excepted/Blind Trust",
+]);
+
+/** A line that is nothing but a currency value/range fragment: a bare value
+ *  ("$100,000"), an open-ended range start ("$1,000,001 -"), or a full range
+ *  on its own line ("$1,001 - $15,000"). Such a line is always a VALUE — it
+ *  appends to the current asset block (this is what reconstructs the bleed),
+ *  and it never starts a new asset. */
+function isHouseValueFragment(line: string): boolean {
+  return /^\$[\d,]+(?:\.\d+)?\s*(?:-\s*(?:\$[\d,]+(?:\.\d+)?)?)?$/.test(
+    line.trim(),
+  );
+}
+
+/** A page-boundary / table-chrome noise line that pdf-parse repeats across
+ *  page breaks. Filtering these FIRST is what makes a bled value adjacent to
+ *  its asset again. */
+function isHouseNoiseLine(line: string): boolean {
+  const s = squish(line);
+  if (s === "") return true;
+  if (/^Asset\s*Owner/i.test(s)) return true; // "AssetOwnerValue of Asset…"
+  if (/Value of Asset/i.test(s)) return true;
+  if (/^Filing ID\s*#/i.test(s)) return true;
+  if (/^\*\s*Investment Vehicle/i.test(s)) return true;
+  if (/^https?:\/\//i.test(s)) return true;
+  // Repeated column sub-headers that sit alone on a line.
+  if (
+    /^(Current Year to|Filing|Income|Preceding|Year|Source|Type|Amount|Owner)$/i.test(
+      s,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** True when a line is a continuation of the CURRENT asset block (bracket
+ *  type code on its own line, bare owner code, an income word, or a location/
+ *  description subline) — never the start of a NEW asset. */
+function isHouseAssetContinuation(line: string): boolean {
+  const s = squish(line);
+  if (/^\[[A-Z0-9]{1,5}\]$/.test(s)) return true; // "[OL]" on its own line
+  if (/^(JT|SP|DC)$/.test(s)) return true; // bare owner code
+  if (/^(JT|SP|DC)\$/.test(s)) return true; // owner glued to value head "JT$…"
+  if (/^L\s*:/.test(s)) return true; // location subline
+  if (/^D\s*:/.test(s)) return true; // description subline
+  if (HOUSE_INCOME_WORDS.has(s)) return true; // standalone income token
+  return false;
+}
+
+interface HouseBlock {
+  lines: string[];
+  hasValue: boolean;
+}
+
+/** Slice the lines between a schedule header and the next schedule header /
+ *  region terminator. `startRe` matches the opening header; the region ends
+ *  at the first `endRe` match or the next generic schedule header. */
+function sliceHouseRegion(
+  lines: string[],
+  startRe: RegExp,
+  endRe: RegExp,
+): string[] {
+  const start = lines.findIndex((l) => startRe.test(l));
+  if (start < 0) return [];
+  const body: string[] = [];
+  const GENERIC_HEADER = /^S\s{2,}[A-Z]:/;
+  for (let i = start + 1; i < lines.length; i++) {
+    const l = lines[i]!;
+    if (endRe.test(l)) break;
+    if (GENERIC_HEADER.test(l)) break;
+    body.push(l);
+  }
+  return body;
+}
+
+/** Segment a noise-filtered region into asset blocks. A "candidate name"
+ *  line (anything that isn't a value fragment or a continuation) starts a new
+ *  block ONLY once the current block already captured a value — so wrapped
+ *  names ("[OL]" on its own line, multi-line names, ⇒ IV parents) stay glued
+ *  to their asset, while a genuinely new asset (whose predecessor already has
+ *  its value) opens a fresh block. */
+function segmentHouseBlocks(region: string[]): HouseBlock[] {
+  const blocks: HouseBlock[] = [];
+  let cur: HouseBlock | null = null;
+
+  for (const raw of region) {
+    if (isHouseNoiseLine(raw)) continue;
+    // ⇒ marks an Investment-Vehicle parent label; the real sub-asset name
+    // repeats on the very next line, so drop the redundant parent label.
+    if (/[⇒→]\s*$/.test(raw) || /=>\s*$/.test(raw)) continue;
+
+    const line = raw.trim();
+
+    if (isHouseValueFragment(line)) {
+      if (cur) {
+        cur.lines.push(line);
+        cur.hasValue = true;
+      }
+      continue;
+    }
+    if (cur && isHouseAssetContinuation(line)) {
+      cur.lines.push(line);
+      if (/\$/.test(line)) cur.hasValue = true;
+      continue;
+    }
+    // Candidate asset-name line.
+    if (cur && !cur.hasValue) {
+      // Current block has a name but no value yet → this is a wrapped name.
+      cur.lines.push(line);
+      if (/\$/.test(line)) cur.hasValue = true;
+      continue;
+    }
+    // Start a new block.
+    cur = { lines: [line], hasValue: /\$/.test(line) };
+    blocks.push(cur);
+  }
+  return blocks;
+}
+
+/** Extract one Form278Asset from a reconstructed block. */
+function extractHouseAsset(block: HouseBlock, rowNum: number): Form278Asset {
+  let location = "";
+  const descParts: string[] = [];
+  const headLines: string[] = [];
+
+  for (const l of block.lines) {
+    const loc = l.match(/^L\s*:\s*(.+)$/);
+    if (loc) {
+      location = squish(loc[1]!);
+      continue;
+    }
+    const desc = l.match(/^D\s*:\s*(.+)$/);
+    if (desc) {
+      descParts.push(squish(desc[1]!));
+      continue;
+    }
+    headLines.push(l);
+  }
+
+  const blob = squish(headLines.join(" "));
+
+  // Asset type: first [XX] bracket. Split name (before) from value tail (after).
+  let asset_type = "";
+  let head = blob;
+  let tail = "";
+  const typeMatch = blob.match(/\[([A-Z0-9]{1,5})\]/);
+  if (typeMatch) {
+    asset_type = typeMatch[1]!;
+    head = blob.slice(0, typeMatch.index).trim();
+    tail = blob.slice(typeMatch.index! + typeMatch[0].length).trim();
+  } else {
+    // No bracket code: best-effort split at the first owner code or "$".
+    const ownerIdx = blob.search(/(?:JT|SP|DC)?\$/);
+    if (ownerIdx >= 0) {
+      head = blob.slice(0, ownerIdx).trim();
+      tail = blob.slice(ownerIdx).trim();
+    }
+  }
+
+  // Owner code immediately leads the value tail (JT/SP/DC); "" = Self.
+  let owner = "";
+  const ownerMatch = tail.match(/^(JT|SP|DC)(\$|\s|$)/);
+  if (ownerMatch) {
+    owner = ownerMatch[1]!;
+    tail = tail.slice(ownerMatch[1]!.length).trim();
+  }
+
+  // Value range: the $ tokens in source order. One token → that value; two+ →
+  // first - last (verbatim range as disclosed).
+  const valueTokens = tail.match(/\$[\d,]+(?:\.\d+)?/g) ?? [];
+  let value_range = "";
+  if (valueTokens.length === 1) {
+    value_range = valueTokens[0]!;
+  } else if (valueTokens.length >= 2) {
+    value_range = `${valueTokens[0]} - ${valueTokens[valueTokens.length - 1]}`;
+  }
+
+  // Income type: whatever non-currency words remain in the tail (typically
+  // "None"). Strip $ tokens and range dashes, keep the rest source-faithful.
+  const income_type = squish(
+    tail
+      .replace(/\$[\d,]+(?:\.\d+)?/g, " ")
+      .replace(/-/g, " "),
+  );
+
+  return {
+    row_number: String(rowNum),
+    asset_name: head.replace(/[\s,]+$/, ""),
+    asset_type,
+    asset_subtype: "",
+    owner,
+    value_range,
+    income_type,
+    income_range: "", // House v1: income columns are bleed-prone — honest empty
+    location,
+    description: descParts.join("; "),
+    ticker: "",
+  };
+}
+
+/** Parse the House Schedule D (Liabilities) region. "None disclosed." → [].
+ *  Best-effort block parse otherwise (no House-with-liabilities sample was
+ *  available to verify against at v1; the structure mirrors Schedule A). */
+function parseHouseLiabilities(region: string[]): Form278Liability[] {
+  const filtered = region.filter((l) => !isHouseNoiseLine(l));
+  if (filtered.length === 0) return [];
+  if (filtered.some((l) => /none disclosed/i.test(l)) && filtered.length <= 2) {
+    return [];
+  }
+  const blocks = segmentHouseBlocks(region);
+  const liabs: Form278Liability[] = [];
+  let rowNum = 0;
+  for (const block of blocks) {
+    let location = "";
+    const descParts: string[] = [];
+    const headLines: string[] = [];
+    for (const l of block.lines) {
+      const loc = l.match(/^L\s*:\s*(.+)$/);
+      if (loc) {
+        location = squish(loc[1]!);
+        continue;
+      }
+      const desc = l.match(/^D\s*:\s*(.+)$/);
+      if (desc) {
+        descParts.push(squish(desc[1]!));
+        continue;
+      }
+      headLines.push(l);
+    }
+    const blob = squish(headLines.join(" "));
+    if (!blob || /none disclosed/i.test(blob)) continue;
+    let creditor = blob;
+    let tail = "";
+    const ownerIdx = blob.search(/(?:JT|SP|DC)?\$/);
+    if (ownerIdx >= 0) {
+      creditor = blob.slice(0, ownerIdx).trim();
+      tail = blob.slice(ownerIdx).trim();
+    }
+    let debtor = "";
+    const ownerMatch = tail.match(/^(JT|SP|DC)(\$|\s|$)/);
+    if (ownerMatch) {
+      debtor = ownerMatch[1]!;
+      tail = tail.slice(ownerMatch[1]!.length).trim();
+    }
+    const valueTokens = tail.match(/\$[\d,]+(?:\.\d+)?/g) ?? [];
+    let amount_range = "";
+    if (valueTokens.length === 1) amount_range = valueTokens[0]!;
+    else if (valueTokens.length >= 2) {
+      amount_range = `${valueTokens[0]} - ${valueTokens[valueTokens.length - 1]}`;
+    }
+    rowNum += 1;
+    liabs.push({
+      row_number: String(rowNum),
+      incurred: "",
+      debtor,
+      liability_type: "",
+      rate_term: "",
+      amount_range,
+      creditor: creditor.replace(/[\s,]+$/, ""),
+      location,
+      comment: descParts.join("; "),
+    });
+  }
+  return liabs;
+}
+
+/** Parse extracted House annual Form 278 PDF text into structured schedule
+ *  content. Exported so it can be verified directly against a saved sample. */
+export function parseHouseAnnualText(rawText: string): ParsedAnnualContent {
+  // pdf-parse emits NUL (and other control bytes) as inter-glyph padding in the
+  // form template — most visibly inside schedule headers ("S\0\0\0 A: A") and the
+  // "L\0\0\0:"/"D\0\0\0:" field labels. Replace them with a SPACE (not empty) so
+  // the wide spacing survives for the header-detection regexes; asset-name rows
+  // carry no control bytes and are unaffected.
+  const cleaned = rawText.replace(HOUSE_CONTROL_CHARS_RE, " ");
+  const lines = cleaned.split("\n").map((l) => l.replace(/\s+$/, ""));
+
+  // Schedule A (Assets): from "S  A: A" header to the IV footer / next header.
+  const assetRegion = sliceHouseRegion(
+    lines,
+    /^S\s{2,}A:\s*A/,
+    /^\*\s*Investment Vehicle/i,
+  );
+  const parseable = assetRegion.length > 0;
+  if (!parseable) {
+    return { assets: [], liabilities: [], parseable: false };
+  }
+  const assetBlocks = segmentHouseBlocks(assetRegion);
+  const assets = assetBlocks.map((b, idx) => extractHouseAsset(b, idx + 1));
+
+  // Schedule D (Liabilities): from "S  D: L" header to the next header.
+  const liabRegion = sliceHouseRegion(
+    lines,
+    /^S\s{2,}D:\s*L/,
+    /^S\s{2,}[A-Z]:/,
+  );
+  const liabilities = parseHouseLiabilities(liabRegion);
+
+  return { assets, liabilities, parseable: true };
+}
+
 /** Fetch + parse one annual filing's HTML content. Returns null on paper /
  *  unparseable views so the caller can link-out with an honest note. */
 async function fetchSenateAnnualContent(
