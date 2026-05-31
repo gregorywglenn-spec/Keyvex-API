@@ -217,9 +217,34 @@ async function fetchAllRows(
       console.error(
         `[finra]   record-total: ${recordTotal} rows for this filter`,
       );
+      // FINRA returns an EMPTY BODY (not "[]") when record-total is 0, which
+      // makes res.json() throw "Unexpected end of JSON input". Bail before the
+      // parse. This is the common case for recent weeks where FINRA hasn't
+      // published yet — a normal "no data", not an error.
+      if (recordTotal === 0) {
+        console.error(`[finra]   no rows published for this filter; skipping`);
+        break;
+      }
     }
 
-    const rows = (await res.json()) as RawOtcRow[];
+    // Defensive parse: even with record-total > 0, a short/empty body
+    // shouldn't crash the whole weekly run. Treat an unparseable/empty
+    // response as end-of-data rather than throwing.
+    const responseText = await res.text();
+    if (responseText.trim() === "") {
+      console.error(`[finra]   empty body at offset=${offset}; ending pagination`);
+      break;
+    }
+    let rows: RawOtcRow[];
+    try {
+      rows = JSON.parse(responseText) as RawOtcRow[];
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[finra]   JSON parse failed at offset=${offset} (${msg}); ending pagination`,
+      );
+      break;
+    }
     all.push(...rows);
     page++;
     console.error(
