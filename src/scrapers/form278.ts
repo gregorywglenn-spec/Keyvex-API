@@ -20,6 +20,7 @@
  */
 
 import * as cheerio from "cheerio";
+import { XMLParser } from "fast-xml-parser";
 import type {
   Form278Asset,
   Form278Filing,
@@ -425,17 +426,13 @@ export function parseSenateAnnualHtml(html: string): ParsedAnnualContent {
  *  fonts it couldn't decode (same cleanup house.ts does for PTRs). */
 const HOUSE_CONTROL_CHARS_RE = new RegExp(`[\u0000-\u0008\u000b\u000c\u000e-\u001f]`, "g");
 
-/** Known House income-type tokens that can appear on their own line. They
- *  belong to the current asset block, never start a new one. */
-const HOUSE_INCOME_WORDS = new Set([
-  "None",
-  "Dividends",
-  "Interest",
-  "Rent",
-  "Capital Gains",
-  "Tax-Deferred",
-  "Excepted/Blind Trust",
-]);
+/** Income-type vocabulary, longest-first so the alternation is greedy on the
+ *  multi-word phrases ("Capital Gains" before a bare match). These are the only
+ *  tokens v1 reports as income_type; everything else in the income columns
+ *  ("Not"/"Applicable" placeholders, the trailing preceding-year amount range)
+ *  is dropped. Used with /g to collect every income token in the region. */
+const HOUSE_INCOME_VOCAB =
+  /Capital Gains|Tax-Deferred|Tax Deferred|Excepted\/Blind Trust|Dividends|Interest|Rent|None/g;
 
 /** A line that is nothing but a currency value/range fragment: a bare value
  *  ("$100,000"), an open-ended range start ("$1,000,001 -"), or a full range
@@ -459,34 +456,23 @@ function isHouseNoiseLine(line: string): boolean {
   if (/^Filing ID\s*#/i.test(s)) return true;
   if (/^\*\s*Investment Vehicle/i.test(s)) return true;
   if (/^https?:\/\//i.test(s)) return true;
+  // Schedule D (Liabilities) column headers — alone or glued together.
+  if (/^Owner\s*Creditor/i.test(s)) return true; // "OwnerCreditorDate IncurredType…"
+  if (/^Liability$/i.test(s)) return true;
+  if (/^Amount of/i.test(s)) return true; // "Amount of" / "Amount of Liability"
+  if (/^Date Incurred/i.test(s)) return true;
+  // Terminated-filer transaction column header ("Tx. > $1,000?").
+  if (/Tx\.\s*>/i.test(s)) return true;
+  if (/^\$[\d,]+\?$/.test(s)) return true; // "$1,000?"
   // Repeated column sub-headers that sit alone on a line.
   if (
-    /^(Current Year to|Filing|Income|Preceding|Year|Source|Type|Amount|Owner)$/i.test(
+    /^(Current Year to|Current Year|to Filing|Filing|Income|Preceding Year|Preceding|Year|Source|Type|Amount|Owner|Creditor)$/i.test(
       s,
     )
   ) {
     return true;
   }
   return false;
-}
-
-/** True when a line is a continuation of the CURRENT asset block (bracket
- *  type code on its own line, bare owner code, an income word, or a location/
- *  description subline) — never the start of a NEW asset. */
-function isHouseAssetContinuation(line: string): boolean {
-  const s = squish(line);
-  if (/^\[[A-Z0-9]{1,5}\]$/.test(s)) return true; // "[OL]" on its own line
-  if (/^(JT|SP|DC)$/.test(s)) return true; // bare owner code
-  if (/^(JT|SP|DC)\$/.test(s)) return true; // owner glued to value head "JT$…"
-  if (/^L\s*:/.test(s)) return true; // location subline
-  if (/^D\s*:/.test(s)) return true; // description subline
-  if (HOUSE_INCOME_WORDS.has(s)) return true; // standalone income token
-  return false;
-}
-
-interface HouseBlock {
-  lines: string[];
-  hasValue: boolean;
 }
 
 /** Slice the lines between a schedule header and the next schedule header /
@@ -510,63 +496,134 @@ function sliceHouseRegion(
   return body;
 }
 
-/** Segment a noise-filtered region into asset blocks. A "candidate name"
- *  line (anything that isn't a value fragment or a continuation) starts a new
- *  block ONLY once the current block already captured a value — so wrapped
- *  names ("[OL]" on its own line, multi-line names, ⇒ IV parents) stay glued
- *  to their asset, while a genuinely new asset (whose predecessor already has
- *  its value) opens a fresh block. */
-function segmentHouseBlocks(region: string[]): HouseBlock[] {
-  const blocks: HouseBlock[] = [];
-  let cur: HouseBlock | null = null;
+/** True when a standalone line is ONLY income-type vocabulary and the
+ *  "Not"/"Applicable" placeholder words, concatenated by a page break onto its
+ *  own physical line (e.g. "RentNot", "Capital Gains,", "InterestNot",
+ *  "None"). This is income-column text — it belongs to the CURRENT asset
+ *  block, and must never leak into `pending` and pollute the next asset's
+ *  name (the "RentNot Nicolet Checking" / "Capital Gains, Fidelity ..." bug). */
+function isHouseIncomeOnlyLine(line: string): boolean {
+  const s = squish(line);
+  if (!s || !/[A-Za-z]/.test(s)) return false;
+  const stripped = s
+    .replace(
+      /Capital Gains|Tax-Deferred|Tax Deferred|Excepted\/Blind Trust|Dividends|Interest|Rent|None|Not|Applicable/g,
+      "",
+    )
+    .replace(/[,\s]/g, "");
+  return stripped === "";
+}
+
+/** Segment the Schedule A region into asset blocks, anchored on the [XX] type
+ *  bracket that every House asset row carries exactly once. Name lines (which
+ *  may wrap across several physical lines, or be split by a page break) buffer
+ *  in `pending` until a bracket line closes the block. Value/income fragments
+ *  that bled onto later lines append to the most-recent block — THIS is the
+ *  bleed reconstruction. ⇒ Investment-Vehicle parent labels are dropped, but a
+ *  page-break tail glued onto a ⇒-line is buffered and re-attached to the next
+ *  block after its bracket. */
+function segmentHouseAssetBlocks(region: string[]): string[][] {
+  const blocks: string[][] = [];
+  let pending: string[] = []; // name lines awaiting their bracket
+  let cur: string[] | null = null; // most-recent closed block
+  let pendingValue: string[] = []; // pre-block / ⇒-tail fragments awaiting a block
+  let inSubline = false;
 
   for (const raw of region) {
     if (isHouseNoiseLine(raw)) continue;
-    // ⇒ marks an Investment-Vehicle parent label; the real sub-asset name
-    // repeats on the very next line, so drop the redundant parent label.
-    if (/[⇒→]\s*$/.test(raw) || /=>\s*$/.test(raw)) continue;
-
     const line = raw.trim();
 
-    if (isHouseValueFragment(line)) {
-      if (cur) {
-        cur.lines.push(line);
-        cur.hasValue = true;
+    // Investment-Vehicle parent label (contains ⇒/→/=>). Drop the label; if a
+    // page break glued a real value tail onto it, buffer that tail.
+    if (/⇒|→|=>/.test(line)) {
+      const tail = line.replace(/^.*?(?:⇒|→|=>)\s*/, "").trim();
+      if (tail) pendingValue.push(tail);
+      continue;
+    }
+
+    if (/\[[A-Z0-9]{1,5}\]/.test(line)) {
+      // Bracket line closes a block: buffered name lines + this line, then any
+      // page-break value tail that arrived before the bracket.
+      const block = [...pending, line];
+      if (pendingValue.length) {
+        block.push(...pendingValue);
+        pendingValue = [];
       }
+      blocks.push(block);
+      cur = block;
+      pending = [];
+      inSubline = false;
       continue;
     }
-    if (cur && isHouseAssetContinuation(line)) {
-      cur.lines.push(line);
-      if (/\$/.test(line)) cur.hasValue = true;
+
+    // Location / description sublines attach to the current block.
+    if (/^[LDC]\s*:/.test(line)) {
+      if (cur) cur.push(line);
+      else pending.push(line);
+      inSubline = true;
       continue;
     }
-    // Candidate asset-name line.
-    if (cur && !cur.hasValue) {
-      // Current block has a name but no value yet → this is a wrapped name.
-      cur.lines.push(line);
-      if (/\$/.test(line)) cur.hasValue = true;
+
+    // Value fragments, owner-led heads, income vocab, "Not"/"Applicable"
+    // placeholders → continuation of the current block (bleed reconstruction).
+    if (
+      isHouseValueFragment(line) ||
+      /^(JT|SP|DC)(?=\$|None|Undetermined|N\/A|\s|$)/.test(line) ||
+      isHouseIncomeOnlyLine(line)
+    ) {
+      if (cur) cur.push(line);
+      else pendingValue.push(line);
       continue;
     }
-    // Start a new block.
-    cur = { lines: [line], hasValue: /\$/.test(line) };
-    blocks.push(cur);
+
+    // A subline that wrapped onto a following physical line.
+    if (inSubline && cur) {
+      cur.push(line);
+      continue;
+    }
+
+    // Otherwise: a (possibly wrapped) asset-name line buffering for its bracket.
+    pending.push(line);
   }
+
   return blocks;
 }
 
-/** Extract one Form278Asset from a reconstructed block. */
-function extractHouseAsset(block: HouseBlock, rowNum: number): Form278Asset {
+/** Segment the Schedule D region into liability blocks. Unlike assets there is
+ *  no bracket anchor, so a block accumulates noise-filtered lines and flushes
+ *  the moment its joined text contains a COMPLETE "$X - $Y" amount range —
+ *  whether that range arrives inline or is reconstructed from an open range
+ *  ("$X -") continued by a "$Y" fragment on the next line. */
+function segmentHouseLiabBlocks(region: string[]): string[][] {
+  const blocks: string[][] = [];
+  let cur: string[] = [];
+  for (const raw of region) {
+    if (isHouseNoiseLine(raw)) continue;
+    cur.push(raw.trim());
+    if (
+      /\$[\d,]+(?:\.\d+)?\s*-\s*\$[\d,]+(?:\.\d+)?/.test(squish(cur.join(" ")))
+    ) {
+      blocks.push(cur);
+      cur = [];
+    }
+  }
+  if (cur.length && /\$/.test(cur.join(" "))) blocks.push(cur);
+  return blocks;
+}
+
+/** Extract one Form278Asset from a reconstructed block (array of lines). */
+function extractHouseAsset(lines: string[], rowNum: number): Form278Asset {
   let location = "";
   const descParts: string[] = [];
   const headLines: string[] = [];
 
-  for (const l of block.lines) {
+  for (const l of lines) {
     const loc = l.match(/^L\s*:\s*(.+)$/);
     if (loc) {
       location = squish(loc[1]!);
       continue;
     }
-    const desc = l.match(/^D\s*:\s*(.+)$/);
+    const desc = l.match(/^[DC]\s*:\s*(.+)$/);
     if (desc) {
       descParts.push(squish(desc[1]!));
       continue;
@@ -576,7 +633,7 @@ function extractHouseAsset(block: HouseBlock, rowNum: number): Form278Asset {
 
   const blob = squish(headLines.join(" "));
 
-  // Asset type: first [XX] bracket. Split name (before) from value tail (after).
+  // Asset type = the [XX] bracket; split name (before) from value tail (after).
   let asset_type = "";
   let head = blob;
   let tail = "";
@@ -585,40 +642,67 @@ function extractHouseAsset(block: HouseBlock, rowNum: number): Form278Asset {
     asset_type = typeMatch[1]!;
     head = blob.slice(0, typeMatch.index).trim();
     tail = blob.slice(typeMatch.index! + typeMatch[0].length).trim();
-  } else {
-    // No bracket code: best-effort split at the first owner code or "$".
-    const ownerIdx = blob.search(/(?:JT|SP|DC)?\$/);
-    if (ownerIdx >= 0) {
-      head = blob.slice(0, ownerIdx).trim();
-      tail = blob.slice(ownerIdx).trim();
-    }
   }
 
-  // Owner code immediately leads the value tail (JT/SP/DC); "" = Self.
+  // Owner code leads the value tail (JT/SP/DC), possibly glued straight onto
+  // the value or an income word. "" = Self.
   let owner = "";
-  const ownerMatch = tail.match(/^(JT|SP|DC)(\$|\s|$)/);
+  const ownerMatch = tail.match(/^(JT|SP|DC)(?=\$|None|Undetermined|N\/A|\s|$)/);
   if (ownerMatch) {
     owner = ownerMatch[1]!;
     tail = tail.slice(ownerMatch[1]!.length).trim();
   }
 
-  // Value range: the $ tokens in source order. One token → that value; two+ →
-  // first - last (verbatim range as disclosed).
-  const valueTokens = tail.match(/\$[\d,]+(?:\.\d+)?/g) ?? [];
+  // Value range precedence:
+  //   1. complete range "$X - $Y" (verbatim, as disclosed)
+  //   2. open range "$X -" — upper bound bled to a later fragment now appended
+  //      to this block; reconstruct from the next $ token in the tail
+  //   3. "Undetermined"
+  //   4. "None"
+  //   5. bare "$X"
+  // `incomeSource` is the tail with the value characters masked out, so the
+  // income scan can't pick the value's own "None" up as an income type.
   let value_range = "";
-  if (valueTokens.length === 1) {
-    value_range = valueTokens[0]!;
-  } else if (valueTokens.length >= 2) {
-    value_range = `${valueTokens[0]} - ${valueTokens[valueTokens.length - 1]}`;
+  let incomeSource = tail;
+  const complete = tail.match(/^\$[\d,]+(?:\.\d+)?\s*-\s*\$[\d,]+(?:\.\d+)?/);
+  const openRange = tail.match(/^\$[\d,]+(?:\.\d+)?\s*-/);
+  if (complete) {
+    value_range = squish(complete[0]);
+    incomeSource = tail.slice(complete[0].length);
+  } else if (openRange) {
+    const lower = openRange[0].replace(/\s*-\s*$/, "").trim();
+    const rest = tail.slice(openRange[0].length);
+    const upper = rest.match(/\$[\d,]+(?:\.\d+)?/);
+    if (upper) {
+      value_range = `${lower} - ${squish(upper[0])}`;
+      // Income may sit BETWEEN the open marker and the bled upper bound — mask
+      // only the upper token, keep everything else for the income scan.
+      incomeSource =
+        rest.slice(0, upper.index!) +
+        " " +
+        rest.slice(upper.index! + upper[0].length);
+    } else {
+      value_range = `${lower} -`;
+      incomeSource = rest;
+    }
+  } else if (/^Undetermined(?=[A-Z$]|\s|$)/.test(tail)) {
+    value_range = "Undetermined";
+    incomeSource = tail.slice("Undetermined".length);
+  } else if (/^None(?=[A-Z$]|\s|$)/.test(tail)) {
+    value_range = "None";
+    incomeSource = tail.slice("None".length);
+  } else {
+    const bare = tail.match(/^\$[\d,]+(?:\.\d+)?/);
+    if (bare) {
+      value_range = squish(bare[0]);
+      incomeSource = tail.slice(bare[0].length);
+    }
   }
 
-  // Income type: whatever non-currency words remain in the tail (typically
-  // "None"). Strip $ tokens and range dashes, keep the rest source-faithful.
-  const income_type = squish(
-    tail
-      .replace(/\$[\d,]+(?:\.\d+)?/g, " ")
-      .replace(/-/g, " "),
-  );
+  // Income type = the income-vocabulary tokens that follow the value, comma-
+  // joined. Drop $ amounts, "Not"/"Applicable", trailing preceding-year ranges.
+  const incomeMatches = incomeSource.match(HOUSE_INCOME_VOCAB) ?? [];
+  const income_type = incomeMatches.join(", ");
 
   return {
     row_number: String(rowNum),
@@ -628,7 +712,7 @@ function extractHouseAsset(block: HouseBlock, rowNum: number): Form278Asset {
     owner,
     value_range,
     income_type,
-    income_range: "", // House v1: income columns are bleed-prone — honest empty
+    income_range: "", // House v1: income amount columns are bleed-prone — honest empty
     location,
     description: descParts.join("; "),
     ticker: "",
@@ -636,69 +720,101 @@ function extractHouseAsset(block: HouseBlock, rowNum: number): Form278Asset {
 }
 
 /** Parse the House Schedule D (Liabilities) region. "None disclosed." → [].
- *  Best-effort block parse otherwise (no House-with-liabilities sample was
- *  available to verify against at v1; the structure mirrors Schedule A). */
+ *  Otherwise amount-anchored segmentation (Schedule D has no [XX] bracket to
+ *  anchor on, so each block flushes on a complete "$X - $Y" amount range). */
 function parseHouseLiabilities(region: string[]): Form278Liability[] {
   const filtered = region.filter((l) => !isHouseNoiseLine(l));
   if (filtered.length === 0) return [];
-  if (filtered.some((l) => /none disclosed/i.test(l)) && filtered.length <= 2) {
+  // None-disclosed: a "none disclosed" marker AND no dollar amount anywhere.
+  if (
+    filtered.some((l) => /none disclosed/i.test(l)) &&
+    !filtered.some((l) => /\$[\d,]/.test(l))
+  ) {
     return [];
   }
-  const blocks = segmentHouseBlocks(region);
-  const liabs: Form278Liability[] = [];
-  let rowNum = 0;
-  for (const block of blocks) {
-    let location = "";
-    const descParts: string[] = [];
-    const headLines: string[] = [];
-    for (const l of block.lines) {
-      const loc = l.match(/^L\s*:\s*(.+)$/);
-      if (loc) {
-        location = squish(loc[1]!);
-        continue;
-      }
-      const desc = l.match(/^D\s*:\s*(.+)$/);
-      if (desc) {
-        descParts.push(squish(desc[1]!));
-        continue;
-      }
-      headLines.push(l);
+  const blocks = segmentHouseLiabBlocks(region);
+  return blocks.map((b, idx) => extractHouseLiability(b, idx + 1));
+}
+
+/** Extract one Form278Liability from a reconstructed block (array of lines).
+ *  Schedule D column order: Owner | Creditor | Date Incurred | Type | Amount.
+ *  The Date Incurred glues onto the creditor's trailing word ("Freedom
+ *  Mortgage"+"September 2021"), so splitting the blob at the month-year gives
+ *  creditor = before the date, liability_type = after (minus the amount). */
+function extractHouseLiability(
+  lines: string[],
+  rowNum: number,
+): Form278Liability {
+  let location = "";
+  const descParts: string[] = [];
+  const headLines: string[] = [];
+
+  for (const l of lines) {
+    const loc = l.match(/^L\s*:\s*(.+)$/);
+    if (loc) {
+      location = squish(loc[1]!);
+      continue;
     }
-    const blob = squish(headLines.join(" "));
-    if (!blob || /none disclosed/i.test(blob)) continue;
-    let creditor = blob;
-    let tail = "";
-    const ownerIdx = blob.search(/(?:JT|SP|DC)?\$/);
-    if (ownerIdx >= 0) {
-      creditor = blob.slice(0, ownerIdx).trim();
-      tail = blob.slice(ownerIdx).trim();
+    const desc = l.match(/^[DC]\s*:\s*(.+)$/);
+    if (desc) {
+      descParts.push(squish(desc[1]!));
+      continue;
     }
-    let debtor = "";
-    const ownerMatch = tail.match(/^(JT|SP|DC)(\$|\s|$)/);
-    if (ownerMatch) {
-      debtor = ownerMatch[1]!;
-      tail = tail.slice(ownerMatch[1]!.length).trim();
-    }
-    const valueTokens = tail.match(/\$[\d,]+(?:\.\d+)?/g) ?? [];
-    let amount_range = "";
-    if (valueTokens.length === 1) amount_range = valueTokens[0]!;
-    else if (valueTokens.length >= 2) {
-      amount_range = `${valueTokens[0]} - ${valueTokens[valueTokens.length - 1]}`;
-    }
-    rowNum += 1;
-    liabs.push({
-      row_number: String(rowNum),
-      incurred: "",
-      debtor,
-      liability_type: "",
-      rate_term: "",
-      amount_range,
-      creditor: creditor.replace(/[\s,]+$/, ""),
-      location,
-      comment: descParts.join("; "),
-    });
+    headLines.push(l);
   }
-  return liabs;
+
+  let blob = squish(headLines.join(" "));
+
+  // Owner code (JT/SP/DC) leads the row, possibly glued onto the creditor or a
+  // "$". "" = Self.
+  let debtor = "";
+  const ownerMatch = blob.match(/^(JT|SP|DC)(?=\$|[A-Z]|\s|$)/);
+  if (ownerMatch) {
+    debtor = ownerMatch[1]!;
+    blob = blob.slice(ownerMatch[1]!.length).trim();
+  }
+
+  // Amount: complete "$X - $Y" range first (verbatim), else a bare "$X".
+  let amount_range = "";
+  const complete = blob.match(/\$[\d,]+(?:\.\d+)?\s*-\s*\$[\d,]+(?:\.\d+)?/);
+  if (complete) {
+    amount_range = squish(complete[0]);
+    blob = (blob.slice(0, complete.index) + blob.slice(complete.index! + complete[0].length)).trim();
+  } else {
+    const bare = blob.match(/\$[\d,]+(?:\.\d+)?/);
+    if (bare) {
+      amount_range = squish(bare[0]);
+      blob = (blob.slice(0, bare.index) + blob.slice(bare.index! + bare[0].length)).trim();
+    }
+  }
+
+  // Date Incurred = the first date. Two source-observed formats:
+  //   month-name + year ("September 2021", glued/lowercase "Cardmay 2010")
+  //   numeric MM/DD/YYYY ("09/20/2020", glued "Bank09/20/2020")
+  // NO \b prefix: the date can be glued onto the creditor's last word.
+  let incurred = "";
+  let creditor = blob;
+  let liability_type = "";
+  const dateMatch = blob.match(
+    /(?:(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i,
+  );
+  if (dateMatch) {
+    incurred = squish(dateMatch[0]);
+    creditor = blob.slice(0, dateMatch.index).trim();
+    liability_type = blob.slice(dateMatch.index! + dateMatch[0].length).trim();
+  }
+
+  return {
+    row_number: String(rowNum),
+    incurred,
+    debtor,
+    liability_type: liability_type.replace(/[\s,]+$/, ""),
+    rate_term: "",
+    amount_range,
+    creditor: creditor.replace(/[\s,]+$/, ""),
+    location,
+    comment: descParts.join("; "),
+  };
 }
 
 /** Parse extracted House annual Form 278 PDF text into structured schedule
@@ -722,8 +838,18 @@ export function parseHouseAnnualText(rawText: string): ParsedAnnualContent {
   if (!parseable) {
     return { assets: [], liabilities: [], parseable: false };
   }
-  const assetBlocks = segmentHouseBlocks(assetRegion);
-  const assets = assetBlocks.map((b, idx) => extractHouseAsset(b, idx + 1));
+  // None-disclosed assets: a noise-stripped region that is empty, or carries a
+  // "none disclosed" marker with no [XX] bracket anywhere → no asset rows.
+  const assetFiltered = assetRegion.filter((l) => !isHouseNoiseLine(l));
+  const noAssets =
+    assetFiltered.length === 0 ||
+    (assetFiltered.some((l) => /none disclosed/i.test(l)) &&
+      !assetFiltered.some((l) => /\[[A-Z0-9]{1,5}\]/.test(l)));
+  const assets = noAssets
+    ? []
+    : segmentHouseAssetBlocks(assetRegion).map((b, idx) =>
+        extractHouseAsset(b, idx + 1),
+      );
 
   // Schedule D (Liabilities): from "S  D: L" header to the next header.
   const liabRegion = sliceHouseRegion(
@@ -932,6 +1058,366 @@ export async function scrapeSenateForm278(
   } else {
     console.error(
       `[form278] Parsed ${filings.length} Senate Form 278 filings (metadata only)`,
+    );
+  }
+  return filings;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+//  House annual Form 278 scraper (v1, 2026-06-01)
+//
+//  Mirrors scrapeSenateForm278 but sources from the House Clerk's yearly XML
+//  index instead of the Senate eFD search API. Two-stage pipeline:
+//    1. GET /public_disc/financial-pdfs/{year}FD.xml — the SAME yearly index
+//       house.ts uses for PTRs, but we filter to the ANNUAL-family filing
+//       types instead of "P".
+//    2. For each entry, GET /public_disc/financial-pdfs/{year}/{DocID}.pdf
+//       (NOTE: financial-pdfs/, NOT ptr-pdfs/ — annual reports live in a
+//       different directory than PTRs) and parse via parseHouseAnnualText.
+//
+//  Filing-type ingest set — established empirically + by primary-source PDF
+//  self-labels (each PDF carries its own "Filing Type:" field):
+//    A = "Amendment Report"        → parseable  (8/8 sampled)
+//    C = "Candidate Report"        → parseable  (7/8 sampled)
+//    H = "New Filer Report"        → parseable  (1/1 sampled)
+//    T = "Terminated Filer Report" → parseable  (8/8 sampled)
+//  EXCLUDED (not Form 278 disclosures — NOT silent omission):
+//    D, W = cover letters to the Clerk ("Dear Mister Clerk:")
+//    X    = "Financial Disclosure Extension Request" (no schedules)
+//    E,B,G,O = scanned-image / blank filings (no extractable text)
+//  report_type is derived per-PDF from the verbatim "Filing Type:" label
+//  (robust to letter-vs-label drift), with a letter fallback.
+// ──────────────────────────────────────────────────────────────────────────
+
+const HOUSE_CONFIG = {
+  USER_AGENT:
+    process.env.HOUSE_USER_AGENT ?? "KeyVexMCP/0.1 contact@keyvex.com",
+  XML_INDEX: (year: number): string =>
+    `https://disclosures-clerk.house.gov/public_disc/financial-pdfs/${year}FD.xml`,
+  /** Annual reports live under financial-pdfs/, NOT ptr-pdfs/ (which holds
+   *  Periodic Transaction Reports). Confirmed HTTP 200 application/pdf. */
+  PDF_URL: (year: number | string, docId: string): string =>
+    `https://disclosures-clerk.house.gov/public_disc/financial-pdfs/${year}/${docId}.pdf`,
+  RATE_LIMIT_MS: 300,
+};
+
+/** House FilingType letters whose PDFs are text-parseable Form 278 reports. */
+const HOUSE_FD_FILING_TYPES = new Set(["A", "C", "H", "T"]);
+
+const HOUSE_PARSE_SKIP_COVERAGE_NOTE =
+  "House annual filing whose Schedule A could not be machine-parsed " +
+  "(scanned image or unexpected layout). Follow report_url to read the original.";
+
+interface HouseAnnualIndexEntry {
+  first: string;
+  last: string;
+  prefix: string;
+  state: string;
+  state_district: string;
+  filing_type: string; // single-letter code (A/C/H/T)
+  filing_date: string; // MM/DD/YYYY from source
+  doc_id: string;
+  year: string;
+  pdf_url: string;
+}
+
+/** Fetch the House Clerk yearly XML index and return the ANNUAL-family
+ *  entries (FilingType ∈ {A,C,H,T}). Mirrors fetchHousePtrIndex but with the
+ *  annual filing-type filter and the financial-pdfs PDF directory. */
+async function fetchHouseAnnualIndex(
+  year: number,
+): Promise<HouseAnnualIndexEntry[]> {
+  const url = HOUSE_CONFIG.XML_INDEX(year);
+  console.error(`[form278] Fetching House FD XML index ${url}`);
+  const res = await fetch(url, {
+    headers: { "User-Agent": HOUSE_CONFIG.USER_AGENT },
+  });
+  if (!res.ok) {
+    throw new Error(`House FD XML index HTTP ${res.status} for ${year}`);
+  }
+  const xml = await res.text();
+
+  const parser = new XMLParser({
+    parseTagValue: false,
+    parseAttributeValue: false,
+    trimValues: true,
+    ignoreAttributes: true,
+  });
+  const parsed = parser.parse(xml) as {
+    FinancialDisclosure?: {
+      Member?: Record<string, string>[] | Record<string, string>;
+    };
+  };
+
+  const memberRaw = parsed.FinancialDisclosure?.Member ?? [];
+  const members = Array.isArray(memberRaw) ? memberRaw : [memberRaw];
+
+  const entries: HouseAnnualIndexEntry[] = [];
+  for (const m of members) {
+    const filingType = String(m.FilingType ?? "").trim();
+    if (!HOUSE_FD_FILING_TYPES.has(filingType)) continue;
+    const docId = String(m.DocID ?? "").trim();
+    if (!docId) continue;
+    const filingYear = String(m.Year ?? year).trim();
+    const stateDst = String(m.StateDst ?? "").trim();
+    entries.push({
+      first: String(m.First ?? "").trim(),
+      last: String(m.Last ?? "").trim(),
+      prefix: String(m.Prefix ?? "").trim(),
+      state: stateDst.replace(/\d+$/, ""),
+      state_district: stateDst,
+      filing_type: filingType,
+      filing_date: String(m.FilingDate ?? "").trim(),
+      doc_id: docId,
+      year: filingYear,
+      pdf_url: HOUSE_CONFIG.PDF_URL(filingYear, docId),
+    });
+  }
+  console.error(
+    `[form278] Found ${entries.length} annual-family entries (A/C/H/T) in ${year} index`,
+  );
+  return entries;
+}
+
+/** Map a House filing's verbatim "Filing Type:" label (and letter fallback)
+ *  to the Form278Filing report_type enum. Label-first so a letter-vs-label
+ *  drift in the index can't mistype the record. */
+function deriveHouseReportType(
+  label: string,
+  letter: string,
+): Form278Filing["report_type"] {
+  const l = label.toLowerCase();
+  if (/amendment/.test(l)) return "Amendment";
+  if (/new filer/.test(l)) return "New Filer";
+  if (/terminat/.test(l)) return "Termination";
+  if (/annual/.test(l)) return "Annual";
+  if (/combined/.test(l)) return "Combined";
+  if (/candidate/.test(l)) return "Other"; // no "Candidate" enum value
+  switch (letter) {
+    case "A": return "Amendment";
+    case "H": return "New Filer";
+    case "T": return "Termination";
+    case "C": return "Other";
+    default: return "Other";
+  }
+}
+
+interface HouseHeaderFields {
+  /** Verbatim "Filing Type:" self-label, e.g. "Amendment Report". */
+  filingTypeLabel: string;
+  /** Verbatim "Status:" value, e.g. "Member" / "Congressional Candidate". */
+  status: string;
+  /** Form's declared "Filing Year:" value as a number, or null. */
+  filingYear: number | null;
+}
+
+/** Pull the header self-labels from a House FD PDF's text. The header block
+ *  reads "...Name:Mr. X Status:Member State/District:WI08 F I Filing Type:New
+ *  Filer Report Filing Year:2025 Filing Date:05/14/2025...". Whitespace is
+ *  normalized first so the wide control-byte padding doesn't break the regexes. */
+function extractHouseHeader(rawText: string): HouseHeaderFields {
+  const norm = rawText
+    .replace(HOUSE_CONTROL_CHARS_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const typeMatch = norm.match(/Filing Type:\s*(.+?)\s+Filing Year:/);
+  const statusMatch = norm.match(/Status:\s*(.+?)\s+State\/District:/);
+  const yearMatch = norm.match(/Filing Year:\s*(\d{4})/);
+  return {
+    filingTypeLabel: typeMatch ? squish(typeMatch[1]!) : "",
+    status: statusMatch ? squish(statusMatch[1]!) : "",
+    filingYear: yearMatch ? parseInt(yearMatch[1]!, 10) : null,
+  };
+}
+
+/** Lazy pdf-parse loader (CommonJS interop), local to the House annual path. */
+async function getHousePdfText(buf: ArrayBuffer): Promise<string> {
+  const mod = (await import("pdf-parse")) as unknown as {
+    default: (buffer: Buffer) => Promise<{ text: string }>;
+  };
+  const result = await mod.default(Buffer.from(buf));
+  return result.text;
+}
+
+/** Resolve the [start,end] date window from ScrapeOptions, identical to the
+ *  Senate path's resolution so both chambers honor the same flags. */
+function resolveWindow(options: ScrapeOptions): {
+  start: Date;
+  end: Date;
+  label: string;
+} {
+  if (options.startDate && options.endDate) {
+    const start = parseIsoDateStrict(options.startDate, "startDate");
+    const end = parseIsoDateStrict(options.endDate, "endDate");
+    if (end < start) {
+      throw new Error(
+        `endDate (${options.endDate}) must be on or after startDate (${options.startDate})`,
+      );
+    }
+    return { start, end, label: `${options.startDate} → ${options.endDate}` };
+  }
+  if (options.startDate || options.endDate) {
+    throw new Error(
+      "startDate and endDate must be provided together (or use lookbackDays)",
+    );
+  }
+  const lookbackDays = options.lookbackDays ?? CONFIG.DEFAULT_LOOKBACK_DAYS;
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - lookbackDays);
+  return { start, end, label: `last ${lookbackDays} days` };
+}
+
+/** True when a House FD filing's MM/DD/YYYY filing date falls in [start,end]. */
+function houseFilingInWindow(
+  filingDateMMDDYYYY: string,
+  start: Date,
+  end: Date,
+): boolean {
+  const m = filingDateMMDDYYYY.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return false;
+  const [, mm, dd, yyyy] = m;
+  const filed = new Date(
+    `${yyyy}-${mm!.padStart(2, "0")}-${dd!.padStart(2, "0")}T00:00:00Z`,
+  );
+  if (Number.isNaN(filed.getTime())) return false;
+  // Compare on date only (inclusive of the end day).
+  const endInclusive = new Date(end);
+  endInclusive.setHours(23, 59, 59, 999);
+  return filed >= new Date(start.getFullYear(), start.getMonth(), start.getDate()) &&
+    filed <= endInclusive;
+}
+
+export async function scrapeHouseForm278(
+  options: ScrapeOptions = {},
+): Promise<Form278Filing[]> {
+  const { start, end, label } = resolveWindow(options);
+  console.error(`[form278] Starting House annual Form 278 feed (${label})...`);
+
+  // The yearly index is keyed by filing-date year. Fetch every calendar year
+  // the window touches (usually one; a year-boundary window touches two).
+  const years: number[] = [];
+  for (let y = start.getFullYear(); y <= end.getFullYear(); y++) years.push(y);
+
+  const indexEntries: HouseAnnualIndexEntry[] = [];
+  for (const y of years) {
+    try {
+      const yearEntries = await fetchHouseAnnualIndex(y);
+      indexEntries.push(...yearEntries);
+    } catch (err) {
+      console.error(
+        `[form278]   House index ${y} failed: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  const inWindow = indexEntries.filter((e) =>
+    houseFilingInWindow(e.filing_date, start, end),
+  );
+  console.error(
+    `[form278] ${inWindow.length} House annual filing(s) in window ` +
+      `(of ${indexEntries.length} A/C/H/T entries across ${years.join(", ")})`,
+  );
+
+  const scrapedAt = new Date().toISOString();
+  const filings: Form278Filing[] = [];
+  let parsedCount = 0;
+  let skipCount = 0;
+
+  for (const e of inWindow) {
+    const filingDateIso = toIsoDate(e.filing_date);
+    const district = e.state_district.replace(/^[A-Z]{2}/, "");
+    const office = district
+      ? `Representative, ${e.state}-${district}`
+      : `Representative, ${e.state}`;
+
+    // Letter-based report_type as the baseline; refined from the PDF's own
+    // "Filing Type:" label once we fetch the body (parseContent path).
+    let reportType = deriveHouseReportType("", e.filing_type);
+    let reportSubtype = e.filing_type;
+    let filingYear = guessFilingYear(filingDateIso, reportType);
+
+    const filing: Form278Filing = {
+      filing_id: `house-fd-${e.doc_id}`,
+      source: "HOUSE_CLERK_FD",
+      chamber: "house",
+      member_name: `${e.first} ${e.last}`.trim(),
+      member_first: e.first,
+      member_last: e.last,
+      bioguide_id: "",
+      office,
+      state: e.state,
+      state_district: district,
+      party: "",
+      filing_year: filingYear,
+      filing_date: filingDateIso,
+      report_type: reportType,
+      report_subtype: reportSubtype,
+      report_url: e.pdf_url,
+      scraped_at: scrapedAt,
+    };
+
+    if (options.parseContent) {
+      let content: ParsedAnnualContent | null = null;
+      try {
+        await sleep(HOUSE_CONFIG.RATE_LIMIT_MS);
+        const res = await fetch(e.pdf_url, {
+          headers: { "User-Agent": HOUSE_CONFIG.USER_AGENT },
+        });
+        if (!res.ok) {
+          console.error(
+            `[form278]   PDF HTTP ${res.status} for ${filing.filing_id}`,
+          );
+        } else {
+          const text = await getHousePdfText(await res.arrayBuffer());
+          // Refine report_type / subtype / year from the PDF's own header.
+          const header = extractHouseHeader(text);
+          if (header.filingTypeLabel) {
+            filing.report_type = deriveHouseReportType(
+              header.filingTypeLabel,
+              e.filing_type,
+            );
+            filing.report_subtype = header.filingTypeLabel;
+          }
+          if (header.filingYear) filing.filing_year = header.filingYear;
+          const parsed = parseHouseAnnualText(text);
+          if (parsed.parseable) content = parsed;
+        }
+      } catch (err) {
+        console.error(
+          `[form278]   content fetch/parse failed for ${filing.filing_id}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+
+      if (content) {
+        const truncated = capSchedules(content);
+        filing.assets = content.assets;
+        filing.liabilities = content.liabilities;
+        filing.asset_count = content.assets.length;
+        filing.liability_count = content.liabilities.length;
+        filing.content_parsed = true;
+        if (truncated) filing.schedules_truncated = true;
+        parsedCount++;
+      } else {
+        filing.content_parsed = false;
+        filing.coverage_note = HOUSE_PARSE_SKIP_COVERAGE_NOTE;
+        skipCount++;
+      }
+    }
+
+    filings.push(filing);
+  }
+
+  if (options.parseContent) {
+    console.error(
+      `[form278] Parsed ${filings.length} House annual Form 278 filings ` +
+        `(${parsedCount} with schedule contents, ${skipCount} link-out)`,
+    );
+  } else {
+    console.error(
+      `[form278] Discovered ${filings.length} House annual Form 278 filings (metadata only)`,
     );
   }
   return filings;

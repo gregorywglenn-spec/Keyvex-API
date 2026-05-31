@@ -216,7 +216,7 @@ import {
   scrapeSenateLiveFeed,
   scrapeSenatePtrById,
 } from "./scrapers/senate.js";
-import { scrapeSenateForm278 } from "./scrapers/form278.js";
+import { scrapeSenateForm278, scrapeHouseForm278 } from "./scrapers/form278.js";
 import {
   dumpHousePtrText,
   scrapeHouseLiveFeed,
@@ -1158,7 +1158,7 @@ const COMMANDS: Record<string, CliCommand> = {
   },
   form278: {
     description:
-      "Scrape Senate eFD Form 278 (Annual Financial Disclosure) filings. Default: last N days (positional integer, default 30). For historical backfill: --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD covers an explicit window. Captures filing metadata + URL to the actual report PDF/HTML — agents follow the URL to read asset / liability / income detail (PDF parsing for net-worth roll-up is v1.1). Add --save to write to Firestore.",
+      "Scrape Form 278 (Annual Financial Disclosure) filings from both chambers. Default: last N days (positional integer, default 30). For historical backfill: --start-date=YYYY-MM-DD --end-date=YYYY-MM-DD covers an explicit window. --chamber=senate|house|both (default both). --parse extracts Schedule A (assets) + liabilities from the filing PDF/HTML into structured source-faithful fields (value ranges as disclosed; net-worth roll-up is deferred on posture grounds). Without --parse, captures filing metadata + report_url only. Senate paper (scanned) filings are metadata link-out only — no OCR. Add --save to write to Firestore.",
     run: async (args) => {
       const startFlag = args.find((a) => a.startsWith("--start-date="));
       const endFlag = args.find((a) => a.startsWith("--end-date="));
@@ -1169,17 +1169,40 @@ const COMMANDS: Record<string, CliCommand> = {
           "--start-date and --end-date must be provided together (or omit both for lookback mode)",
         );
       }
-      let filings;
+      const parseContent = args.includes("--parse");
+      const chamberFlag = args.find((a) => a.startsWith("--chamber="));
+      const chamber = chamberFlag
+        ? chamberFlag.slice("--chamber=".length).toLowerCase()
+        : "both";
+      if (!["senate", "house", "both"].includes(chamber)) {
+        throw new Error("--chamber must be one of: senate, house, both");
+      }
+
+      // Build the shared window options (explicit range OR lookback days).
+      let windowOpts: { startDate: string; endDate: string } | { lookbackDays: number };
       if (startDate && endDate) {
-        filings = await scrapeSenateForm278({ startDate, endDate });
+        windowOpts = { startDate, endDate };
       } else {
         const positional = args.find((a) => !a.startsWith("--"));
         const days = positional ? parseInt(positional, 10) : 30;
         if (Number.isNaN(days) || days < 1) {
           throw new Error("Days must be a positive integer");
         }
-        filings = await scrapeSenateForm278({ lookbackDays: days });
+        windowOpts = { lookbackDays: days };
       }
+
+      const filings = [];
+      if (chamber === "senate" || chamber === "both") {
+        filings.push(
+          ...(await scrapeSenateForm278({ ...windowOpts, parseContent })),
+        );
+      }
+      if (chamber === "house" || chamber === "both") {
+        filings.push(
+          ...(await scrapeHouseForm278({ ...windowOpts, parseContent })),
+        );
+      }
+
       if (hasSaveFlag(args)) {
         console.error(
           `[save] Writing ${filings.length} Form 278 filings to Firestore...`,

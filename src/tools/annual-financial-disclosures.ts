@@ -10,10 +10,13 @@
  *   - get_congressional_trades = real-time PTR transaction notices (per-trade)
  *   - get_annual_financial_disclosures = annual balance-sheet snapshot (per-filer)
  *
- * v1A scope: filing METADATA only (filer, date, URL to the report). Agents
- * follow `report_url` to read the actual schedules in the filing PDF.
- * Net-worth roll-up parsing (Schedule A assets + Schedule C liabilities,
- * computed `estimated_net_worth_min/max`) is v1.1 polish.
+ * v1 scope: BOTH chambers (Senate eFD + House Clerk). Parsed records carry
+ * structured `assets` (Schedule A) + `liabilities` with source-faithful
+ * value RANGES (never collapsed to point estimates). When schedules can't be
+ * parsed (Senate paper/scanned filings, parse skips), `content_parsed` is
+ * false and `coverage_note` names the limitation — follow `report_url` to the
+ * original. Net-worth roll-up is intentionally NOT provided: it would be a
+ * KeyVex-derived aggregate, not a disclosed value (posture-gated).
  *
  * Composition pattern:
  *   1. get_annual_financial_disclosures(member_name:'Pelosi') —
@@ -49,22 +52,28 @@ export const definition: Tool = {
     "gifts, outside positions, and (for spouse + dependent children) the",
     "same.",
     "",
-    "SCOPE — v1A covers SENATE filings only (Senate eFD source). House",
-    "Clerk Form 278 coverage lands in v1.1. A query for a House member",
-    "(e.g., Pelosi, bioguide P000197) returns zero records by design —",
-    "this is the v1A coverage boundary, not a per-member gap. Filed by",
-    "every senator and representative (and senior executive-branch",
-    "officials, federal judges) by May 15 each year.",
+    "SCOPE — v1 covers BOTH chambers: Senate (Senate eFD) and House",
+    "(House Clerk). Filed by every senator and representative (and senior",
+    "executive-branch officials, federal judges) by May 15 each year.",
     "",
-    "Use this when the user asks about: a member's net worth, asset",
-    "composition, outside income sources, board seats / outside positions,",
-    "liabilities (mortgages, loans), gifts received, travel reimbursements,",
-    "or for compliance / news reporting on annual disclosures.",
+    "Use this when the user asks about: a member's asset composition,",
+    "outside income sources, board seats / outside positions, liabilities",
+    "(mortgages, loans), or for compliance / news reporting on annual",
+    "disclosures.",
     "",
-    "v1A scope: filing METADATA only (who filed, when, and a `report_url`",
-    "to the actual filing). Agents follow the `report_url` to read the",
-    "schedules in the source PDF. v1.1 will add parsed Schedule A",
-    "(assets) + Schedule C (liabilities) with net-worth roll-up.",
+    "CONTENT — when a filing's schedules were machine-parsed,",
+    "`content_parsed` is true and the record carries structured `assets`",
+    "(Schedule A) and `liabilities` arrays plus `asset_count` /",
+    "`liability_count`. Values are SOURCE-FAITHFUL: `value_range` /",
+    "`amount_range` are the disclosed RANGES verbatim (e.g.,",
+    "'$50,001 - $100,000'), NOT point estimates — KeyVex does not collapse",
+    "a range to a single number. Net-worth roll-up is intentionally NOT",
+    "provided (it would be a KeyVex-derived aggregate, not a disclosed",
+    "value). When schedules are unavailable — Senate PAPER (scanned-image)",
+    "filings, which carry no machine-readable text, or the occasional",
+    "parse skip — `content_parsed` is false and `coverage_note` names the",
+    "limitation; follow `report_url` to read the original. This honest",
+    "coverage boundary is never a silent omission.",
     "",
     "Different from get_congressional_trades: PTRs are per-trade real-time",
     "notices (filed within 30-45 days), while Form 278 is the year-end",
@@ -94,7 +103,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["senate", "house"],
         description:
-          "Filter to one chamber. Note: v1A covers Senate only; passing 'house' returns no results until v1.1.",
+          "Filter to one chamber ('senate' or 'house'). v1 covers both.",
       },
       state: {
         type: "string",

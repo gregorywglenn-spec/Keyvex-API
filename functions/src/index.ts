@@ -113,7 +113,10 @@ import {
 import { scrapeHouseLiveFeed } from "../../src/scrapers/house.js";
 import { scrapeLobbyingByPeriod } from "../../src/scrapers/lobbying.js";
 import { scrapeSenateLiveFeed } from "../../src/scrapers/senate.js";
-import { scrapeSenateForm278 } from "../../src/scrapers/form278.js";
+import {
+  scrapeSenateForm278,
+  scrapeHouseForm278,
+} from "../../src/scrapers/form278.js";
 import { scrapeContractsLiveFeed } from "../../src/scrapers/usaspending.js";
 import { scrapeGrantsLiveFeed } from "../../src/scrapers/usaspending-grants.js";
 import {
@@ -943,17 +946,33 @@ export const scrapeForm278Weekly = onSchedule(
     schedule: "30 6 * * 1",
     region: REGION,
     timeZone: TZ,
-    memory: "512MiB",
-    timeoutSeconds: 540,
+    // parseContent fetches + parses every filing's PDF/HTML, so this job
+    // needs more headroom than the old metadata-only run (1 GiB for
+    // pdf-parse, a longer timeout for the per-PDF fetch loop across both
+    // chambers).
+    memory: "1GiB",
+    timeoutSeconds: 1800,
     retryCount: 0,
   },
   async () => {
     const started = Date.now();
-    logger.info("[form278] starting weekly Senate Form 278 refresh");
+    logger.info(
+      "[form278] starting weekly Form 278 refresh (both chambers, parsed)",
+    );
     // 35-day window catches the 30-day "what just disclosed" cluster + 5
-    // day buffer for delayed eFD updates over weekends.
-    const filings = await scrapeSenateForm278({ lookbackDays: 35 });
-    logger.info(`[form278] scraper returned ${filings.length} filings`);
+    // day buffer for delayed eFD/clerk updates over weekends. parseContent
+    // extracts Schedule A (assets) + liabilities into structured fields.
+    const senate = await scrapeSenateForm278({
+      lookbackDays: 35,
+      parseContent: true,
+    });
+    logger.info(`[form278] Senate returned ${senate.length} filings`);
+    const house = await scrapeHouseForm278({
+      lookbackDays: 35,
+      parseContent: true,
+    });
+    logger.info(`[form278] House returned ${house.length} filings`);
+    const filings = [...senate, ...house];
     let docsWritten = 0;
     if (filings.length > 0) {
       const r = await saveForm278Filings(filings);
