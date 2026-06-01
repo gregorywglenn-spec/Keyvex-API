@@ -411,6 +411,39 @@ function isCurrencyFragmentLine(line: string): boolean {
 }
 
 /**
+ * Predicate: is this line part of a wrapped "Description" block — the
+ * `D : The full transaction included the following sales: ...` enumeration
+ * that multi-lot House PTRs spill across several PDF lines?
+ *
+ * This is the load-bearing guard against the asset_name DESCRIPTION BLEED.
+ * On a PTR that sells several securities in one transaction, the Description
+ * block lists every lot: "T – 37.426 shares sold @ $27.645/share BRK/B – 3
+ * shares sold @ $493.42/share SPY – 8.318 shares ...". pdf-parse wraps that
+ * single logical line into 3-4 physical lines. Only the FIRST physical line
+ * starts with "D :" (caught by isAssetWalkStopMarker); the wrapped
+ * continuation lines do not — so the NEXT trade's backward asset-walk
+ * unshifts them into ITS asset_name, producing corrupt names like
+ * "sold @ $493.42/share SPY – 8.318 shares ... Apple Inc. - Common Stock".
+ * The first asset in the filing is always clean (nothing precedes it); every
+ * asset after it inherits the prior lot-list. That is the ~10% corruption
+ * signature the 5ffbcb6 fix did not cover.
+ *
+ * The three tokens below — a "$X/share" price, a "– N shares" lot count, and
+ * the "shares sold/purchased" phrasing — never occur in a genuine House asset
+ * name (company names + "Common Stock"/"ETF Trust"/ticker/type-code). Breaking
+ * the backward walk here stops the bleed while leaving real names untouched.
+ * "iShares" is safe: \bshares\b has no word boundary inside "iShares", and the
+ * predicate additionally requires a price/lot/verb context an ETF name lacks.
+ */
+function isDescriptionContinuationLine(line: string): boolean {
+  return (
+    /\/share\b/i.test(line) ||
+    /[–—-]\s*[\d.]+\s+shares?\b/i.test(line) ||
+    /\bshares?\b\s+(?:sold|purchased)\b/i.test(line)
+  );
+}
+
+/**
  * Parse extracted PDF text from a House PTR into normalized trade records.
  *
  * Algorithm:
@@ -496,6 +529,11 @@ export function parseHousePtrText(
       // (the wrapped second-half of the PRIOR trade's amount range) sits above
       // this trade's name. It is not part of the asset description — stop here.
       if (isCurrencyFragmentLine(prev)) break;
+      // Guard against the asset_name DESCRIPTION BLEED: a wrapped continuation
+      // of the PRIOR trade's "D : ...the following sales:" lot enumeration sits
+      // above this trade's name. It is not part of the asset description — stop
+      // here so it does not get captured as this trade's asset_name.
+      if (isDescriptionContinuationLine(prev)) break;
       assetParts.unshift(prev);
       if (/^([Ss]P|[Jj]T|[Dd]C)\S/.test(prev)) break;
       j--;
