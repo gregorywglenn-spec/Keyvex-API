@@ -160,6 +160,98 @@ interface JobResult {
   status: JobStatus;
 }
 
+/**
+ * One row of read-only status for the Dev Dashboard. Richer than JobResult
+ * (carries label/cadence/docs/errors) so the dashboard can render cards +
+ * a detail panel without re-deriving anything client-side.
+ */
+export interface JobStatusRow {
+  key: string;
+  label: string;
+  cadence: string;
+  /** Coarse bucket for the dashboard's cadence filter. */
+  cadenceBucket: "sub-hourly" | "hourly" | "daily" | "weekly" | "monthly";
+  status: JobStatus;
+  ageHours: number | null;
+  lastRun: string | null;
+  docsWritten: number | null;
+  errors: number | null;
+  durationMs: number | null;
+}
+
+function cadenceBucketOf(cadence: string): JobStatusRow["cadenceBucket"] {
+  const c = cadence.toLowerCase();
+  if (c.includes("min")) return "sub-hourly";
+  if (c.includes("hour")) return "hourly"; // "hourly" and "every 4 hours"
+  if (c.includes("week")) return "weekly";
+  if (c.includes("month") || c.includes("semimonthly")) return "monthly";
+  return "daily";
+}
+
+/**
+ * Pure read-only pass over the JOBS list: read each /meta doc, grade it
+ * against the same thresholds the alerting path uses, and return enriched
+ * rows. Writes nothing, sends no Slack. Powers the Dev Dashboard endpoint.
+ *
+ * Note: this duplicates the read+grade loop in runHealthCheck() rather than
+ * sharing it, deliberately — runHealthCheck is the load-bearing alerting
+ * path and is left untouched. Keep the two grading rules in sync if the
+ * threshold semantics ever change.
+ */
+export async function readJobStatuses(
+  db: Firestore,
+  logger?: SimpleLogger,
+): Promise<JobStatusRow[]> {
+  const log: SimpleLogger = logger ?? console;
+  const now = Date.now();
+  const rows: JobStatusRow[] = [];
+
+  for (const job of JOBS) {
+    let data: Record<string, unknown> | null = null;
+    try {
+      const snap = await db.collection("meta").doc(job.metaDoc).get();
+      data = snap.exists
+        ? ((snap.data() as Record<string, unknown>) ?? null)
+        : null;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`[dev-dashboard] read /meta/${job.metaDoc}: ${msg}`);
+    }
+
+    const num = (v: unknown): number | null =>
+      typeof v === "number" ? v : null;
+    const docsWritten = num(data?.docsWritten);
+    const errors = num(data?.errors);
+    const durationMs = num(data?.durationMs);
+
+    const lastMs = resolveTimestamp(data);
+    let status: JobStatus = "ok";
+    let ageHours: number | null = null;
+    if (lastMs === null) {
+      status = "fail";
+    } else {
+      ageHours = Math.round(((now - lastMs) / 3_600_000) * 10) / 10;
+      if (ageHours > job.failHours) status = "fail";
+      else if (ageHours > job.warnHours) status = "warn";
+    }
+
+    rows.push({
+      key: job.key,
+      label: job.label,
+      cadence: job.cadence,
+      cadenceBucket: cadenceBucketOf(job.cadence),
+      status,
+      ageHours,
+      lastRun: lastMs === null ? null : new Date(lastMs).toISOString(),
+      docsWritten,
+      errors,
+      durationMs,
+    });
+  }
+
+  return rows;
+}
+
 interface HealthCheckResult {
   status: JobStatus;
   notified: boolean;

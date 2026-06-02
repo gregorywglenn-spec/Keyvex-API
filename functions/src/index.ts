@@ -78,7 +78,7 @@ import {
   saveTenderOffers,
   writeJobMeta,
 } from "../../src/firestore.js";
-import { runHealthCheck } from "./health-check.js";
+import { runHealthCheck, readJobStatuses } from "./health-check.js";
 import {
   applyToolHandlers,
   createMcpServer,
@@ -1850,6 +1850,82 @@ export const mcp = onRequest(
         transport?.close().catch(() => {});
         server?.close().catch(() => {});
       });
+    }
+  },
+);
+
+// ─── Dev Dashboard (internal scraper-status board) ────────────────────────
+
+/**
+ * DASHBOARD_TOKEN gates the Dev Dashboard status endpoint. Set once with:
+ *   firebase functions:secrets:set DASHBOARD_TOKEN
+ * (paste a long random string at the prompt). The dev-dashboard.html page
+ * stores it in localStorage and sends it as `Authorization: Bearer <token>`.
+ *
+ * This is a coarse internal gate — the data it protects is freshness/up-down
+ * status + doc counts (no customer data), but it's deliberately not world-
+ * readable since it exposes scraper cadence internals.
+ */
+const dashboardToken = defineSecret("DASHBOARD_TOKEN");
+
+/**
+ * GET endpoint backing the KeyVex Dev Dashboard. Returns read-only freshness
+ * status for every scraper in JOBS, graded against the same thresholds the
+ * alerting path uses. Token-gated (bearer). Runs as the read-only service
+ * account — Datastore Viewer only — so it physically cannot mutate the DB.
+ *
+ * Mirrors Derek's capital-edge-d5038 /dev-dashboard.html board.
+ */
+export const devDashboard = onRequest(
+  {
+    region: REGION,
+    memory: "512MiB",
+    timeoutSeconds: 60,
+    secrets: [dashboardToken],
+    concurrency: 10,
+    maxInstances: 5,
+    cors: true,
+    serviceAccount:
+      "keyvex-mcp-readonly@capitaledge-api.iam.gserviceaccount.com",
+  },
+  async (req, res) => {
+    if (req.method !== "GET") {
+      res.status(405).json({ error: "Method not allowed; use GET" });
+      return;
+    }
+
+    // Bearer-token gate. Accept `Authorization: Bearer <t>` or `?token=<t>`.
+    const expected = dashboardToken.value();
+    const auth = req.header("authorization") ?? "";
+    const bearer = auth.toLowerCase().startsWith("bearer ")
+      ? auth.slice(7).trim()
+      : "";
+    const provided = bearer || String(req.query.token ?? "");
+    if (!expected || provided !== expected) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    try {
+      const db = await getLiveDb();
+      const jobs = await readJobStatuses(db, logger);
+      const summary = jobs.reduce(
+        (acc, j) => {
+          acc[j.status]++;
+          return acc;
+        },
+        { ok: 0, warn: 0, fail: 0 } as Record<"ok" | "warn" | "fail", number>,
+      );
+      res.json({
+        project: "capitaledge-api",
+        server_version: SERVER_VERSION,
+        generated_at: new Date().toISOString(),
+        summary: { ...summary, total: jobs.length },
+        jobs,
+      });
+    } catch (err) {
+      logger.error("[dev-dashboard] status read failed", err);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 );

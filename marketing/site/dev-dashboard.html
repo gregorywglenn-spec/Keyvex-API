@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>KeyVex Dev Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0e0c;
+    --panel: #14181500;
+    --card: #161b17;
+    --card-hi: #1d231e;
+    --line: #283026;
+    --txt: #e8efe9;
+    --muted: #8a978c;
+    --green: #4dff20;
+    --ok: #4dff20;
+    --warn: #ffce3a;
+    --fail: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--txt);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 18px 22px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header h1 b { color: var(--green); }
+  .sub { color: var(--muted); font-size: 12px; }
+  .spacer { flex: 1; }
+  button, .btn {
+    background: var(--card); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 13px;
+  }
+  button:hover { border-color: var(--green); }
+  button.active { background: var(--green); color: #06150a; border-color: var(--green); font-weight: 600; }
+  .wrap { padding: 18px 22px 60px; }
+  .summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .pill {
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+    font-size: 13px; display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.fail { background: var(--fail); }
+  .filters { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filterrow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .filterrow .lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin-right: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--line);
+    border-radius: 10px; padding: 13px 14px; cursor: pointer; transition: background .12s;
+  }
+  .card:hover { background: var(--card-hi); }
+  .card.ok { border-left-color: var(--ok); }
+  .card.warn { border-left-color: var(--warn); }
+  .card.fail { border-left-color: var(--fail); }
+  .card .name { font-weight: 600; font-size: 13.5px; margin-bottom: 6px; }
+  .card .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+  .card .age { font-variant-numeric: tabular-nums; }
+  .card .age.warn { color: var(--warn); } .card .age.fail { color: var(--fail); }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  /* token gate */
+  .gate { max-width: 420px; margin: 80px auto; text-align: center; }
+  .gate input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--txt); margin: 12px 0; font-size: 14px; }
+  .gate .err { color: var(--fail); font-size: 13px; min-height: 18px; }
+  /* detail drawer */
+  .drawer-bg { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; }
+  .drawer-bg.show { display: block; }
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: 420px; max-width: 92vw;
+    background: #10140f; border-left: 1px solid var(--line); padding: 22px; overflow-y: auto;
+    transform: translateX(100%); transition: transform .18s ease;
+  }
+  .drawer.show { transform: translateX(0); }
+  .drawer h2 { font-size: 16px; margin: 0 0 4px; }
+  .drawer .close { position: absolute; top: 14px; right: 16px; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 8px 12px; margin-top: 18px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-variant-numeric: tabular-nums; word-break: break-word; }
+  code { background: #0a0d09; padding: 2px 6px; border-radius: 5px; }
+  a { color: var(--green); }
+</style>
+</head>
+<body>
+
+<!-- Token gate -->
+<div id="gate" class="gate" style="display:none">
+  <h1>KeyVex <b>Dev Dashboard</b></h1>
+  <p class="sub">Enter the dashboard access token.</p>
+  <input id="tokenInput" type="password" placeholder="DASHBOARD_TOKEN" autocomplete="off" />
+  <div class="err" id="gateErr"></div>
+  <button id="tokenSave">Unlock</button>
+</div>
+
+<!-- Dashboard -->
+<div id="app" style="display:none">
+  <header>
+    <h1>KeyVex <b>Dev Dashboard</b></h1>
+    <span class="sub" id="genAt"></span>
+    <span class="spacer"></span>
+    <button id="refreshBtn">↻ Refresh</button>
+    <button id="logoutBtn">Sign out</button>
+  </header>
+  <div class="wrap">
+    <div class="summary" id="summary"></div>
+    <div class="filters">
+      <div class="filterrow" id="statusFilter">
+        <span class="lbl">Status</span>
+        <button data-status="all" class="active">All</button>
+        <button data-status="ok">OK</button>
+        <button data-status="warn">Warning</button>
+        <button data-status="fail">Fail</button>
+      </div>
+      <div class="filterrow" id="cadenceFilter">
+        <span class="lbl">Cadence</span>
+        <button data-cadence="all" class="active">All</button>
+        <button data-cadence="sub-hourly">Sub-hourly</button>
+        <button data-cadence="hourly">Hourly</button>
+        <button data-cadence="daily">Daily</button>
+        <button data-cadence="weekly">Weekly</button>
+        <button data-cadence="monthly">Monthly</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">No scrapers match these filters.</div>
+  </div>
+</div>
+
+<!-- Detail drawer -->
+<div class="drawer-bg" id="drawerBg"></div>
+<div class="drawer" id="drawer">
+  <button class="close" id="drawerClose">✕</button>
+  <h2 id="dName"></h2>
+  <div class="sub" id="dStatus"></div>
+  <div class="kv" id="dKv"></div>
+</div>
+
+<script>
+  // us-central1 Cloud Function backing this board.
+  const ENDPOINT = "https://us-central1-capitaledge-api.cloudfunctions.net/devDashboard";
+  const TOKEN_KEY = "keyvex_dev_dashboard_token";
+
+  let DATA = [];
+  let fStatus = "all", fCadence = "all";
+
+  const $ = (id) => document.getElementById(id);
+
+  function fmtAge(h) {
+    if (h === null || h === undefined) return "never";
+    if (h < 1) return Math.round(h * 60) + "m";
+    if (h < 48) return Math.round(h) + "h";
+    return Math.round(h / 24) + "d";
+  }
+  function fmtTime(iso) { return iso ? iso.replace("T", " ").slice(0, 16) + " UTC" : "—"; }
+  function fmtNum(n) { return (n === null || n === undefined) ? "—" : Number(n).toLocaleString(); }
+  function fmtDur(ms) { return (ms === null || ms === undefined) ? "—" : (ms < 1000 ? ms + " ms" : (ms / 1000).toFixed(1) + " s"); }
+
+  async function load() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) { showGate(); return; }
+    try {
+      const res = await fetch(ENDPOINT, { headers: { Authorization: "Bearer " + token } });
+      if (res.status === 401) { localStorage.removeItem(TOKEN_KEY); showGate("Invalid token."); return; }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const json = await res.json();
+      DATA = json.jobs || [];
+      $("genAt").textContent = "updated " + fmtTime(json.generated_at) + " · v" + (json.server_version || "?");
+      renderSummary(json.summary);
+      render();
+      $("gate").style.display = "none";
+      $("app").style.display = "block";
+    } catch (e) {
+      showGate("Could not load: " + e.message);
+    }
+  }
+
+  function showGate(err) {
+    $("app").style.display = "none";
+    $("gate").style.display = "block";
+    $("gateErr").textContent = err || "";
+  }
+
+  function renderSummary(s) {
+    if (!s) { $("summary").innerHTML = ""; return; }
+    $("summary").innerHTML =
+      `<span class="pill"><span class="dot ok"></span>${s.ok} OK</span>` +
+      `<span class="pill"><span class="dot warn"></span>${s.warn} Warning</span>` +
+      `<span class="pill"><span class="dot fail"></span>${s.fail} Fail</span>` +
+      `<span class="pill">${s.total} total</span>`;
+  }
+
+  function render() {
+    const rows = DATA.filter(j =>
+      (fStatus === "all" || j.status === fStatus) &&
+      (fCadence === "all" || j.cadenceBucket === fCadence)
+    ).sort((a, b) => {
+      const order = { fail: 0, warn: 1, ok: 2 };
+      return (order[a.status] - order[b.status]) || a.label.localeCompare(b.label);
+    });
+    const grid = $("grid");
+    grid.innerHTML = "";
+    $("empty").style.display = rows.length ? "none" : "block";
+    for (const j of rows) {
+      const card = document.createElement("div");
+      card.className = "card " + j.status;
+      const ageCls = j.status === "ok" ? "" : j.status;
+      card.innerHTML =
+        `<div class="name">${escapeHtml(j.label)}</div>` +
+        `<div class="meta"><span>${escapeHtml(j.cadence)}</span>` +
+        `<span class="age ${ageCls}">${fmtAge(j.ageHours)}</span></div>`;
+      card.onclick = () => openDrawer(j);
+      grid.appendChild(card);
+    }
+  }
+
+  function openDrawer(j) {
+    $("dName").textContent = j.label;
+    const word = { ok: "Healthy", warn: "Approaching staleness", fail: "Failing / no run" }[j.status];
+    $("dStatus").innerHTML = `<span class="dot ${j.status}"></span> ${word}`;
+    $("dKv").innerHTML =
+      row("Status key", j.key) +
+      row("Cadence", j.cadence) +
+      row("Last run", fmtTime(j.lastRun)) +
+      row("Age", fmtAge(j.ageHours)) +
+      row("Docs written", fmtNum(j.docsWritten)) +
+      row("Errors", j.errors === null ? "—" : j.errors) +
+      row("Last duration", fmtDur(j.durationMs));
+    $("drawerBg").classList.add("show");
+    $("drawer").classList.add("show");
+  }
+  function row(k, v) { return `<div class="k">${k}</div><div class="v">${escapeHtml(String(v))}</div>`; }
+  function closeDrawer() { $("drawerBg").classList.remove("show"); $("drawer").classList.remove("show"); }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // wire up
+  $("statusFilter").onclick = (e) => {
+    if (e.target.tagName !== "BUTTON") return;
+    fStatus = e.target.dataset.status;
+    [...$("statusFilter").querySelectorAll("button")].forEach(b => b.classList.toggle("active", b === e.target));
+    render();
+  };
+  $("cadenceFilter").onclick = (e) => {
+    if (e.target.tagName !== "BUTTON") return;
+    fCadence = e.target.dataset.cadence;
+    [...$("cadenceFilter").querySelectorAll("button")].forEach(b => b.classList.toggle("active", b === e.target));
+    render();
+  };
+  $("refreshBtn").onclick = load;
+  $("logoutBtn").onclick = () => { localStorage.removeItem(TOKEN_KEY); showGate(); };
+  $("tokenSave").onclick = () => {
+    const t = $("tokenInput").value.trim();
+    if (!t) return;
+    localStorage.setItem(TOKEN_KEY, t);
+    $("tokenInput").value = "";
+    load();
+  };
+  $("tokenInput").addEventListener("keydown", (e) => { if (e.key === "Enter") $("tokenSave").click(); });
+  $("drawerClose").onclick = closeDrawer;
+  $("drawerBg").onclick = closeDrawer;
+
+  load();
+</script>
+</body>
+</html>
