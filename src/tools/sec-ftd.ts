@@ -52,7 +52,6 @@ export const definition: Tool = {
     "  - Daily FTD history for a ticker: ticker='GME' + sort_by='settlement_date'",
     "  - Largest FTDs this month: min_value=1000000 + sort_by='fail_value'",
     "  - Squeeze setup candidates: min_quantity=100000 + recent dates",
-    "    (cross-reference with otc_market_weekly for dark pool activity)",
     "  - Look-up by CUSIP: cusip='B6S7WD106' (foreign issuers, complex names)",
     "",
     "Derived field: fail_value = quantity_fails × price (dollar magnitude of",

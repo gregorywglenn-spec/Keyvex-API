@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Documentation — KeyVex</title>
-  <meta name="description" content="KeyVex MCP server documentation. How to connect your AI agent, query the 38 tools, and reach support. No account or authentication required." />
+  <meta name="description" content="KeyVex MCP server documentation. How to connect your AI agent, query the 37 tools, and reach support. No account or authentication required." />
   <link rel="icon" type="image/png" href="/keyvex-mark.png" />
   <link rel="apple-touch-icon" href="/keyvex-mark.png" />
   <style>
@@ -134,7 +134,7 @@
   <main>
     <h1>Documentation</h1>
     <p class="lede">
-      How to connect your AI agent to KeyVex and query the 38 tools. No account,
+      How to connect your AI agent to KeyVex and query the 37 tools. No account,
       no API key, no OAuth flow — point your MCP client at the endpoint and go.
       Last updated 2026-05-22.
     </p>
@@ -145,7 +145,7 @@
         <li><a href="#what-is-keyvex">What is KeyVex</a></li>
         <li><a href="#quickstart">Quickstart</a></li>
         <li><a href="#auth">Authentication</a></li>
-        <li><a href="#tools">Tool reference (38 tools)</a></li>
+        <li><a href="#tools">Tool reference (37 tools)</a></li>
         <li><a href="#unified-search">unified_search</a></li>
         <li><a href="#rate-limits">Rate limits</a></li>
         <li><a href="#data-freshness">Data freshness</a></li>
@@ -159,7 +159,7 @@
       KeyVex is a remote <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a>
       (MCP) server that exposes US public financial and government disclosures as agent-native tools.
       Your AI agent (Claude Desktop, Cursor, or any MCP client) connects once and can query
-      <strong>38 tools</strong> across dozens of official US government sources — SEC filings,
+      <strong>37 tools</strong> across dozens of official US government sources — SEC filings,
       congressional trades, FEC campaign finance, federal contracts and grants, lobbying,
       regulatory enforcement, sanctions, macroeconomic indicators, and more.
     </p>
@@ -244,7 +244,7 @@
 
     <h2 id="tools">Tool reference</h2>
     <p>
-      KeyVex exposes 38 tools. All are read-only. Every tool's full schema (parameters,
+      KeyVex exposes 37 tools. All are read-only. Every tool's full schema (parameters,
       filters, response shape) is returned by the MCP <code>tools/list</code> method.
       The table below is a one-line summary.
     </p>
@@ -265,7 +265,6 @@
         <tr><td>get_proxy_filings</td><td>SEC Schedule 14A — proxy statements (DEF 14A annual + merger)</td></tr>
         <tr><td>get_fundamentals</td><td>SEC EDGAR XBRL — income statement, balance sheet, cash flow per filing</td></tr>
         <tr><td>get_sec_fails_to_deliver</td><td>SEC bi-monthly Fails-to-Deliver settlement data</td></tr>
-        <tr><td>get_otc_market_weekly</td><td>FINRA OTC Transparency — ATS dark-pool weekly volume</td></tr>
       </tbody>
     </table>
 

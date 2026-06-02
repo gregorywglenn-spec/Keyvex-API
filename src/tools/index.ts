@@ -32,7 +32,6 @@ import * as memberProfile from "./member-profile.js";
 import * as nportFilings from "./nport-filings.js";
 import * as ofacSdn from "./ofac-sdn.js";
 import * as oigExclusions from "./oig-exclusions.js";
-import * as otcMarketWeekly from "./otc-market-weekly.js";
 import * as plannedInsiderSales from "./planned-insider-sales.js";
 import * as privatePlacements from "./private-placements.js";
 import * as productRecalls from "./product-recalls.js";
@@ -68,7 +67,6 @@ export const TOOLS: ToolModule[] = [
   tenderOffers,
   bills,
   rollCallVotes,
-  otcMarketWeekly,
   privatePlacements,
   productRecalls,
   enforcementActions,

@@ -182,12 +182,6 @@ const COLLECTION_PROFILE: Record<
     equality: ["issuer_cik", "issuer_state", "is_amendment"],
     inequality: ["since", "until", "min_amount_sold"],
   },
-  otc_market_weekly: {
-    queryFn: "queryOtcMarketWeekly",
-    defaultSort: "week_start_date",
-    equality: ["issue_symbol", "mpid", "week_start_date", "tier_identifier", "summary_type_code"],
-    inequality: ["since", "until"],
-  },
   bills: {
     queryFn: "queryBills",
     defaultSort: "latest_action_date",

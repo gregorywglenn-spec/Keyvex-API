@@ -12,7 +12,7 @@
  * The division of labor is deliberate:
  *   - THIS script = the meter readings (age, docsWritten, errors, status).
  *   - The scheduled Claude task = the judgment ("13F wrote 0 docs three runs
- *     in a row, that's off" / "FINRA still red, same root cause as last week")
+ *     in a row, that's off" / "Senate PTR still red, same root cause as last week")
  *     and the Slack write-up. That judgment layer is what makes this "Claude
  *     looking at them" rather than just a second cron.
  *

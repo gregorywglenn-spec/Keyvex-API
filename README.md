@@ -2,7 +2,7 @@
 
 The Model Context Protocol (MCP) server for **US public financial disclosures**.
 
-Congressional trades, executive insider transactions, institutional holdings, activist stakes, federal contracts, lobbying spend, material events, member profiles, FEC campaign finance, congressional bills, roll-call votes, OFAC sanctions, Federal Register rules, tender offers, private placements, mutual fund holdings, SEC enforcement, OTC dark-pool volume — every tool callable from Claude, Cursor, or any MCP-compatible agent through one Bearer-authenticated endpoint. Designed for AI agents from the ground up: fewer tools, smarter parameters, descriptions that help the agent decide *when* to use each one — not yet another REST API with MCP bolted on top.
+Congressional trades, executive insider transactions, institutional holdings, activist stakes, federal contracts, lobbying spend, material events, member profiles, FEC campaign finance, congressional bills, roll-call votes, OFAC sanctions, Federal Register rules, tender offers, private placements, mutual fund holdings, SEC enforcement — every tool callable from Claude, Cursor, or any MCP-compatible agent through one Bearer-authenticated endpoint. Designed for AI agents from the ground up: fewer tools, smarter parameters, descriptions that help the agent decide *when* to use each one — not yet another REST API with MCP bolted on top.
 
 ![KeyVex unified_search demo — one tool call, ten collections, sub-second cross-source query](https://raw.githubusercontent.com/gregorywglenn-spec/Keyvex-API/main/marketing/site/demo.svg)
 
@@ -56,7 +56,6 @@ Six separate disclosure sources joined by `ticker` + `bioguide_id` + `recipient_
 | `get_tender_offers` | SEC Schedule TO (third-party + issuer tender offers) | Daily |
 | `get_bills` | Congress.gov bills + resolutions (all 8 types) | Daily |
 | `get_roll_call_votes` | House roll-call votes (Senate v1.1) | Daily |
-| `get_otc_market_weekly` | FINRA OTC Transparency (ATS dark-pool volume) | Weekly Sunday |
 | `get_private_placements` | SEC Form D (Reg D exempt offerings) | Daily |
 | `get_enforcement_actions` | SEC + DOJ + CFTC + OCC + FDIC press releases | Daily |
 | `get_nport_filings` | SEC Form N-PORT (mutual fund monthly holdings) | Daily |
@@ -172,7 +171,7 @@ For the remote endpoint, one-click installation through Anthropic's MCP director
 - **Data layer:** Google Firestore via `firebase-admin`
 - **Hosting:** Firebase Cloud Functions Gen 2, region `us-central1`
 - **Auth:** API keys in Google Secret Manager (`MCP_API_KEY` for the public endpoint, `FEC_API_KEY` for upstream api.data.gov calls)
-- **Scrapers:** 40+ autonomous scrapers running on cron across the unified KeyVex operation. SEC EDGAR (Form 3 / 4 / 5 / 144 / 13D-G / 13F / 8-K / D / NPORT / S-1+S-3 / Schedule TO / Form 278 / XBRL / Proxy 14A / FTD), USAspending (contracts + grants), Senate LDA, Senate eFD + House Clerk PTRs, bioguide current + historical, congress.gov (bills + House roll-calls) + senate.gov (Senate roll-calls), FEC (candidates / committees / Schedule A / Schedule E), CFTC (enforcement + Commitments of Traders), FINRA OTC Transparency, OFAC sanctions, US Consolidated Screening List, Federal Register, openFDA (drug + device + food recalls), CPSC recalls, DOJ FARA, GovInfo (CRPT / PLAW / CHRG / GAOREPORTS), HHS-OIG LEIE, CFPB complaints, Treasury auctions, BLS + FRED + EIA macro/energy, SEC + DOJ + CFTC + OCC + FDIC + FTC press releases. No human in the loop.
+- **Scrapers:** 40+ autonomous scrapers running on cron across the unified KeyVex operation. SEC EDGAR (Form 3 / 4 / 5 / 144 / 13D-G / 13F / 8-K / D / NPORT / S-1+S-3 / Schedule TO / Form 278 / XBRL / Proxy 14A / FTD), USAspending (contracts + grants), Senate LDA, Senate eFD + House Clerk PTRs, bioguide current + historical, congress.gov (bills + House roll-calls) + senate.gov (Senate roll-calls), FEC (candidates / committees / Schedule A / Schedule E), CFTC (enforcement + Commitments of Traders), OFAC sanctions, US Consolidated Screening List, Federal Register, openFDA (drug + device + food recalls), CPSC recalls, DOJ FARA, GovInfo (CRPT / PLAW / CHRG / GAOREPORTS), HHS-OIG LEIE, CFPB complaints, Treasury auctions, BLS + FRED + EIA macro/energy, SEC + DOJ + CFTC + OCC + FDIC + FTC press releases. No human in the loop.
 
 ---
 
@@ -211,8 +210,8 @@ For Firestore connectivity locally, drop a service account JSON at `secrets/serv
 
 ```
 src/
-├── tools/                 — one file per MCP tool (38 tools — definition + handler)
-├── scrapers/              — one file per data source (SEC EDGAR forms, congress.gov, FEC, FINRA, OFAC, Federal Register, ...)
+├── tools/                 — one file per MCP tool (37 tools — definition + handler)
+├── scrapers/              — one file per data source (SEC EDGAR forms, congress.gov, FEC, OFAC, Federal Register, ...)
 ├── server-setup.ts        — shared MCP-server tool-registration logic (used by both stdio and HTTP entries)
 ├── firestore.ts           — data layer with stub/live mode auto-detection
 ├── types.ts               — shared types
@@ -223,7 +222,7 @@ functions/
 ├── src/index.ts           — Firebase Cloud Functions entry: 18+ scheduled scraper functions
 │                            (hourly SEC EDGAR + daily Congress/FEC/LDA/USAspending/Form D/
 │                            Form 278/Schedule TO/Enforcement/NPORT/S-1+S-3/OFAC/Federal Register +
-│                            weekly bioguide/FINRA OTC/FEC committees + monthly bioguide historical),
+│                            weekly bioguide/FEC committees + monthly bioguide historical),
 │                            the `mcp` HTTP function, and a `scheduledHealthCheck` Slack pinger.
 ├── package.json           — minimal deps; rest bundled by esbuild
 └── tsconfig.json          — extends parent, includes ../src

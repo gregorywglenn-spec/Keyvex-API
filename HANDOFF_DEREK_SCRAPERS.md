@@ -40,7 +40,7 @@ If Derek's project just wants the SCRAPER part (no MCP surface), all 24 are inde
 | 3 | Schedule TO (Tender Offers) | `tender-offers.ts` | EDGAR FTS | Daily | `tender_offers` |
 | 4 | Bills | `congress-legislation.ts` | api.congress.gov | Daily | `bills` |
 | 5 | House + **Senate** Roll-Call Votes | `congress-legislation.ts` | api.congress.gov + senate.gov XML | Daily | `roll_call_votes` |
-| 6 | FINRA OTC Weekly | `finra-otc.ts` | api.finra.org | Weekly Sun | `otc_market_weekly` |
+| ~~6~~ | ~~FINRA OTC Weekly~~ **— DROPPED 2026-06-01. Do NOT port.** FINRA is a self-regulatory organization, not a US-government source, and its data API requires a license agreement — out of scope for the pure-public-government-source posture. | — | — | — | — |
 | 7 | Form D (Private Placements) | `form-d.ts` | EDGAR FTS | Daily | `private_placements` |
 | 8 | SEC + DOJ + CFTC + OCC + FDIC + **FTC** Enforcement | `enforcement-actions.ts` | mixed | Daily | `enforcement_actions` |
 | 9 | Form N-PORT (Mutual Funds) | `nport.ts` | EDGAR FTS | Daily | `nport_filings` |
@@ -116,16 +116,14 @@ If Derek's project just wants the SCRAPER part (no MCP surface), all 24 are inde
 - **Hard lesson:** Senate XML's `vote_date` is `DD-MMM` format with **no year** (e.g., "18-Dec"). The year lives in the parent `<congress_year>` element. Parse + assemble ISO date in the normalizer.
 - **Idempotent key:** `vote_id` like `house-119-1-362`.
 
-### 6. FINRA OTC Weekly — `src/scrapers/finra-otc.ts`
+### 6. FINRA OTC Weekly — DROPPED 2026-06-01. Do NOT port.
 
-- **Function:** Weekly off-exchange (ATS dark-pool) volume. Each row = one ticker × one trading venue × one week. ~250K records per fully-published week.
-- **MCP tool:** `get_otc_market_weekly`
-- **Source:** `https://api.finra.org/data/group/otcMarket/name/weeklySummary` (POST + JSON body)
-- **Auth:** None, but FINRA-imposed PARTITION KEYS: `weekStartDate` AND `tierIdentifier` MUST both be in `compareFilters` with `compareType: "EQUAL"` before sortFields is honored. Tiers must be iterated explicitly: T1, T2, OTCE.
-- **Cadence:** Weekly Sundays.
-- **Idempotent key:** Composite `{weekStart}-{symbol||"_FIRM_TOTAL"}-{mpid}-{summaryType}`.
-- **Provenance:** `finra_source_url` → either `otctransparency.finra.org/.../AtsIssueData?issueSymbol=...` (per-issue) or `.../AtsData?mpid=...` (firm-level when symbol is empty for ATS_W_VOL_STATS rows).
-- **Hard lesson:** Some rows (ATS_W_VOL_STATS) have an empty `issueSymbolIdentifier` because they're firm-level rollups, not per-issue. Use a `_FIRM_TOTAL` sentinel in the doc ID to avoid collisions.
+Removed from KeyVex on 2026-06-01. FINRA is a self-regulatory organization
+(SRO), **not** a US-government source, and its data API requires a license
+agreement. That conflicts with KeyVex's pure-public-US-government-source
+posture. The scraper, MCP tool (`get_otc_market_weekly`), Firestore collection
+(`otc_market_weekly`), indexes, and health-check job were all removed. Do not
+re-introduce it on either side.
 
 ### 7. Form D (Private Placements) — `src/scrapers/form-d.ts`
 
@@ -359,7 +357,7 @@ Day 10 was a two-batch autonomous run focused on closing the political-alpha loo
 - **Derived field:** `fail_value = quantity_fails × price` (dollar magnitude of the failure that day).
 - **New dependency:** `adm-zip` (already added to package.json). Streams zip from HTTP body buffer; entry text read as UTF-8.
 - **Hard lesson (load-bearing — captured in CLAUDE.md):** **SEC FTD posting lag is 2-3 weeks, not 1 week.** SEC posts each half-month file ~2-3 weeks AFTER the half ends, NOT immediately. Initial scraper resolved target to `today - 10 days` and 404'd because the most-recent expected file wasn't yet published. Fix: use `today - 20 days` as the baseline, AND add auto-fallback that walks backward through up to 6 half-months on 404 until a published file is found. Makes the cron resilient to SEC's variable posting cadence.
-- **Cross-source pair:** Joins to `otc_market_weekly` (dark-pool activity in same window) + `activist_ownership` (large stakes) + `insider_transactions` (insider activity) for short-squeeze setup detection.
+- **Cross-source pair:** Joins to `activist_ownership` (large stakes) + `insider_transactions` (insider activity) for short-squeeze setup detection.
 
 ---
 
@@ -392,7 +390,7 @@ CBOE's modern endpoints are mostly Cloudflare-403'd for non-browser requests. VI
 Cross-collection fan-out tool that queries 12 collections in parallel for ticker, 10 collections for company_cik, 2 for bioguide_id, 1 for recipient_uei. Uses `Promise.allSettled` so one slow source doesn't block the rest. Single MCP call replaces 6-10 sequential tool calls for "tell me everything about X" questions.
 
 - **Identifier coverage:**
-  - `ticker` → 12 collections (insider_trades, institutional_holdings, congressional_trades, planned_insider_sales, initial_ownership_baselines, activist_ownership, material_events, proxy_filings, xbrl_fundamentals, tender_offers, registration_statements, otc_market_weekly)
+  - `ticker` → 11 collections (insider_trades, institutional_holdings, congressional_trades, planned_insider_sales, initial_ownership_baselines, activist_ownership, material_events, proxy_filings, xbrl_fundamentals, tender_offers, registration_statements)
   - `bioguide_id` → 2 collections (congressional_trades, annual_financial_disclosures)
   - `company_cik` → 10 collections (insider_trades, planned_insider_sales, initial_ownership_baselines, activist_ownership, material_events, proxy_filings, xbrl_fundamentals, private_placements, registration_statements, nport_filings)
   - `recipient_uei` → 1 collection (federal_contracts)

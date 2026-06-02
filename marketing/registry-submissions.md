@@ -54,7 +54,7 @@ Total engineering effort to list in ALL 9+ venues: roughly **1-2 weeks of focuse
     (S-1/S-3), private placements (Form D), federal contracts (USAspending),
     lobbying spend (LDA), material events (8-K), member profiles +
     committee assignments, FEC campaign finance, congressional bills +
-    roll-call votes, FINRA OTC dark-pool volume, SEC + DOJ enforcement
+    roll-call votes, SEC + DOJ enforcement
     actions, OFAC sanctions, and Federal Register documents. Designed for
     AI agents from the ground up — agent-native tool descriptions, rich
     filter parameters, single Bearer-authenticated endpoint. Pure-publisher
@@ -85,7 +85,6 @@ Total engineering effort to list in ALL 9+ venues: roughly **1-2 weeks of focuse
     - get_tender_offers
     - get_bills
     - get_roll_call_votes
-    - get_otc_market_weekly
     - get_private_placements
     - get_enforcement_actions
     - get_nport_filings
@@ -116,7 +115,7 @@ Total engineering effort to list in ALL 9+ venues: roughly **1-2 weeks of focuse
 |---|---|
 | Server name | `keyvex` |
 | Display name | `KeyVex` |
-| Short description | The MCP server for US public financial disclosures — 21 tools across 22+ government sources covering congressional trades, insider activity, institutional holdings, lobbying spend, federal contracts, FEC campaign finance, bills + roll-call votes, dark-pool volume, OFAC sanctions, Federal Register, and more. |
+| Short description | The MCP server for US public financial disclosures — 21 tools across 22+ government sources covering congressional trades, insider activity, institutional holdings, lobbying spend, federal contracts, FEC campaign finance, bills + roll-call votes, OFAC sanctions, Federal Register, and more. |
 | Category | `Finance` or `Government Data` (pick whichever exists in their current taxonomy) |
 | URL | `https://mcp.keyvex.com` |
 | Homepage | `https://keyvex.com` |
@@ -125,7 +124,7 @@ Total engineering effort to list in ALL 9+ venues: roughly **1-2 weeks of focuse
 | Pricing | Freemium (5,000 calls/month free) |
 | Source repo | `https://github.com/gregorywglenn-spec/Keyvex-API` |
 | Contact | `contact@keyvex.com` |
-| Tags | `finance`, `sec-edgar`, `congress`, `insider-trading`, `lobbying`, `government-data`, `agent-tools`, `dark-pool`, `fec`, `ofac`, `federal-register` |
+| Tags | `finance`, `sec-edgar`, `congress`, `insider-trading`, `lobbying`, `government-data`, `agent-tools`, `fec`, `ofac`, `federal-register` |
 
 ---
 
@@ -140,7 +139,7 @@ Total engineering effort to list in ALL 9+ venues: roughly **1-2 weeks of focuse
 ### Draft entry
 
 ```markdown
-- [KeyVex](https://keyvex.com) - The MCP server for US public financial disclosures: 21 tools across 22+ official US government sources (SEC EDGAR forms, USAspending, FEC, congress.gov, Senate eFD + House Clerk PTRs, FINRA OTC dark-pool, OFAC sanctions, Federal Register, SEC+DOJ enforcement). Pure-publisher posture, no derived signals.
+- [KeyVex](https://keyvex.com) - The MCP server for US public financial disclosures: 21 tools across 22+ official US government sources (SEC EDGAR forms, USAspending, FEC, congress.gov, Senate eFD + House Clerk PTRs, OFAC sanctions, Federal Register, SEC+DOJ enforcement). Pure-publisher posture, no derived signals.
 ```
 
 ---

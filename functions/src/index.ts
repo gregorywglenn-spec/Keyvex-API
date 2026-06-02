@@ -66,7 +66,6 @@ import {
   saveForeignAgents,
   saveScreeningList,
   saveOfacSdn,
-  saveOtcMarketWeekly,
   saveConsumerComplaints,
   saveEconomicIndicators,
   saveOigExclusions,
@@ -132,7 +131,6 @@ import {
   scrapeBills,
   scrapeRollCallVotes,
 } from "../../src/scrapers/congress-legislation.js";
-import { scrapeFinraOtcWeek } from "../../src/scrapers/finra-otc.js";
 import { scrapeFormDLiveFeed } from "../../src/scrapers/form-d.js";
 import { scrapeEnforcementActions } from "../../src/scrapers/enforcement-actions.js";
 import {
@@ -1654,58 +1652,6 @@ export const scrapeFormDDaily = onSchedule(
       docsWritten = r.saved;
     }
     await writeJobMeta("privatePlacementsSync", { started, docsWritten });
-  },
-);
-
-/**
- * FINRA OTC Transparency weekly summary. Weekly Sunday 8 AM ET.
- *
- * Cadence: weekly. FINRA publishes weekly aggregated data with a ~2-week
- * lag (a "fully published" week is typically 2-3 weeks prior). Sunday
- * cron pulls the most-recent fully-published Monday. Since prior weeks
- * are immutable once finalized, weekly cadence captures everything.
- *
- * Target Monday computation: today's date - 14 days, rolled back to Monday.
- * Idempotent — re-running for the same week upserts the same doc IDs.
- *
- * Cost per run: ~37 API pages (T1 ~52K, T2 ~128K, OTCE ~5K, paginated at
- * 5000 per page), ~5 min runtime, ~180-250K Firestore upserts. The heavy
- * write step explains the 30-min timeout + 1GiB memory.
- */
-export const scrapeFinraOtcWeekly = onSchedule(
-  {
-    schedule: "0 8 * * 0",
-    region: REGION,
-    timeZone: TZ,
-    memory: "1GiB",
-    timeoutSeconds: 1800,
-    retryCount: 0,
-  },
-  async () => {
-    const started = Date.now();
-    // Compute most-recent published Monday: today minus 14 days, rolled
-    // back to Monday in UTC. FINRA's weekStartDate is always a Monday.
-    const target = new Date();
-    target.setUTCDate(target.getUTCDate() - 14);
-    const dow = target.getUTCDay(); // 0=Sun..6=Sat
-    const daysBackToMonday = dow === 0 ? 6 : dow - 1;
-    target.setUTCDate(target.getUTCDate() - daysBackToMonday);
-    const weekStartDate = target.toISOString().split("T")[0]!;
-    logger.info(`[finra-otc] starting weekly refresh for ${weekStartDate}`);
-
-    const rows = await scrapeFinraOtcWeek({ weekStartDate });
-    logger.info(`[finra-otc] scraper returned ${rows.length} rows`);
-    let docsWritten = 0;
-    if (rows.length > 0) {
-      const r = await saveOtcMarketWeekly(rows);
-      logger.info(`[finra-otc] saved ${r.saved} rows to ${r.collection}`);
-      docsWritten = r.saved;
-    }
-    await writeJobMeta("otcMarketWeeklySync", {
-      started,
-      docsWritten,
-      stats: { weekStartDate },
-    });
   },
 );
 

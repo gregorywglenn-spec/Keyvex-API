@@ -116,12 +116,7 @@ const TESTS: TestCase[] = [
   { tool: "get_roll_call_votes", label: "119 session 1 recent", args: { congress: 119, session_number: 1, limit: 5 } },
   { tool: "get_roll_call_votes", label: "failed votes", args: { result: "Failed", limit: 5 } },
 
-  // ─── 15. get_otc_market_weekly (FINRA) ─────────────────────────────────
-  { tool: "get_otc_market_weekly", label: "NVDA week 2026-03-30", args: { issue_symbol: "NVDA", week_start_date: "2026-03-30", limit: 5 } },
-  { tool: "get_otc_market_weekly", label: "JPBX top tickers", args: { mpid: "JPBX", sort_by: "total_weekly_share_quantity", limit: 5 } },
-  { tool: "get_otc_market_weekly", label: "T1 top by notional", args: { tier_identifier: "T1", sort_by: "total_notional_sum", limit: 5 } },
-
-  // ─── 16. get_private_placements (Form D) ───────────────────────────────
+  // ─── 15. get_private_placements (Form D) ───────────────────────────────
   { tool: "get_private_placements", label: "VC funds", args: { investment_fund_type: "venture capital", limit: 5 } },
   { tool: "get_private_placements", label: "506(c) $1M+", args: { federal_exemption: "06c", min_amount_sold: 1_000_000, limit: 5 } },
   { tool: "get_private_placements", label: "CA issuers recent", args: { issuer_state: "CA", limit: 5 } },

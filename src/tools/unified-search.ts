@@ -30,7 +30,6 @@ import {
   queryMaterialEvents,
   queryNportFilings,
   queryNportHoldings,
-  queryOtcMarketWeekly,
   queryPrivatePlacements,
   queryProductRecalls,
   queryProxyFilings,
@@ -67,10 +66,10 @@ export const definition: Tool = {
     "with a single fan-out.",
     "",
     "Identifier coverage:",
-    "  - ticker → 12 SEC-keyed collections (insider_trades, institutional_holdings,",
+    "  - ticker → 11 SEC-keyed collections (insider_trades, institutional_holdings,",
     "    congressional_trades, planned_insider_sales, initial_ownership_baselines,",
     "    activist_ownership, material_events, proxy_filings, xbrl_fundamentals,",
-    "    tender_offers, registration_statements, otc_market_weekly)",
+    "    tender_offers, registration_statements)",
     "  - bioguide_id → 2 collections (congressional_trades, annual_financial_disclosures)",
     "  - company_cik → 10 collections (insider_trades, planned_insider_sales,",
     "    initial_ownership_baselines, activist_ownership, material_events,",
@@ -329,18 +328,6 @@ const ADAPTERS: SourceAdapter[] = [
       return queryRegistrationStatements({
         ...(q.ticker !== undefined && { filer_ticker: q.ticker }),
         ...(q.company_cik !== undefined && { filer_cik: q.company_cik }),
-        ...(q.since !== undefined && { since: q.since }),
-        ...(q.until !== undefined && { until: q.until }),
-        limit,
-      });
-    },
-  },
-  {
-    name: "otc_market_weekly",
-    call: (q, limit) => {
-      if (!q.ticker) return null;
-      return queryOtcMarketWeekly({
-        issue_symbol: q.ticker,
         ...(q.since !== undefined && { since: q.since }),
         ...(q.until !== undefined && { until: q.until }),
         limit,

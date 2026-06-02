@@ -86,9 +86,12 @@ const TIER = {
  *
  * First-deploy note: any scraper that has never written a /meta doc shows as
  * "no successful run on record" → fail on the first expanded run. As of the
- * 2026-05-31 freshness audit that's 3 jobs (otcMarketWeeklySync,
- * oigExclusionsSync, legislatorsHistoricalSync) — genuinely-dead scrapers
- * the old 8-job list was blind to. Those alerts are correct, not noise.
+ * 2026-06-01 audit that's 2 jobs (oigExclusionsSync, legislatorsHistoricalSync)
+ * — monthly scrapers whose first scheduled fire (the 5th / 1st) simply hasn't
+ * come around since deploy. Those alerts are correct, not noise; they clear
+ * once each job runs (or is seeded manually). FINRA OTC was removed
+ * 2026-06-01 — it's a FINRA (SRO) source under a license agreement, not a
+ * public US-government source, so it's out of scope for KeyVex.
  */
 export const JOBS: JobConfig[] = [
   // ── 30-minute ──
@@ -140,7 +143,6 @@ export const JOBS: JobConfig[] = [
   { key: "fecCandidatesSync", label: "FEC candidates sync", metaDoc: "fecCandidatesSync", cadence: "weekly", ...TIER.weekly },
   { key: "fecCommitteesSync", label: "FEC committees sync", metaDoc: "fecCommitteesSync", cadence: "weekly", ...TIER.weekly },
   { key: "cftcCotSync", label: "CFTC Commitments of Traders sync", metaDoc: "cftcCotSync", cadence: "weekly", ...TIER.weekly },
-  { key: "otcMarketWeeklySync", label: "FINRA OTC (dark pool) sync", metaDoc: "otcMarketWeeklySync", cadence: "weekly", ...TIER.weekly },
 
   // ── semimonthly ──
   { key: "secFtdSync", label: "SEC fails-to-deliver sync", metaDoc: "secFtdSync", cadence: "semimonthly (1st & 16th)", ...TIER.semimonthly },

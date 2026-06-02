@@ -18,7 +18,6 @@ import {
   queryFecContributions,
   queryFecIndependentExpenditures,
   queryLobbyingFilings,
-  queryOtcMarketWeekly,
   queryPrivatePlacements,
   querySecFailsToDeliver,
 } from "../src/firestore.js";
@@ -129,39 +128,6 @@ const cases: Case[] = [
         sort_order: "desc",
         limit: 3,
       } as Parameters<typeof queryLobbyingFilings>[0]),
-  },
-  {
-    name: "otc_market_weekly / sort=total_notional_sum + since",
-    expectThrow: true,
-    run: () =>
-      queryOtcMarketWeekly({
-        since: "2026-01-01",
-        sort_by: "total_notional_sum",
-        sort_order: "desc",
-        limit: 3,
-      } as Parameters<typeof queryOtcMarketWeekly>[0]),
-  },
-  {
-    name: "otc_market_weekly / sort=total_weekly_share_quantity + since",
-    expectThrow: true,
-    run: () =>
-      queryOtcMarketWeekly({
-        since: "2026-01-01",
-        sort_by: "total_weekly_share_quantity",
-        sort_order: "desc",
-        limit: 3,
-      } as Parameters<typeof queryOtcMarketWeekly>[0]),
-  },
-  {
-    name: "otc_market_weekly / sort=total_weekly_trade_count + since",
-    expectThrow: true,
-    run: () =>
-      queryOtcMarketWeekly({
-        since: "2026-01-01",
-        sort_by: "total_weekly_trade_count",
-        sort_order: "desc",
-        limit: 3,
-      } as Parameters<typeof queryOtcMarketWeekly>[0]),
   },
   {
     name: "private_placements / sort=total_amount_sold + since",

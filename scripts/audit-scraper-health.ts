@@ -61,7 +61,6 @@ const SCRAPERS: ScraperRow[] = [
   ["oigExclusionsMonthly",    "oig_exclusions",                  null,                  "monthly",  35,  "HHS OIG"],
   ["faraWeeklySync",          "foreign_agents",                  "registration_date",   "weekly",   14,  "FARA"],
   ["cslDailySync",            "screening_list",                  null,                  "daily",    3,   "CSL"],
-  ["finraOtcWeeklySync",      "otc_market_weekly",               "week_start_date",     "weekly",   14,  "FINRA OTC"],
 ];
 
 async function main() {

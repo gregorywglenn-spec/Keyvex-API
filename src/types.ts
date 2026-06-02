@@ -2342,101 +2342,6 @@ export interface PrivatePlacementsQuery {
 }
 
 /**
- * FINRA OTC Transparency weekly summary — one row per (week, ticker, ATS/OTC venue).
- * Sourced from api.finra.org/data/group/otcMarket/name/weeklySummary.
- *
- * This is THE canonical dark-pool / off-exchange volume disclosure. Each row
- * captures how much of a given security was traded in a given non-exchange
- * venue (ATS or OTC firm) during a given week.
- *
- * Venue types covered (via summaryTypeCode):
- *   ATS_W_SMBL_FIRM — ATS weekly by symbol+firm (granular dark-pool detail)
- *   ATS_W_VOL_STATS — ATS aggregated weekly volume stats (firm rollups)
- *   OTCE_W_SMBL_FIRM — OTC equity weekly by symbol+firm
- *   OTCE_W_VOL_STATS — OTC equity firm rollups
- *
- * Tier classification (tierIdentifier):
- *   T1 / NMS — securities in S&P 500, Russell 1000, selected ETPs
- *   T2 — all other NMS stocks
- *   OTCE — over-the-counter equity securities (pink sheets etc.)
- *
- * Pure-publisher posture: we surface volumes as filed. No "dark pool
- * sentiment" or "smart money" signals — agents can compute their own
- * derived metrics from the totals if they want them.
- */
-export interface OtcMarketWeekly {
-  /** Composite key: "{weekStartDate}-{ticker}-{MPID}-{summaryTypeCode}". Primary key. */
-  weekly_id: string;
-  /** ISO week start (Monday, YYYY-MM-DD). FINRA weeks run Monday-Sunday. */
-  week_start_date: string;
-  /** ATS/OTC venue identifier (4-char MPID like "JPBX" for JP Morgan, "UBSA" for UBS ATS). */
-  mpid: string;
-  /** Human-readable venue name ("JPBX JPB-X", "UBSA UBS ATS"). */
-  market_participant_name: string;
-  /** Stock symbol (NMS) or OTC symbol. */
-  issue_symbol: string;
-  /** Company / security name. */
-  issue_name: string;
-  /** Tier code: T1 | T2 | OTCE | NMS. */
-  tier_identifier: string;
-  /** Human-readable tier description. */
-  tier_description: string;
-  /** "ATS_W_SMBL_FIRM" | "ATS_W_VOL_STATS" | "OTCE_W_SMBL_FIRM" | "OTCE_W_VOL_STATS". */
-  summary_type_code: string;
-  /** Number of trades reported for this (week, ticker, venue). */
-  total_weekly_trade_count: number;
-  /** Total shares traded for this (week, ticker, venue). */
-  total_weekly_share_quantity: number;
-  /** Total notional value (in dollars) of trades for this row. */
-  total_notional_sum: number;
-  /** Firm CRD number (when surfaced; often null for ATS venues). */
-  firm_crd_number: string;
-  /** Product type code (often null). */
-  product_type_code: string;
-  /** ISO date this row was first published by FINRA. */
-  initial_published_date: string;
-  /** ISO date FINRA last updated this row. */
-  last_update_date: string;
-  /** ISO date of the most recent reported trade in the week. */
-  last_reported_date: string;
-  /** Link to the FINRA OTC Transparency portal for this issue.
-   *  FINRA doesn't expose per-row permalinks, but the issue-level page
-   *  shows the same rollup data. Audit-grade provenance. */
-  finra_source_url: string;
-  /** When KeyVex scraped this record (ISO 8601). */
-  scraped_at: string;
-}
-
-export interface OtcMarketWeeklyQuery {
-  /** Direct lookup by composite weekly_id. */
-  weekly_id?: string;
-  /** Stock ticker filter (e.g., 'NVDA'). */
-  issue_symbol?: string;
-  /** Substring match against issue_name (case-insensitive). */
-  issue_name?: string;
-  /** Venue MPID filter (e.g., 'JPBX'). */
-  mpid?: string;
-  /** Substring match against marketParticipantName. */
-  market_participant_name?: string;
-  /** ISO week-start date (Monday). Use to scope to a single week. */
-  week_start_date?: string;
-  /** Tier code filter (T1 | T2 | NMS | OTCE). */
-  tier_identifier?: string;
-  /** Summary type code filter. */
-  summary_type_code?: string;
-  /** Vote-start lower bound (ISO YYYY-MM-DD inclusive). */
-  since?: string;
-  until?: string;
-  sort_by?:
-    | "week_start_date"
-    | "total_weekly_share_quantity"
-    | "total_notional_sum"
-    | "total_weekly_trade_count";
-  sort_order?: "asc" | "desc";
-  limit?: number;
-}
-
-/**
  * Congressional bill — one row per (congress, billType, number) tuple.
  * Sourced from api.congress.gov/v3/bill. v1A is metadata only; full action
  * history, sponsor list, related bills, text, and summaries live behind
@@ -3576,8 +3481,8 @@ export interface UnifiedSearchQuery {
  * when a slice comes back empty (or truncated) while a date filter was
  * active and the requested window falls outside the collection's actual
  * coverage — preventing the silent-empty-equals-no-data misread for
- * rolling-window sources (otc_market_weekly, federal_contracts,
- * consumer_complaints, product_recalls, enforcement_actions, etc.).
+ * rolling-window sources (federal_contracts, consumer_complaints,
+ * product_recalls, enforcement_actions, etc.).
  */
 export interface UnifiedSearchSourceBlock {
   count: number;

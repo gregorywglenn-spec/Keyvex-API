@@ -100,8 +100,8 @@
   <g>
     <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.47;0.50;0.92;0.98;1" dur="24s" repeatCount="indefinite"/>
     <text x="24" y="376" fill="#4dff20" font-size="13" font-weight="700">  ✓</text>
-    <text x="48" y="376" fill="#e6edf3" font-size="13">otc_market_weekly</text>
-    <text x="320" y="376" fill="#8b949e" font-size="13">3 records · ATS volume week of 05-04</text>
+    <text x="48" y="376" fill="#e6edf3" font-size="13">proxy_filings</text>
+    <text x="320" y="376" fill="#8b949e" font-size="13">3 records · DEF 14A proxy + merger materials</text>
   </g>
 
   <g>

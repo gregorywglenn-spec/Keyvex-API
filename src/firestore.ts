@@ -75,8 +75,6 @@ import type {
   ScreeningListQuery,
   OfacSdnEntry,
   OfacSdnQuery,
-  OtcMarketWeekly,
-  OtcMarketWeeklyQuery,
   PrivatePlacement,
   PrivatePlacementsQuery,
   ConsumerComplaint,
@@ -304,7 +302,6 @@ const COLLECTION_DATE_FIELD: Record<string, string> = {
   screening_list: "scraped_at",
   enforcement_actions: "file_date",
   private_placements: "filing_date",
-  otc_market_weekly: "week_start_date",
   bills: "latest_action_date",
   roll_call_votes: "start_date",
   tender_offers: "filing_date",
@@ -611,10 +608,6 @@ const NUMERIC_SORT_FIELDS = new Set<string>([
   "open_interest",
   "noncomm_net",
   "comm_net",
-  // FINRA OTC market weekly (dark-pool activity)
-  "total_weekly_share_quantity",
-  "total_notional_sum",
-  "total_weekly_trade_count",
   // SEC Form D — private placements
   "total_amount_sold",
   // SEC Fails-to-Deliver
@@ -5300,126 +5293,6 @@ export async function savePrivatePlacements(
     }
     await batch.commit();
     saved += chunk.length;
-  }
-
-  return { saved, collection: COLLECTION };
-}
-
-// ─── FINRA OTC weekly summary query + save ───────────────────────────────
-
-export async function queryOtcMarketWeekly(
-  query: OtcMarketWeeklyQuery,
-): Promise<QueryResult<OtcMarketWeekly>> {
-  if (isStubMode()) {
-    return { results: [], has_more: false };
-  }
-
-  const db = await getLiveDb();
-
-  if (query.weekly_id) {
-    const doc = await db
-      .collection("otc_market_weekly")
-      .doc(query.weekly_id)
-      .get();
-    if (!doc.exists) return { results: [], has_more: false };
-    return { results: [doc.data() as OtcMarketWeekly], has_more: false };
-  }
-
-  // Type-mismatch guard: otc_market_weekly sort fields total_notional_sum /
-  // total_weekly_share_quantity / total_weekly_trade_count are numeric.
-  // Same client-side filter pattern — fire INVALID_QUERY rather than emit a
-  // false coverage_warning when results truncate to empty.
-  const sortFieldForGuard = query.sort_by ?? "week_start_date";
-  rejectNumericSortWithDateFilter(sortFieldForGuard, query.since, query.until);
-
-  let q: FirestoreQuery = db.collection("otc_market_weekly");
-
-  if (query.issue_symbol) {
-    q = q.where("issue_symbol", "==", query.issue_symbol.toUpperCase());
-  }
-  if (query.mpid) {
-    q = q.where("mpid", "==", query.mpid.toUpperCase());
-  }
-  if (query.week_start_date) {
-    q = q.where("week_start_date", "==", query.week_start_date);
-  }
-  if (query.tier_identifier) {
-    q = q.where("tier_identifier", "==", query.tier_identifier.toUpperCase());
-  }
-  if (query.summary_type_code) {
-    q = q.where("summary_type_code", "==", query.summary_type_code);
-  }
-
-  // Client-side sort + substring filter (same pattern as other queries).
-  const userLimit = query.limit ?? 50;
-  const needsClient = query.issue_name || query.market_participant_name;
-  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
-  q = q.limit(fetchLimit);
-
-  const snap = await q.get();
-  let docs = snap.docs.map((d) => d.data() as OtcMarketWeekly);
-
-  if (query.issue_name) {
-    const needle = query.issue_name.toLowerCase();
-    docs = docs.filter((r) =>
-      matchesSubstringSafe(r.issue_name, needle),
-    );
-  }
-  if (query.market_participant_name) {
-    const needle = query.market_participant_name.toLowerCase();
-    docs = docs.filter((r) =>
-      matchesSubstringSafe(r.market_participant_name, needle),
-    );
-  }
-  if (query.since) {
-    docs = docs.filter((r) => r.week_start_date >= query.since!);
-  }
-  if (query.until) {
-    docs = docs.filter((r) => r.week_start_date <= query.until!);
-  }
-
-  const sortField = query.sort_by ?? "week_start_date";
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    const av = (a as unknown as Record<string, string | number>)[sortField] ?? 0;
-    const bv = (b as unknown as Record<string, string | number>)[sortField] ?? 0;
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
-
-  const has_more = docs.length > userLimit;
-  const results = docs.slice(0, userLimit);
-  return await withCoverageWarning({ results, has_more }, query, "otc_market_weekly");
-}
-
-export async function saveOtcMarketWeekly(
-  rows: OtcMarketWeekly[],
-): Promise<{ saved: number; collection: string }> {
-  if (isStubMode()) {
-    throw new Error(
-      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
-    );
-  }
-  const COLLECTION = "otc_market_weekly";
-  if (rows.length === 0) return { saved: 0, collection: COLLECTION };
-
-  const db = await getLiveDb();
-  const collection = db.collection(COLLECTION);
-  const BATCH_SIZE = 400;
-  let saved = 0;
-
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const batch = db.batch();
-    const chunk = rows.slice(i, i + BATCH_SIZE);
-    for (const row of chunk) {
-      batch.set(collection.doc(row.weekly_id), row, { merge: true });
-    }
-    await batch.commit();
-    saved += chunk.length;
-    if (saved % 4000 === 0) {
-      console.error(`[firestore]   otc save progress: ${saved}/${rows.length}`);
-    }
   }
 
   return { saved, collection: COLLECTION };
