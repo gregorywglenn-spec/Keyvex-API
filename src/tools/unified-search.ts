@@ -21,6 +21,7 @@ import {
   queryConsumerComplaints,
   queryCongressionalTrades,
   queryEnforcementActions,
+  queryExecutiveTrades,
   queryFederalContractAwards,
   queryForm144Filings,
   queryForm278Filings,
@@ -66,10 +67,10 @@ export const definition: Tool = {
     "with a single fan-out.",
     "",
     "Identifier coverage:",
-    "  - ticker → 11 SEC-keyed collections (insider_trades, institutional_holdings,",
-    "    congressional_trades, planned_insider_sales, initial_ownership_baselines,",
-    "    activist_ownership, material_events, proxy_filings, xbrl_fundamentals,",
-    "    tender_offers, registration_statements)",
+    "  - ticker → 12 collections (insider_trades, institutional_holdings,",
+    "    congressional_trades, executive_trades, planned_insider_sales,",
+    "    initial_ownership_baselines, activist_ownership, material_events,",
+    "    proxy_filings, xbrl_fundamentals, tender_offers, registration_statements)",
     "  - bioguide_id → 2 collections (congressional_trades, annual_financial_disclosures)",
     "  - company_cik → 10 collections (insider_trades, planned_insider_sales,",
     "    initial_ownership_baselines, activist_ownership, material_events,",
@@ -80,7 +81,7 @@ export const definition: Tool = {
     "    enforcement_actions, consumer_complaints, product_recalls) AND auto-",
     "    resolves to ticker + company_cik via EDGAR's catalog, cascading into",
     "    every ticker/CIK adapter above. The unlock for 'tell me everything about",
-    "    Wells Fargo' hitting 16+ collections in one call. (lobbying_filings is",
+    "    Wells Fargo' hitting 17+ collections in one call. (lobbying_filings is",
     "    excluded from the fan-out — its 51K-record substring scan is too slow",
     "    for parallel federation; call get_lobbying_filings directly instead.)",
     "  - cusip → 4 collections (institutional_holdings, activist_ownership,",
@@ -114,7 +115,7 @@ export const definition: Tool = {
     properties: {
       ticker: {
         type: "string",
-        description: "Stock symbol. Case-insensitive. Fans out to 10 collections.",
+        description: "Stock symbol. Case-insensitive. Fans out to 12 collections.",
       },
       bioguide_id: {
         type: "string",
@@ -221,6 +222,22 @@ const ADAPTERS: SourceAdapter[] = [
       return queryCongressionalTrades({
         ...(q.ticker !== undefined && { ticker: q.ticker }),
         ...(q.bioguide_id !== undefined && { bioguide_id: q.bioguide_id }),
+        ...(q.since !== undefined && { since: q.since }),
+        ...(q.until !== undefined && { until: q.until }),
+        limit,
+      });
+    },
+  },
+  {
+    name: "executive_trades",
+    call: (q, limit) => {
+      // OGE 278-T is keyed by ticker (no company_cik field). The company_name
+      // cascade resolves to a ticker upstream, so this adapter covers both the
+      // ticker and company_name entry points. filer_name is the OFFICIAL's
+      // name, not the issuer — so company_name is NOT a substring match here.
+      if (!q.ticker) return null;
+      return queryExecutiveTrades({
+        ticker: q.ticker,
         ...(q.since !== undefined && { since: q.since }),
         ...(q.until !== undefined && { until: q.until }),
         limit,
