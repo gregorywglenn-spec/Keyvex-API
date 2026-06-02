@@ -26,6 +26,8 @@ import type {
   CongressionalTradesQuery,
   EnforcementAction,
   EnforcementActionsQuery,
+  ExecutiveTrade,
+  ExecutiveTradesQuery,
   FecCandidate,
   FecCandidateQuery,
   FecCommittee,
@@ -276,6 +278,7 @@ export interface QueryResult<T> {
 const COLLECTION_DATE_FIELD: Record<string, string> = {
   insider_trades: "disclosure_date",
   congressional_trades: "disclosure_date",
+  executive_trades: "filing_date",
   planned_insider_sales: "filing_date",
   initial_ownership_baselines: "filing_date",
   activist_ownership: "filing_date",
@@ -1567,6 +1570,93 @@ export async function saveCongressionalTrades(
     saved += chunk.length;
   }
 
+  return { saved, collection: COLLECTION };
+}
+
+// ─── OGE 278-T executive-branch trades ───────────────────────────────────────
+
+/**
+ * Query the executive_trades collection (OGE Form 278-T). Mirrors the
+ * congressional-trades query surface: ticker/type/date filters in Firestore,
+ * filer_name as a client-side substring filter (so a larger window is pulled
+ * when it's set). Empty in stub mode.
+ */
+export async function queryExecutiveTrades(
+  query: ExecutiveTradesQuery,
+): Promise<QueryResult<ExecutiveTrade>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const db = await getLiveDb();
+  let q: FirestoreQuery = db.collection("executive_trades");
+
+  if (query.ticker) q = q.where("ticker", "==", query.ticker);
+  if (query.filer_type) q = q.where("filer_type", "==", query.filer_type);
+  if (query.transaction_type) {
+    q = q.where("transaction_type", "==", query.transaction_type);
+  }
+  if (query.min_amount !== undefined) {
+    q = q.where("amount_min", ">=", query.min_amount);
+  }
+
+  const sortField = query.sort_by ?? "filing_date";
+  const sortOrder = query.sort_order ?? "desc";
+
+  rejectNumericSortWithDateFilter(sortField, query.since, query.until);
+  if (query.since) q = q.where(sortField, ">=", query.since);
+  if (query.until) q = q.where(sortField, "<=", query.until);
+
+  q = q.orderBy(sortField, sortOrder);
+
+  const userLimit = query.limit ?? 50;
+  const fetchLimit = query.filer_name ? 5000 : userLimit + 1;
+  q = q.limit(fetchLimit);
+
+  const snap = await q.get();
+  let docs = snap.docs.map((d) => d.data() as ExecutiveTrade);
+
+  if (query.filer_name) {
+    const needle = query.filer_name.toLowerCase();
+    docs = docs.filter((t) => matchesSubstringSafe(t.filer_name, needle));
+  }
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return await withCoverageWarning({ results, has_more }, query, "executive_trades");
+}
+
+/**
+ * Save OGE 278-T executive trades. Idempotent — deterministic filing_id doc
+ * keys with merge:true so re-running the scraper on the same filings is a
+ * no-op. Throws in stub mode.
+ */
+export async function saveExecutiveTrades(
+  trades: ExecutiveTrade[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "executive_trades";
+  if (trades.length === 0) {
+    return { saved: 0, collection: COLLECTION };
+  }
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+  for (let i = 0; i < trades.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = trades.slice(i, i + BATCH_SIZE);
+    for (const trade of chunk) {
+      batch.set(collection.doc(trade.filing_id), trade, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
   return { saved, collection: COLLECTION };
 }
 

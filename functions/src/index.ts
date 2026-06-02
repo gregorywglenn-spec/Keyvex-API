@@ -40,6 +40,7 @@ import {
   saveActivistOwnership,
   saveBills,
   saveCongressionalTrades,
+  saveExecutiveTrades,
   saveFecCandidates,
   saveFecCommittees,
   saveFecContributions,
@@ -110,6 +111,7 @@ import {
   scrapeForm5LiveFeed,
 } from "../../src/scrapers/form4.js";
 import { scrapeHouseLiveFeed } from "../../src/scrapers/house.js";
+import { scrapeOge278tLiveFeed } from "../../src/scrapers/oge278t.js";
 import { scrapeLobbyingByPeriod } from "../../src/scrapers/lobbying.js";
 import { scrapeSenateLiveFeed } from "../../src/scrapers/senate.js";
 import {
@@ -795,6 +797,39 @@ export const scrapeHouseDaily = onSchedule(
     }
     // house scraper not in Derek's monitored JOBS array; consistency-only meta.
     await writeJobMeta("housePtrSync", { started, docsWritten });
+  },
+);
+
+/**
+ * OGE Form 278-T executive-branch periodic transaction reports (Cabinet +
+ * Senate-confirmed appointees). Daily, 30-day lookback, parse-on-new. Clean
+ * born-digital PDFs via the OGE PAS Index. President/VP not covered in v1
+ * (separate collection, corrupted text layer → OCR, deferred to v1.1).
+ */
+export const scrapeOge278tDaily = onSchedule(
+  {
+    schedule: "20 6 * * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "1GiB",
+    timeoutSeconds: 1800,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    logger.info("[oge278t] starting (30-day lookback, --extract)");
+    const { trades } = await scrapeOge278tLiveFeed({
+      lookbackDays: 30,
+      extractTrades: true,
+    });
+    logger.info(`[oge278t] scraper returned ${trades.length} trades`);
+    let docsWritten = 0;
+    if (trades.length > 0) {
+      const r = await saveExecutiveTrades(trades);
+      logger.info(`[oge278t] saved ${r.saved} trades to ${r.collection}`);
+      docsWritten = r.saved;
+    }
+    await writeJobMeta("executiveTradesSync", { started, docsWritten });
   },
 );
 

@@ -125,6 +125,7 @@ export const JOBS: JobConfig[] = [
   { key: "fecScheduleASync", label: "FEC Schedule A (contributions) sync", metaDoc: "fecScheduleASync", cadence: "daily", ...TIER.daily },
   { key: "fecScheduleESync", label: "FEC Schedule E (independent expenditures) sync", metaDoc: "fecScheduleESync", cadence: "daily", ...TIER.daily },
   { key: "congressLegislationSync", label: "Congress bills + roll-call votes sync", metaDoc: "congressLegislationSync", cadence: "daily", ...TIER.daily },
+  { key: "executiveTradesSync", label: "OGE 278-T (executive-branch trades) sync", metaDoc: "executiveTradesSync", cadence: "daily", ...TIER.daily },
   { key: "federalRegisterSync", label: "Federal Register documents sync", metaDoc: "federalRegisterSync", cadence: "daily", ...TIER.daily },
   { key: "ofacSdnSync", label: "OFAC SDN sanctions sync", metaDoc: "ofacSdnSync", cadence: "daily", ...TIER.daily },
   { key: "registrationStatementsSync", label: "Registration statements (S-1/S-3) sync", metaDoc: "registrationStatementsSync", cadence: "daily", ...TIER.daily },

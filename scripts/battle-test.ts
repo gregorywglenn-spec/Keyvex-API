@@ -66,6 +66,11 @@ const TESTS: TestCase[] = [
   { tool: "get_congressional_trades", label: "buys only", args: { transaction_type: "buy", limit: 5 } },
   { tool: "get_congressional_trades", label: "by bioguide", args: { bioguide_id: KNOWN_IDS.bioguide, limit: 3 } },
 
+  // ─── 3b. get_executive_trades (OGE 278-T) ──────────────────────────────
+  { tool: "get_executive_trades", label: "recent baseline", args: { limit: 5 } },
+  { tool: "get_executive_trades", label: "Cabinet sales", args: { filer_type: "cabinet", transaction_type: "sale", limit: 5 } },
+  { tool: "get_executive_trades", label: "filer substring", args: { filer_name: "lutnick", limit: 5 } },
+
   // ─── 4. get_planned_insider_sales (Form 144) ───────────────────────────
   { tool: "get_planned_insider_sales", label: "AAPL planned sales", args: { ticker: "AAPL", limit: 3 } },
   { tool: "get_planned_insider_sales", label: "10b5-1 filter", args: { limit: 5 } },

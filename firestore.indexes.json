@@ -2060,6 +2060,79 @@
         { "fieldPath": "ticker", "order": "ASCENDING" },
         { "fieldPath": "period_end", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filer_type", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "filer_type", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ticker", "order": "ASCENDING" },
+        { "fieldPath": "transaction_type", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "amount_min", "order": "ASCENDING" },
+        { "fieldPath": "filing_date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "executive_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "amount_min", "order": "ASCENDING" },
+        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

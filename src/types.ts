@@ -1352,6 +1352,61 @@ export interface CongressionalTradesQuery {
   include_non_open_market?: boolean;
 }
 
+// ─── OGE Form 278-T (Executive-Branch Periodic Transaction Report) ───────────
+
+/**
+ * One disclosed securities transaction from an OGE Form 278-T — the
+ * executive-branch sibling of the congressional STOCK Act PTR. Filed by
+ * Cabinet secretaries and Senate-confirmed appointees for transactions over
+ * $1,000, within 30-45 days. Federal public record (Ethics in Government Act;
+ * 5 C.F.R. Part 2634) — "Note: This is a public form" on every filing.
+ *
+ * v1 covers Cabinet/appointee filings discovered via the OGE PAS Index (clean
+ * born-digital PDFs via Integrity.gov). President/VP filings (separate
+ * collection, corrupted text layer requiring OCR) are deferred to v1.1.
+ *
+ * Source-faithful: asset names and amount ranges verbatim; amount_max is
+ * undefined for open-ended "Over $X" ranges (never collapsed). `owner` defaults
+ * to "self" — the 278-T transaction table carries no per-row owner column, so
+ * spouse/dependent is only set when the filing text explicitly says so.
+ */
+export interface ExecutiveTrade {
+  /** Deterministic: "oge-278t-{filer_slug}-{filing_date}-{idx}". */
+  filing_id: string;
+  filer_name: string;
+  /** Best-effort from the PDF header; may be "". */
+  filer_position: string;
+  filer_type: "cabinet" | "appointee" | "other";
+  transaction_date: string; // ISO (YYYY-MM-DD)
+  asset_name: string; // verbatim
+  ticker?: string; // extracted from trailing parens if present
+  transaction_type: "purchase" | "sale" | "exchange";
+  amount_range: string; // verbatim, e.g. "$1,000,001 - $5,000,000"
+  amount_min: number;
+  amount_max?: number; // undefined for open-ended "Over $X"
+  owner: "self" | "spouse" | "dependent";
+  /** The "Notification received over 30 days ago" column (Yes/No). */
+  notified: boolean;
+  filing_date: string; // ISO — date the filing was made (disclosure date)
+  report_url: string; // source PDF — provenance on every record
+  source: "OGE_278T";
+  scraped_at: string; // ISO timestamp
+}
+
+/** Validated query params for get_executive_trades. */
+export interface ExecutiveTradesQuery {
+  ticker?: string;
+  filer_name?: string;
+  filer_type?: "cabinet" | "appointee" | "other";
+  transaction_type?: "purchase" | "sale" | "exchange";
+  since?: string;
+  until?: string;
+  min_amount?: number;
+  sort_by?: "filing_date" | "transaction_date";
+  sort_order?: "desc" | "asc";
+  limit?: number;
+}
+
 // ─── Form 278 (Annual Financial Disclosure) ─────────────────────────────────
 
 /**

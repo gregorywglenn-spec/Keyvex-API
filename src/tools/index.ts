@@ -14,6 +14,7 @@ import * as cftcCot from "./cftc-cot.js";
 import * as consumerComplaints from "./consumer-complaints.js";
 import * as economicIndicators from "./economic-indicators.js";
 import * as enforcementActions from "./enforcement-actions.js";
+import * as executiveTrades from "./executive-trades.js";
 import * as fecCandidateProfile from "./fec-candidate-profile.js";
 import * as fecContributions from "./fec-contributions.js";
 import * as fecIndependentExpenditures from "./fec-independent-expenditures.js";
@@ -53,6 +54,7 @@ export const TOOLS: ToolModule[] = [
   insiderTransactions,
   institutionalHoldings,
   congressionalTrades,
+  executiveTrades,
   plannedInsiderSales,
   activistStakes,
   federalContracts,

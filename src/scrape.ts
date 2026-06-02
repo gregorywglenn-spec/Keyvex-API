@@ -78,6 +78,7 @@ import {
   saveActivistOwnership,
   saveBills,
   saveCongressionalTrades,
+  saveExecutiveTrades,
   saveFecCandidates,
   saveFecCommittees,
   saveFecContributions,
@@ -219,6 +220,10 @@ import {
   dumpHousePtrText,
   scrapeHouseLiveFeed,
 } from "./scrapers/house.js";
+import {
+  dumpOge278tText,
+  scrapeOge278tLiveFeed,
+} from "./scrapers/oge278t.js";
 import {
   dumpEdgar,
   lookupTickerByName,
@@ -1928,6 +1933,67 @@ const COMMANDS: Record<string, CliCommand> = {
         }
       }
       return { ptrs_count: ptrs.length, trades_count: trades.length, ptrs, trades };
+    },
+  },
+
+  oge278t: {
+    description:
+      "Scrape OGE Form 278-T executive-branch periodic transaction reports (Cabinet/appointees) filed in the last N days (default 30). Without --extract: index-only (filing metadata). With --extract: fetches each PDF and parses transactions. With --save: writes to Firestore. Optional --max=N to cap filings. (President/VP not covered in v1 — see oge278t.ts.)",
+    run: async (args) => {
+      const positional = args.find((a) => !a.startsWith("--"));
+      const days = positional ? parseInt(positional, 10) : 30;
+      if (Number.isNaN(days) || days < 1) {
+        throw new Error("Days must be a positive integer");
+      }
+      const maxFlag = args.find((a) => a.startsWith("--max="));
+      const maxFilings = maxFlag
+        ? parseInt(maxFlag.slice("--max=".length), 10)
+        : undefined;
+      if (maxFilings !== undefined && (Number.isNaN(maxFilings) || maxFilings < 1)) {
+        throw new Error("--max=N must be a positive integer");
+      }
+      const extractTrades = args.includes("--extract");
+      const { filings, trades } = await scrapeOge278tLiveFeed({
+        lookbackDays: days,
+        maxFilings,
+        extractTrades,
+      });
+      if (hasSaveFlag(args)) {
+        if (!extractTrades) {
+          console.error(
+            "[save] --save requires --extract (nothing to save in index-only mode). Skipping Firestore write.",
+          );
+        } else if (trades.length === 0) {
+          console.error("[save] 0 trades parsed — skipping Firestore write.");
+        } else {
+          console.error(
+            `[save] Writing ${trades.length} executive trades to Firestore...`,
+          );
+          const result = await saveExecutiveTrades(trades);
+          console.error(
+            `[save] Saved ${result.saved} trades to ${result.collection}`,
+          );
+        }
+      }
+      return {
+        filings_count: filings.length,
+        trades_count: trades.length,
+        filings,
+        trades,
+      };
+    },
+  },
+
+  "oge278t-text": {
+    description:
+      "Dump extracted PDF text for one OGE 278-T filing by filename substring (e.g. 'Lutnick'). Diagnostic for parser tuning.",
+    run: async (args) => {
+      const sub = args.find((a) => !a.startsWith("--"));
+      if (!sub) throw new Error("Usage: oge278t-text <filename-substring>");
+      const { ref, text } = await dumpOge278tText(sub);
+      console.error(`[oge278t-text] ${ref.filename} (${ref.filer_name})`);
+      console.log(text);
+      return { filename: ref.filename, chars: text.length };
     },
   },
   "test-normalize": {
