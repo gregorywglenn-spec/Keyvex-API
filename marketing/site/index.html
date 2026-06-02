@@ -4,9 +4,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>KeyVex — MCP server for US public financial disclosures</title>
-  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 37 tools across 41+ government sources — congressional trades, insider transactions (with option exercises), institutional + mutual-fund holdings (including derivatives), XBRL fundamentals, lobbying, FARA foreign agents, federal contracts + grants, material events, FEC campaign finance + contributions + independent expenditures, bills, House + Senate roll-call votes, proxy filings, Treasury auctions, CFTC futures positioning, SEC fails-to-deliver, BLS + FRED + EIA macro data, HHS-OIG exclusions, CFPB complaints, FDA + CPSC product recalls, GovInfo congressional + GAO documents, OFAC sanctions, the Consolidated Screening List, Federal Register, and more — all queryable by AI agents through one endpoint." />
+  <meta name="description" content="The Model Context Protocol server for US public financial disclosures. 38 tools across 41+ government sources — congressional trades, insider transactions (with option exercises), institutional + mutual-fund holdings (including derivatives), XBRL fundamentals, lobbying, FARA foreign agents, federal contracts + grants, material events, FEC campaign finance + contributions + independent expenditures, bills, House + Senate roll-call votes, proxy filings, Treasury auctions, CFTC futures positioning, SEC fails-to-deliver, BLS + FRED + EIA macro data, HHS-OIG exclusions, CFPB complaints, FDA + CPSC product recalls, GovInfo congressional + GAO documents, OFAC sanctions, the Consolidated Screening List, Federal Register, and more — all queryable by AI agents through one endpoint." />
   <meta property="og:title" content="KeyVex — MCP server for US public financial disclosures" />
-  <meta property="og:description" content="37 MCP tools across 41+ US public-disclosure sources. Designed for AI agents from the ground up." />
+  <meta property="og:description" content="38 MCP tools across 41+ US public-disclosure sources. Designed for AI agents from the ground up." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://keyvex.com" />
   <link rel="icon" type="image/png" href="keyvex-mark.png" />
@@ -351,7 +351,7 @@
         </p>
       </div>
       <p class="sub">
-        37 tools across 41+ government sources — congressional trades, insider
+        38 tools across 41+ government sources — congressional trades, insider
         transactions (with option exercises), institutional + mutual-fund
         holdings (including derivatives), XBRL fundamentals, proxy filings,
         lobbying spend, FARA foreign agents, FEC campaign
@@ -376,7 +376,7 @@
       <h2>One queryable surface for every public US financial disclosure that matters.</h2>
       <p class="lead">
         KeyVex normalizes 41+ distinct US public-record sources into a clean
-        Model Context Protocol (MCP) server with 37 agent-native tools. Connect
+        Model Context Protocol (MCP) server with 38 agent-native tools. Connect
         it to Claude, Cursor, your custom agent, or any MCP-compatible client.
         No scraping, no parsing, no schema-wrangling on your end.
       </p>
@@ -507,7 +507,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
       <h3 style="margin-top: 24px;">Health check (no auth required)</h3>
       <pre><code>curl https://mcp.keyvex.com</code></pre>
 
-      <h3 style="margin-top: 24px;">List the 37 tools (no auth required during preview)</h3>
+      <h3 style="margin-top: 24px;">List the 38 tools (no auth required during preview)</h3>
       <pre><code>curl -X POST https://mcp.keyvex.com \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
@@ -566,7 +566,7 @@ Agent: get_fec_candidate_profile(candidate_name:"&lt;member name&gt;")
             <td>Unlimited</td>
           </tr>
           <tr>
-            <td class="tier-name">All 37 tools</td>
+            <td class="tier-name">All 38 tools</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
             <td class="check">✓</td>
