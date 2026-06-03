@@ -1493,8 +1493,13 @@ export const scrapeNportDaily = onSchedule(
     schedule: "40 6 * * *",
     region: REGION,
     timeZone: TZ,
-    memory: "1GiB",
-    timeoutSeconds: 540,
+    // Bumped 2026-06-02: holdings parse+save of a high-volume day (683 filings
+    // → ~110k holding rows on 2026-06-02) blew the old 540s/1GiB budget, so the
+    // phase never reached its meta write and the monitor read it as stale.
+    // Parsing itself is fast (~4 min for 683); the tail is the ~110k-row save.
+    // 2 GiB headroom for the in-memory holdings array + 60-min ceiling.
+    memory: "2GiB",
+    timeoutSeconds: 3600,
     retryCount: 0,
   },
   async () => {
@@ -1514,7 +1519,16 @@ export const scrapeNportDaily = onSchedule(
     // partial-fetch doesn't block the metadata writes above. Holdings rows
     // are batched into Firestore with merge:true so partial completions are
     // idempotent — the next run picks up where we left off.
+    //
+    // Meta-write rule (fixed 2026-06-02): record a successful holdings run on
+    // EVERY non-throwing completion — including a 0-filing idle day or a day
+    // that parses 0 holdings. Previously the meta write lived inside
+    // `if (filings.length > 0)` and after the save, so (a) idle days never
+    // refreshed the timestamp and (b) a timeout mid-save skipped it — both of
+    // which surface as a false "stale" alert. We only WITHHOLD the meta write
+    // when the phase genuinely throws, so the monitor still flags real breaks.
     try {
+      let holdingsWritten = 0;
       if (filings.length > 0) {
         logger.info(
           `[nport-holdings] starting holdings parse for ${filings.length} filings`,
@@ -1525,14 +1539,13 @@ export const scrapeNportDaily = onSchedule(
           logger.info(
             `[nport-holdings] saved ${h.saved} to ${h.collection}`,
           );
-          await writeJobMeta("nportHoldingsSync", {
-            started,
-            docsWritten: h.saved,
-          });
-        } else {
-          await writeJobMeta("nportHoldingsSync", { started, docsWritten: 0 });
+          holdingsWritten = h.saved;
         }
       }
+      await writeJobMeta("nportHoldingsSync", {
+        started,
+        docsWritten: holdingsWritten,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`[nport-holdings] phase error — ${msg}`);
