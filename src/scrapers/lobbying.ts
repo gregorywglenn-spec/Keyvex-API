@@ -32,12 +32,15 @@ const CONFIG = {
     process.env.SEC_USER_AGENT ?? "KeyVexMCP/0.1 contact@keyvex.com",
   BASE_URL: "https://lda.gov/api/v1",
   /**
-   * 500ms between requests = 2 req/sec sustained. LDA's anonymous tier
-   * cuts off around 4 req/sec; staying at 2 leaves headroom and avoids
-   * triggering the 429 limiter on long bulk pulls. Earlier 250ms hit
-   * the limit at page 16 of a Pfizer pull.
+   * Rate limits (verified 2026-06-03 against lda.gov/api/tos/):
+   *   - ANONYMOUS: 15 requests/minute (1 per 4s) — far too slow for backfills,
+   *     and our old 500ms (=120/min) silently blew past it and got 429'd.
+   *   - WITH API KEY (`Authorization: Token <LDA_API_KEY>`): 120 requests/minute.
+   * 600ms = 100/min leaves ~17% headroom under the keyed cap so a multi-hour
+   * unattended run doesn't clip the sliding-window limiter. Retry loop covers
+   * the rare clip. WITHOUT a key, expect constant 429s — set LDA_API_KEY.
    */
-  RATE_LIMIT_MS: 500,
+  RATE_LIMIT_MS: 600,
   MAX_DESCRIPTION_CHARS: 5000,
   /** Max pages to follow on a paged query. 200 pages × 25 = 5000 records ceiling. */
   MAX_PAGES: 200,
@@ -59,12 +62,16 @@ async function fetchJson(url: string): Promise<unknown> {
   await sleep(CONFIG.RATE_LIMIT_MS);
 
   for (let attempt = 0; attempt <= CONFIG.RETRY_DELAYS_MS.length; attempt++) {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": CONFIG.USER_AGENT,
-        Accept: "application/json",
-      },
-    });
+    const headers: Record<string, string> = {
+      "User-Agent": CONFIG.USER_AGENT,
+      Accept: "application/json",
+    };
+    // Authenticated tier (120/min vs 15/min anonymous). Token from secrets/.env
+    // locally, or Secret Manager in Cloud Functions. See CONFIG.RATE_LIMIT_MS.
+    if (process.env.LDA_API_KEY) {
+      headers.Authorization = `Token ${process.env.LDA_API_KEY}`;
+    }
+    const res = await fetch(url, { headers });
     if (res.ok) return res.json();
 
     const isRetryable = res.status === 429 || res.status >= 500;
@@ -320,4 +327,35 @@ export async function scrapeLobbyingByPeriod(
   const filings = await paginate(url, maxRecords);
   console.error(`[lobbying] TOTAL: ${filings.length} filings for ${year} ${period}`);
   return filings;
+}
+
+/**
+ * COMPREHENSIVE BACKFILL — pull EVERY filing for a calendar year, with NO cap.
+ * Pages until the API's `next` is null (not bounded by MAX_PAGES). Streams each
+ * page to the `onPage` callback so the caller can save-as-it-goes (bounded
+ * memory, resumable). Returns the year's pulled/total counts.
+ *
+ * This is the foundation-grade pull the per-query scrapers were never doing —
+ * they cap at 5,000 records. Use for the historical warehouse backfill.
+ */
+export async function backfillLobbyingByYear(
+  year: number,
+  onPage: (filings: LobbyingFiling[], pageNum: number, total: number) => Promise<void>,
+): Promise<{ year: number; pulled: number; total: number }> {
+  let url: string | null = `${CONFIG.BASE_URL}/filings/?filing_year=${year}&page_size=25`;
+  let pageNum = 0;
+  let pulled = 0;
+  let total = 0;
+  while (url) {
+    pageNum++;
+    const data = (await fetchJson(url)) as ApiPage;
+    if (pageNum === 1) total = data.count ?? 0;
+    const filings = (data.results ?? [])
+      .map(normalizeFiling)
+      .filter((f): f is LobbyingFiling => f !== null);
+    pulled += filings.length;
+    await onPage(filings, pageNum, total);
+    url = data.next ?? null;
+  }
+  return { year, pulled, total };
 }
