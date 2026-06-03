@@ -43,6 +43,18 @@ while the data underneath stayed at ~1%. That stops now.
 
 ---
 
+## 🔄 IN-FLIGHT BACKFILLS (live ledger — keep this straight)
+
+Parallel rule: only ONE backfill per source family at a time (shared rate budget),
+but different families run concurrently. Each still must verify against source before ✅.
+
+| Tool | Source family | Started | Status | Window | Notes |
+|---|---|---|---|---|---|
+| lobbying_filings | LDA | 2026-06-03 | RUNNING (bg) | 2016–2026 | resumable; verify Costco→13, Pfizer→1,745 on completion |
+| congressional_trades (House) | House Clerk | 2026-06-03 | RUNNING (bg) | 2016–2026 | House only; Senate half + PDF parser-skip hardening = follow-ups; verify vs Quiver |
+
+Source families (one backfill each can run in parallel): **LDA** · **SEC EDGAR** (insider/13F/144/3/13D-G/8-K/proxy — pick ONE) · **USAspending** (contracts/grants — scope TBD) · **House Clerk / Senate eFD / Congress.gov** · **FEC**.
+
 ## Phase 0 — shared infrastructure (do first)
 
 | # | Item | Status | Notes |
