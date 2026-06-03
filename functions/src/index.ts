@@ -1497,9 +1497,11 @@ export const scrapeNportDaily = onSchedule(
     // → ~110k holding rows on 2026-06-02) blew the old 540s/1GiB budget, so the
     // phase never reached its meta write and the monitor read it as stale.
     // Parsing itself is fast (~4 min for 683); the tail is the ~110k-row save.
-    // 2 GiB headroom for the in-memory holdings array + 60-min ceiling.
+    // 2 GiB headroom for the in-memory holdings array + 30-min ceiling
+    // (1800s is the max for event-triggered/scheduled functions; 3600s is
+    // HTTP-only). Parse is ~4 min for 683 filings, so 30 min is ample tail.
     memory: "2GiB",
-    timeoutSeconds: 3600,
+    timeoutSeconds: 1800,
     retryCount: 0,
   },
   async () => {
