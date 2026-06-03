@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Terms of Service — KeyVex</title>
-  <meta name="description" content="KeyVex Terms of Service — what you can expect, what we expect from you, and the legal terms that govern use of the KeyVex MCP service." />
+  <meta name="description" content="KeyVex LLC Terms of Service — the legal terms that govern use of the KeyVex MCP service, including billing, acceptable use, disclaimers, and binding arbitration." />
   <meta property="og:title" content="Terms of Service — KeyVex" />
   <meta property="og:url" content="https://keyvex.com/terms" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230d1117'/%3E%3Ctext x='50%25' y='52%25' text-anchor='middle' dominant-baseline='middle' font-family='system-ui,sans-serif' font-weight='800' font-size='32' fill='%234dff20'%3EK%3C/text%3E%3C/svg%3E" />
@@ -17,6 +17,7 @@
       --code-bg: #161b22;
       --accent: #4dff20;
       --accent-hover: #6dff48;
+      --warn: #ffce3a;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -47,7 +48,7 @@
     h1, h2, h3 { letter-spacing: -0.02em; line-height: 1.25; }
     h1 { font-size: 36px; margin: 32px 0 8px; }
     h2 { font-size: 22px; margin: 40px 0 10px; }
-    h3 { font-size: 17px; margin: 24px 0 8px; }
+    h3 { font-size: 17px; margin: 24px 0 6px; }
     p { margin: 0 0 14px; }
     a { color: var(--accent); text-decoration: none; }
     a:hover { color: var(--accent-hover); text-decoration: underline; }
@@ -64,15 +65,17 @@
     .effective {
       color: var(--muted); font-size: 14px; margin-bottom: 28px;
     }
-    .summary {
+    .notice {
       background: var(--code-bg);
       border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
+      border-left: 3px solid var(--warn);
       padding: 18px 22px;
       border-radius: 6px;
       margin: 24px 0 32px;
+      font-weight: 600;
+      font-size: 14.5px;
+      letter-spacing: 0.01em;
     }
-    .summary p:last-child { margin-bottom: 0; }
     footer {
       max-width: 760px; margin: 0 auto;
       padding: 24px 24px 48px;
@@ -95,87 +98,71 @@
   </header>
 
   <main>
-    <h1>Terms of Service</h1>
-    <p class="effective">Effective May 22, 2026 · Last updated May 22, 2026</p>
+    <h1>KeyVex LLC — Terms of Service</h1>
+    <p class="effective">Last Updated: June 2, 2026</p>
 
-    <div class="summary">
-      <p><strong>The short version.</strong> KeyVex is a publicly-accessible API that republishes US public-record financial disclosures. By using the service you accept these terms. We provide the service as-is with no warranty. We don't give investment advice. We don't promise uptime. Don't abuse the endpoint or try to bypass our rate limits. We can block abusive callers. The data we serve is public by federal mandate.</p>
+    <div class="notice">
+      PLEASE READ CAREFULLY: SECTION 9 CONTAINS A BINDING ARBITRATION PROVISION AND A CLASS ACTION WAIVER THAT AFFECT YOUR LEGAL RIGHTS. BY USING THE SERVICE, YOU AGREE TO RESOLVE DISPUTES THROUGH INDIVIDUAL ARBITRATION AND WAIVE YOUR RIGHT TO A JURY TRIAL OR TO PARTICIPATE IN A CLASS ACTION.
     </div>
 
-    <h2>1. Acceptance of these terms</h2>
-    <p>By accessing or using the KeyVex MCP service at <code>mcp.keyvex.com</code> (the "Service"), the marketing site at <code>keyvex.com</code>, or any related software or API endpoint operated by KeyVex LLC, you agree to be bound by these Terms of Service ("Terms"). If you do not agree, do not use the Service.</p>
-    <p>These Terms are an agreement between you and KeyVex LLC, a limited liability company ("KeyVex," "we," "our," or "us").</p>
+    <p>Welcome to KeyVex, an infrastructure provider of public financial and regulatory data delivered via the Model Context Protocol (MCP), operated by Keyvex LLC ("Company", "we", "us", or "our"). Our website is <code>keyvex.com</code> and our MCP service endpoint is <code>mcp.keyvex.com</code>.</p>
 
-    <h2>2. What the Service is</h2>
-    <p>KeyVex operates a Model Context Protocol (MCP) server that exposes normalized public-record financial and government disclosure data as agent-native tools. Data is sourced exclusively from official US government repositories (including but not limited to SEC EDGAR, USAspending.gov, Senate eFD, House Clerk, the Federal Election Commission, US Treasury OFAC, and the Federal Register), then indexed and made queryable through our API.</p>
-    <p>The current public endpoint at <code>mcp.keyvex.com</code> requires no account, no API key, and no consent flow. It is rate-limited per IP address to prevent abuse.</p>
-    <p>If KeyVex offers paid tiers in the future, those will be made available on a separate URL or path under separate commercial terms, which will be presented at signup and supersede these Terms only for the specific paid features they cover.</p>
+    <p>By creating an account, completing a purchase or subscription via Stripe, generating a KeyVex MCP authentication token, or connecting your Large Language Model (LLM) client to our server, you ("User", "Developer", or "you") agree to be bound by these Terms of Service ("Terms"). If you do not agree, you must not use the Service.</p>
 
-    <h2>3. What the Service is NOT</h2>
-    <p><strong>KeyVex is not an investment adviser.</strong> Nothing returned by the Service, displayed on the marketing site, or communicated by our staff constitutes investment advice, a recommendation to buy, hold, or sell any security, or any kind of personalized financial planning. The Service publishes public disclosures; you, your agent, your AI model, or your advisor are solely responsible for any decisions based on that data.</p>
-    <p><strong>KeyVex is not a broker-dealer.</strong> The Service does not execute trades, transfer funds, or move financial assets of any kind.</p>
-    <p><strong>KeyVex is not an SLA-backed enterprise service in its current form.</strong> The public free endpoint is provided as-is with no guaranteed uptime, throughput, or accuracy. Although we operate it with reasonable diligence, the Service may be unavailable, partially degraded, or temporarily inaccurate at any time without notice.</p>
+    <h2>1. Description of Service</h2>
+    <p>Keyvex LLC provides a developer-focused MCP server that normalizes public U.S. Government disclosure data into a suite of agent-native tools. Through MCP-compatible clients (such as Claude, Cursor, or custom developer agents), users may programmatically query, filter, and ingest parsed public-record data across federal financial, corporate, and political-disclosure sources — including SEC filings (insider transactions, institutional and fund holdings, fundamentals, corporate events, registrations, and related disclosures), Congressional trading and annual financial disclosures, executive-branch financial disclosures, campaign finance, lobbying, foreign-agent registrations, federal contracts and grants, regulatory enforcement actions, sanctions and screening lists, economic indicators, and other public sources. The specific tools and sources available may change over time as the Service evolves.</p>
 
-    <h2>4. Eligibility</h2>
-    <p>You must be at least 13 years of age to use the Service. The Service is intended for adults and businesses building software professionally. If you are between 13 and the age of majority in your jurisdiction, you must have the consent of a parent or legal guardian to use the Service.</p>
+    <h2>2. Access, Billing, and Subscriptions</h2>
+    <p><strong>Preview Access:</strong> During preview, the Service may be offered with public access and without authentication. Authentication tokens and paid subscription tiers are introduced at and after general launch.</p>
+    <p><strong>Payment Processing:</strong> All subscription billing, tier upgrades, and payment processing are handled by Stripe. By subscribing, you authorize Keyvex LLC (via Stripe) to charge your designated payment method on a recurring monthly or annual basis according to your selected plan.</p>
+    <p><strong>Token Provisioning:</strong> For paid tiers, upon successful payment verification by Stripe, a unique KeyVex authentication token is provisioned to your account.</p>
+    <p><strong>Cancellations and Refunds:</strong> You may cancel your subscription at any time through your account billing portal to prevent future renewals; cancellation takes effect at the end of your current billing period. Due to the immediate resource costs of data provisioning and server overhead, all fees paid are non-refundable unless otherwise required by law.</p>
 
-    <h2>5. Acceptable use</h2>
-    <p>You agree to use the Service only for lawful purposes and in a manner that does not infringe the rights of, restrict, or inhibit anyone else's use and enjoyment of the Service. Specifically, you agree NOT to:</p>
+    <h2>3. Token Security &amp; Client Responsibility</h2>
+    <p><strong>Credential Protection:</strong> Your KeyVex authentication token is confidential and acts as the gatekeeper to our infrastructure. You are entirely responsible for securing this token within your local environment and configuration files (e.g., your MCP client configuration).</p>
+    <p><strong>Compromised Tokens:</strong> If we detect that your token has been exposed in a public repository (such as GitHub), public logs, or front-end application bundles, Keyvex LLC reserves the right to immediately revoke and rotate the token to protect server integrity.</p>
+    <p><strong>Downstream Logging and Observability Security:</strong> You acknowledge that using the Service via an LLM client may involve piping tool payloads into third-party AI observability, logging, or tracing platforms (e.g., LangSmith, Helicone, Phoenix, Arize). You agree to keep all such dashboards, logs, and data repositories private and secure. You are responsible for any wholesale leakage of KeyVex data payloads resulting from insecure or publicly accessible third-party developer tools or logging infrastructure.</p>
+
+    <h2>4. License Limitations &amp; Acceptable Use</h2>
+    <p>While the underlying raw data originates from public federal sources and is not itself owned by Keyvex LLC, the parsing logic, normalization pipelines, database architecture, tool manifest definitions, input schemas, prompt templates, and LLM-optimized context payloads are the proprietary intellectual property of Keyvex LLC.</p>
+    <p><strong>Permitted Use:</strong> Your subscription licenses you to query the Service — directly or through an AI agent acting on your behalf — to retrieve, analyze, and incorporate data into your own research, applications, workflows, and end-user-facing products. It is expected and permitted that an autonomous agent will run queries on behalf of its user; that is the intended mode of using an MCP server.</p>
+    <p><strong>Prohibited Use — Resale and Redistribution:</strong> What is prohibited is taking the data retrieved from KeyVex and re-serving, redistributing, mirroring, or reselling it — whether directly or through an agent or application — as a standalone data feed, dataset, or API that competes with or substitutes for a KeyVex subscription. In other words: querying KeyVex to power your product is permitted; repackaging KeyVex's data as your own data product is not. Reselling KeyVex data in this manner requires a separate written enterprise/commercial redistribution agreement from Keyvex LLC.</p>
+    <p><strong>Prohibited Developer and Agent Behavior:</strong></p>
     <ul>
-      <li><strong>Bypass or attempt to bypass our rate limits</strong> by rotating IP addresses, distributing requests across networks, or any similar technique.</li>
-      <li><strong>Use the Service to violate any applicable law</strong>, including securities laws, sanctions, or export-control regulations.</li>
-      <li><strong>Resell or redistribute KeyVex's API responses as a competing commercial service</strong> without our written permission. The underlying data is public; our normalized schemas, query interfaces, and infrastructure are not.</li>
-      <li><strong>Attempt to reverse-engineer, decompile, or extract source code from any portion of the Service.</strong></li>
-      <li><strong>Probe, scan, or test the vulnerability</strong> of the Service or any related infrastructure except via responsible-disclosure channels coordinated in advance with KeyVex.</li>
-      <li><strong>Use the Service in ways that could damage, disable, overburden, or impair</strong> KeyVex's systems or interfere with any other party's use of the Service.</li>
-      <li><strong>Misrepresent the source of data returned by the Service</strong> — when redistributing KeyVex output, attribute it to KeyVex and to the underlying US government source (most API responses include <code>filing_url</code>, <code>report_url</code>, or <code>primary_document_url</code> fields for this purpose).</li>
+      <li><strong>Systematic Data Ingestion ("Tool Draining"):</strong> You are strictly prohibited from engineering loops, autonomous scripts, or recursive agent workflows designed to systematically exhaust KeyVex MCP tools in order to download, mirror, or reconstruct our database in bulk.</li>
+      <li><strong>Circumvention:</strong> Modifying or circumventing rate limits, pagination structures, or payload size caps built into our MCP server responses will result in immediate termination of your subscription and revocation of your token without a refund.</li>
     </ul>
-    <p>We may suspend or block access from any IP address, autonomous system, or identifiable client that we reasonably believe is engaged in any of the above, without prior notice.</p>
 
-    <h2>6. The data we serve</h2>
-    <p>All disclosure records served by the Service originate from official US government sources that publish the underlying data by federal mandate. KeyVex's contributions to the data are normalization (consistent field naming, parsed ticker symbols, decoded XBRL units, etc.), indexing for query performance, and ongoing ingestion via background scrapers. We do not author, embellish, or derive predictive analytics from the source data.</p>
-    <p>While we exercise reasonable diligence in our ingestion pipeline, we do not warrant the accuracy, completeness, or timeliness of any data returned by the Service. Mistakes in the upstream government source, parser bugs on our end, or delays in ingestion may all cause the Service's output to differ from the authoritative source. <strong>For any decision of material consequence, you should independently verify against the originating government source via the URL fields included in our API responses.</strong></p>
+    <h2>5. No Investment Advice</h2>
+    <p><strong>KEYVEX LLC IS NOT A REGISTERED INVESTMENT ADVISOR, BROKER-DEALER, ACCOUNTANT, OR FINANCIAL ADVISOR.</strong></p>
+    <p><strong>Raw Contextual Data:</strong> All data payloads returned by KeyVex MCP tools consist of raw public filings and disclosures, optimized for LLM context windows. They are provided for informational and educational research purposes only, and do not constitute investment, legal, tax, or financial advice.</p>
+    <p><strong>Model Synthesis and Hallucinations:</strong> Because this data is designed to be read, parsed, and interpreted by artificial intelligence, Keyvex LLC is not responsible for how your LLM client synthesizes, summarizes, or potentially mischaracterizes or hallucinates financial context based on our tool outputs. You assume full responsibility for any decisions or trades made based on this data.</p>
 
-    <h2>7. Intellectual property</h2>
-    <p>The KeyVex name, logo, and the design and code of the Service (including our normalized schemas, query interfaces, software, and marketing site content) are the intellectual property of KeyVex LLC or our licensors and are protected by applicable copyright, trademark, and other laws.</p>
-    <p>The underlying US public-record data we serve is not subject to copyright by KeyVex; it is in the public domain or otherwise free from KeyVex's IP claim. Our claim is to the work of normalization, indexing, and delivery — not to the underlying records.</p>
-    <p>Subject to your compliance with these Terms, KeyVex grants you a limited, revocable, non-exclusive, non-transferable license to access the Service and use API responses for your own purposes (commercial or non-commercial), provided that you do not violate the Acceptable Use provisions above.</p>
+    <h2>6. Disclaimers &amp; Limitation of Liability</h2>
+    <p><strong>"As-Is" Service:</strong> We mirror data from government portals and sources that are themselves subject to outages, format changes, reporting lags, and revisions. We do not guarantee that government sources will be online, accurate, complete, or current, and we surface coverage limitations where known. The Service is provided on an "AS IS" and "AS AVAILABLE" basis, without warranties of any kind, express or implied.</p>
+    <p><strong>Liability Cap:</strong> To the maximum extent permitted by law, Keyvex LLC, its members, founders, and partners shall not be liable for any trading losses, financial damages, third-party LLM API usage overages, or computational costs incurred by your client workflows.</p>
 
-    <h2>8. Disclaimer of warranties</h2>
-    <p>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, KEYVEX DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND ANY WARRANTIES ARISING OUT OF COURSE OF DEALING OR USAGE OF TRADE.</p>
-    <p>KEYVEX MAKES NO WARRANTY THAT (a) THE SERVICE WILL MEET YOUR REQUIREMENTS, (b) THE SERVICE WILL BE UNINTERRUPTED, TIMELY, SECURE, OR ERROR-FREE, (c) THE RESULTS OBTAINED FROM THE SERVICE WILL BE ACCURATE OR RELIABLE, OR (d) THE QUALITY OF ANY PRODUCTS, SERVICES, INFORMATION, OR OTHER MATERIAL OBTAINED THROUGH THE SERVICE WILL MEET YOUR EXPECTATIONS.</p>
+    <h2>7. Indemnification</h2>
+    <p>You agree to defend, indemnify, and hold harmless Keyvex LLC, its members, founders, employees, and affiliates from and against any and all claims, damages, obligations, losses, liabilities, costs, and expenses (including but not limited to reasonable attorneys' fees) arising from: (i) your misuse of or connection to the KeyVex MCP server; (ii) your violation of any term of these Terms; or (iii) any third-party claims or financial losses arising from applications, autonomous agents, alerts, or trading systems you build using data provided by the Service.</p>
 
-    <h2>9. Limitation of liability</h2>
-    <p>TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT WILL KEYVEX LLC, ITS OFFICERS, MEMBERS, EMPLOYEES, AGENTS, OR LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING WITHOUT LIMITATION DAMAGES FOR LOST PROFITS, LOSS OF GOODWILL, LOSS OF USE, LOSS OF DATA, OR OTHER INTANGIBLE LOSSES (EVEN IF KEYVEX HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES), RESULTING FROM YOUR USE OF OR INABILITY TO USE THE SERVICE.</p>
-    <p>In any case, KeyVex's aggregate liability to you for all claims arising out of or relating to these Terms or the Service shall not exceed the greater of (a) one hundred US dollars ($100), or (b) the total amount you have paid to KeyVex in the twelve months preceding the event giving rise to the claim. For the avoidance of doubt, free-tier users have paid zero, so this limit equals $100 for free-tier claims.</p>
-    <p>Some jurisdictions do not allow the exclusion of certain warranties or the limitation or exclusion of liability for certain damages. In such jurisdictions, the limitations above apply to the maximum extent permitted by law.</p>
+    <h2>8. Changes to These Terms</h2>
+    <p>Keyvex LLC may update these Terms from time to time. Material changes will be communicated through the account dashboard or by email to the address associated with your account. Continued use of the Service after changes take effect constitutes acceptance of the revised Terms.</p>
 
-    <h2>10. Indemnification</h2>
-    <p>You agree to indemnify, defend, and hold harmless KeyVex LLC, its officers, members, employees, agents, and licensors from and against any and all claims, liabilities, damages, losses, costs, expenses, and fees (including reasonable attorneys' fees) arising out of or relating to (a) your use of or access to the Service, (b) your violation of these Terms, or (c) your violation of any law or the rights of any third party in connection with your use of the Service.</p>
+    <h2>9. Governing Law, Dispute Resolution, and Severability</h2>
+    <p>These Terms shall be governed by and construed in accordance with the laws of the State of South Carolina, without regard to its conflict-of-law principles. Any legal actions or disputes must be filed in the appropriate state or federal courts located within South Carolina.</p>
+    <p><strong>Class Action Waiver &amp; Arbitration:</strong> YOU AND KEYVEX LLC AGREE THAT ANY DISPUTE RESOLUTION PROCEEDINGS WILL BE CONDUCTED ONLY ON AN INDIVIDUAL BASIS AND NOT IN A CLASS, CONSOLIDATED, OR REPRESENTATIVE ACTION. You agree to waive the right to a trial by jury. Any dispute that cannot be resolved informally shall be settled by binding, individual arbitration seated in Columbia, South Carolina, administered by a nationally recognized, independent arbitration association in accordance with its standard commercial arbitration rules.</p>
+    <p><strong>Severability:</strong> If any provision of these Terms, or any portion of the arbitration agreement herein, is found by a court of competent jurisdiction to be invalid, illegal, or unenforceable, that specific provision or portion shall be severed, and the remaining portions of these Terms and the arbitration agreement shall continue in full force and effect.</p>
 
-    <h2>11. Termination</h2>
-    <p>These Terms remain in effect while you use the Service. We may suspend or terminate your access to the Service at any time, with or without cause, with or without notice. You may stop using the Service at any time. Provisions of these Terms that by their nature should survive termination (including ownership provisions, warranty disclaimers, limitation of liability, indemnification, and governing law) shall survive termination.</p>
-
-    <h2>12. Modifications to the Service and to these Terms</h2>
-    <p>We reserve the right to modify, suspend, or discontinue the Service (in whole or in part) at any time, with or without notice. We will not be liable to you or any third party for any modification, suspension, or discontinuance.</p>
-    <p>We may also update these Terms from time to time. When we make material changes, we will update the "Effective" and "Last updated" dates at the top of this page and, where reasonable, post a notice on the marketing site. Your continued use of the Service after a change indicates acceptance of the revised Terms.</p>
-
-    <h2>13. Governing law and venue</h2>
-    <p>These Terms are governed by and construed in accordance with the laws of the State of Delaware, USA, without regard to its conflict-of-laws principles. Any dispute arising out of or relating to these Terms or the Service shall be subject to the exclusive jurisdiction of the state and federal courts located in Delaware, and you consent to personal jurisdiction in those courts.</p>
-
-    <h2>14. Severability and entire agreement</h2>
-    <p>If any provision of these Terms is held to be unenforceable or invalid by a court of competent jurisdiction, that provision shall be enforced to the maximum extent permissible and the remaining provisions shall remain in full force and effect.</p>
-    <p>These Terms, together with the <a href="/privacy">Privacy Policy</a>, constitute the entire agreement between you and KeyVex LLC concerning the Service and supersede any prior or contemporaneous agreements, communications, or proposals (whether oral, written, or electronic).</p>
-
-    <h2>15. Contact</h2>
-    <p>For questions about these Terms, the Service, or to report abuse:</p>
-    <p><a href="mailto:contact@keyvex.com">contact@keyvex.com</a></p>
+    <h2>10. Contact</h2>
+    <p>Questions about these Terms may be directed to <a href="mailto:contact@keyvex.com">contact@keyvex.com</a>.</p>
 
     <p class="muted" style="margin-top: 36px; font-size: 14px;">KeyVex is a data publisher. Nothing on this site or in API responses is investment advice. The disclosure records served by the API originate from official US government sources and are public by federal mandate.</p>
   </main>
 
   <footer>
-    <a href="/">← Back to keyvex.com</a>
+    <a href="/">← Back to keyvex.com</a> &nbsp;·&nbsp;
+    <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
+    <a href="/security">Security</a>
   </footer>
 </body>
 </html>
