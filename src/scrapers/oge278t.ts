@@ -105,19 +105,28 @@ function buildControlCharRegex(): RegExp {
 }
 const CONTROL_CHARS_RE = buildControlCharRegex();
 
-/** Derive a coarse filer_type from the position string. Best-effort. */
-function deriveFilerType(position: string): "cabinet" | "appointee" | "other" {
+/**
+ * Derive a coarse filer_type from the position string. Best-effort, derived
+ * organizational category for findability — NOT a source field. The position
+ * TEXT stays verbatim (source typos preserved); only this bucket is normalized.
+ *
+ * Cabinet = a Secretary or Attorney General who is NOT a sub-cabinet rank
+ * (Deputy/Under/Assistant/Acting). The "Secretary" match is tolerant of the
+ * source-typo family — e.g. OGE filed Lloyd Austin's title as "Secretrary of
+ * Defense" (t/r transposition), which an exact \bsecretary\b match missed and
+ * mis-bucketed as appointee. `secret\w{0,4}ary` catches "secretary" AND
+ * "secretrary" while keeping the secret…ary shape so unrelated words don't
+ * match. The Deputy/Under/Assistant/Acting exclusion is kept exactly as before
+ * so sub-cabinet ranks still correctly resolve to appointee.
+ */
+export function deriveFilerType(
+  position: string,
+): "cabinet" | "appointee" | "other" {
   const p = position.toLowerCase();
-  // Cabinet = a Secretary/Attorney General who is NOT a deputy/under/assistant.
-  if (
-    /\bsecretary\b/.test(p) &&
-    !/\b(deputy|under|assistant|acting)\b/.test(p)
-  ) {
-    return "cabinet";
-  }
-  if (/attorney general/.test(p) && !/\b(deputy|assistant)\b/.test(p)) {
-    return "cabinet";
-  }
+  const subCabinet = /\b(deputy|under|assistant|acting)\b/.test(p);
+  const isSecretary = /secret\w{0,4}ary/.test(p);
+  const isAttorneyGeneral = /attorney general/.test(p);
+  if ((isSecretary || isAttorneyGeneral) && !subCabinet) return "cabinet";
   if (position.trim().length === 0) return "other";
   return "appointee";
 }
