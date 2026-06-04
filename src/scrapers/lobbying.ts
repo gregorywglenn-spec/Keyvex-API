@@ -44,8 +44,10 @@ const CONFIG = {
   MAX_DESCRIPTION_CHARS: 5000,
   /** Max pages to follow on a paged query. 200 pages × 25 = 5000 records ceiling. */
   MAX_PAGES: 200,
-  /** Retries on 429 (and 5xx) with exponential backoff: 2s, 4s, 8s. */
-  RETRY_DELAYS_MS: [2000, 4000, 8000],
+  /** Retries on 429, 5xx, AND dropped sockets (ECONNRESET etc.) with backoff.
+   *  Extra headroom (up to 40s) so a transient network blip can't kill a
+   *  multi-hour backfill run. */
+  RETRY_DELAYS_MS: [2000, 5000, 10000, 20000, 40000],
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -71,7 +73,22 @@ async function fetchJson(url: string): Promise<unknown> {
     if (process.env.LDA_API_KEY) {
       headers.Authorization = `Token ${process.env.LDA_API_KEY}`;
     }
-    const res = await fetch(url, { headers });
+    let res: Response;
+    try {
+      res = await fetch(url, { headers });
+    } catch (err) {
+      // Network-level failure (ECONNRESET, dropped socket, DNS blip, TLS reset).
+      // fetch() THROWS on these — must be caught here or it kills the whole run.
+      const lastAttempt = attempt === CONFIG.RETRY_DELAYS_MS.length;
+      if (lastAttempt) {
+        throw new Error(`LDA network error after ${attempt + 1} attempts — ${url}: ${String(err)}`);
+      }
+      const code = (err as { cause?: { code?: string } })?.cause?.code ?? String(err);
+      const wait = CONFIG.RETRY_DELAYS_MS[attempt] ?? 40000;
+      console.error(`[lobbying] network error "${code}" on attempt ${attempt + 1}; sleeping ${wait}ms before retry`);
+      await sleep(wait);
+      continue;
+    }
     if (res.ok) return res.json();
 
     const isRetryable = res.status === 429 || res.status >= 500;
