@@ -29,8 +29,13 @@ mkdirSync(".tmp", { recursive: true });
 const done: Record<string, boolean> = existsSync(PROG) ? JSON.parse(readFileSync(PROG, "utf8")) : {};
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// CAPPED at 2021q4 deliberately: 2016–2021 is the empty historical gap (no overlap
+// with the existing "2022+" feed data or the cron window) → clean, dupe-free.
+// 2022→present completion is DEFERRED until the bulk + cron doc-ID schemes are
+// aligned and the Form 4 cron is redeployed — otherwise overlapping recent
+// transactions would duplicate (cron id `accession-date-code-idx` vs bulk `accession-SK`).
 const QUARTERS: string[] = [];
-for (let y = 2016; y <= 2026; y++) for (let q = 1; q <= 4; q++) { if (y === 2026 && q > 1) break; QUARTERS.push(`${y}q${q}`); }
+for (let y = 2016; y <= 2021; y++) for (let q = 1; q <= 4; q++) QUARTERS.push(`${y}q${q}`);
 
 const MON: Record<string, string> = { JAN: "01", FEB: "02", MAR: "03", APR: "04", MAY: "05", JUN: "06", JUL: "07", AUG: "08", SEP: "09", OCT: "10", NOV: "11", DEC: "12" };
 function isoDate(d: string): string {
