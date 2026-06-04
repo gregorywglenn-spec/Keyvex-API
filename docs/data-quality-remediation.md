@@ -6,6 +6,36 @@ government sources) exposed systemic data holes. This is the single source of tr
 we mark each item off only when it's **verified against the source**, not when it "looks
 populated."
 
+## ⚠️⚠️ OPEN — MUST COMPLETE: Form 4/5 insider backfill 2022→present (DEFERRED 2026-06-04)
+
+**Greg explicitly asked that this NOT slip. It is half-done by design — finish it.**
+
+**State:** the bulk insider backfill (`scripts/backfill-form4-bulk.ts`, SEC quarterly
+Insider Transactions Data Sets) is intentionally **CAPPED at 2016q1–2021q4**. That
+historical range is clean. **2022→present is NOT loaded yet.**
+
+**Why deferred — doc-ID scheme mismatch would create duplicates:**
+- Bulk loader id = `{accession}-{SK}` (SEC transaction SK from the TSV).
+- Deployed Form 4 cron (`src/scrapers/form4.ts` `parseForm4Xml`; functions
+  `scrapeForm4HalfHourly` + `scrapeForm5Daily`) id = `{accession}-{txDate}-{code}-{ndIdx}`
+  (non-deriv) / `{accession}-D-{txDate}-{code}-{dIdx}` (deriv).
+- Existing ~165k "2022+" `insider_trades` feed records use the cron scheme AND have
+  garbage dates (years like 0023 / 2034).
+
+**The fix (one deliberate session — a deploy is involved, so needs Greg's go):**
+1. Choose ONE deterministic, content-based doc-id both paths compute identically — NO
+   parse-order index — e.g. `{accession}-{N|D}-{txDate}-{code}-{round(shares)}-{acqDisp}`.
+   Both the bulk TSV and the cron XML carry all those fields.
+2. Update `src/scrapers/form4.ts` `parseForm4Xml` to emit that id.
+3. Update `scripts/backfill-form4-bulk.ts` to emit the SAME id.
+4. **Redeploy** the Form 4/5 cron functions (`firebase deploy --only functions:scrapeForm4HalfHourly,scrapeForm5Daily`) — gated, ask Greg.
+5. Extend the bulk `QUARTERS` cap (currently ends 2021q4) to present, run it → it
+   overwrites the garbage-date 2022+ feed records with clean, complete data, dedup-safe.
+6. Verify: AAPL insider count jumps 114 → ~550+; all dates clean YYYY-MM-DD; no dup
+   transactions per accession; cron keeps topping off latest with the same id (no dupes).
+
+**Done = complete clean `insider_trades` 2016→present + cron top-off with no dupes.**
+
 ## ⛔ GOVERNING RULE (set by Greg, 2026-06-03) — read before any scraper work
 
 **Foundation before features. Always.** The root failure here was building scraper after
