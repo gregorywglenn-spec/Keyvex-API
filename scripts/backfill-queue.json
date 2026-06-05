@@ -1,0 +1,109 @@
+{
+  "stop": false,
+  "jobs": [
+    {
+      "name": "lobbying",
+      "script": "scripts/backfill-lobbying.ts",
+      "args": [],
+      "family": "LDA",
+      "status": "done",
+      "restarts": 1
+    },
+    {
+      "name": "institutional-13f",
+      "script": "scripts/backfill-13f.ts",
+      "args": [],
+      "family": "EDGAR",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "insider-form4-bulk",
+      "script": "scripts/backfill-form4-bulk.ts",
+      "args": [],
+      "family": "SEC_BULK",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "fec-masters",
+      "script": "scripts/backfill-fec-masters.ts",
+      "args": [],
+      "family": "FEC_BULK",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "formd-bulk",
+      "script": "scripts/backfill-formd-bulk.ts",
+      "args": [],
+      "family": "SEC_FORMD",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "product-recalls",
+      "script": "scripts/backfill-product-recalls-bulk.ts",
+      "args": [],
+      "family": "FDA_CPSC",
+      "status": "done",
+      "restarts": 3
+    },
+    {
+      "name": "treasury-auctions",
+      "script": "scripts/backfill-treasury-bulk.ts",
+      "args": [],
+      "family": "TREASURY",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "registration-statements",
+      "script": "scripts/backfill-registration-statements.ts",
+      "args": [
+        "--save"
+      ],
+      "family": "EDGAR_FTS",
+      "status": "pending",
+      "restarts": 0
+    },
+    {
+      "name": "tender-offers",
+      "script": "scripts/backfill-tender-offers.ts",
+      "args": [
+        "--save"
+      ],
+      "family": "EDGAR_FTS",
+      "status": "pending",
+      "restarts": 0
+    },
+    {
+      "name": "ftd-bulk",
+      "script": "scripts/backfill-ftd-bulk.ts",
+      "args": [],
+      "family": "SEC_FILES",
+      "status": "pending",
+      "restarts": 0
+    },
+    {
+      "name": "federal-register",
+      "script": "scripts/backfill-federal-register.ts",
+      "args": [
+        "--save"
+      ],
+      "family": "FED_REGISTER",
+      "status": "pending",
+      "restarts": 0
+    },
+    {
+      "name": "nport-filings",
+      "script": "scripts/backfill-nport-filings.ts",
+      "args": [
+        "--save"
+      ],
+      "family": "EDGAR_FTS",
+      "status": "pending",
+      "restarts": 0
+    }
+  ]
+}

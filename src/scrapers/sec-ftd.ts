@@ -72,8 +72,10 @@ function resolveCurrentHalf(): { year: number; month: number; half: "a" | "b" } 
   return { year, month: month - 1, half: "b" };
 }
 
-/** Parse one half-month FTD text file (pipe-delimited) into rows. */
-function parseFtdText(text: string, scrapedAt: string): SecFailToDeliver[] {
+/** Parse one half-month FTD text file (pipe-delimited) into rows.
+ *  Exported so the historical bulk backfill (scripts/backfill-ftd-bulk.ts)
+ *  produces byte-identical records — same doc-id key — as the weekly cron. */
+export function parseFtdText(text: string, scrapedAt: string): SecFailToDeliver[] {
   const lines = text.split(/\r?\n/);
   // First line is the header — skip if it contains "SETTLEMENT".
   const startIdx = lines[0]?.toUpperCase().includes("SETTLEMENT") ? 1 : 0;
