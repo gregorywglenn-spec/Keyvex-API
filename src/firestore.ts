@@ -4882,11 +4882,33 @@ export async function saveProductRecalls(
   const BATCH_SIZE = 400;
   let saved = 0;
 
+  // Some FDA device recalls carry multi-MB code/description fields that exceed
+  // Firestore's ~1 MB per-document limit. Shrink the big fields on any oversized
+  // doc before writing (id untouched → dedup-safe; normal docs pass through).
+  const LIMIT = 1_000_000;
+  const fitDoc = (r: any): any => {
+    if (Buffer.byteLength(JSON.stringify(r)) <= LIMIT) return r;
+    const c: any = { ...r, size_truncated: true };
+    c.product_codes = c.product_codes ? ["[omitted: exceeded 1MB doc limit]"] : c.product_codes;
+    for (const k of ["distribution_pattern", "product_description", "reason_for_recall", "product_quantity"]) {
+      if (typeof c[k] === "string" && c[k].length > 2000) c[k] = c[k].slice(0, 2000) + "…[truncated]";
+    }
+    // last resort: if still over, drop the largest remaining string field
+    if (Buffer.byteLength(JSON.stringify(c)) > LIMIT) {
+      let big = "", biggest = 0;
+      for (const [k, v] of Object.entries(c)) {
+        if (typeof v === "string" && v.length > biggest) { biggest = v.length; big = k; }
+      }
+      if (big) c[big] = "[omitted: exceeded 1MB doc limit]";
+    }
+    return c;
+  };
+
   for (let i = 0; i < recalls.length; i += BATCH_SIZE) {
     const batch = db.batch();
     const chunk = recalls.slice(i, i + BATCH_SIZE);
     for (const r of chunk) {
-      batch.set(collection.doc(r.id), r, { merge: true });
+      batch.set(collection.doc(r.id), fitDoc(r), { merge: true });
     }
     await batch.commit();
     saved += chunk.length;

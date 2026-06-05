@@ -65,7 +65,7 @@ interface CpscUpc {
   UPC?: string;
 }
 
-interface CpscRecallRaw {
+export interface CpscRecallRaw {
   RecallID?: number;
   RecallNumber?: string;
   RecallDate?: string;
@@ -120,7 +120,7 @@ function pickFirm(raw: CpscRecallRaw): string {
   return "";
 }
 
-function normalize(
+export function normalize(
   raw: CpscRecallRaw,
   scrapedAt: string,
 ): ProductRecall | null {
@@ -136,7 +136,8 @@ function normalize(
   }
 
   return {
-    id: `cpsc-${recallNumber}`,
+    // "/" is illegal in a Firestore doc path; sanitize for the id only.
+    id: `cpsc-${recallNumber.replace(/[/\\]+/g, "-")}`,
     source: "cpsc",
     recall_number: recallNumber,
     recall_initiation_date: initDate,

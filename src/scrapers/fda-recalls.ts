@@ -36,7 +36,7 @@ const ENDPOINT_PATH: Record<FdaSubSource, string> = {
   fda_food: "/food/enforcement.json",
 };
 
-interface FdaRecallRaw {
+export interface FdaRecallRaw {
   recall_number: string;
   recall_initiation_date?: string;
   report_date?: string;
@@ -66,12 +66,12 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /** openFDA dates are YYYYMMDD strings — convert to ISO YYYY-MM-DD. */
-function isoDate(yyyymmdd: string | undefined | null): string {
+export function isoDate(yyyymmdd: string | undefined | null): string {
   if (!yyyymmdd || yyyymmdd.length !== 8) return "";
   return `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}`;
 }
 
-function normalize(
+export function normalize(
   raw: FdaRecallRaw,
   source: FdaSubSource,
   scrapedAt: string,
@@ -79,28 +79,34 @@ function normalize(
   if (!raw.recall_number) return null;
   // openFDA recall_numbers occasionally contain whitespace — sanitize.
   const recallNumber = raw.recall_number.trim();
+  // Device recalls can carry multi-MB code_info / descriptions (every affected
+  // lot+serial), which blows past Firestore's 1 MB doc limit. Cap free-text fields.
+  const cap = (s: string, n = 30000) =>
+    s.length > n ? s.slice(0, n) + "…[truncated]" : s;
 
   const initDate = isoDate(raw.recall_initiation_date);
   const postedDate = raw.report_date ? isoDate(raw.report_date) : null;
   const termDate = raw.termination_date ? isoDate(raw.termination_date) : null;
 
   return {
-    id: `${source}-${recallNumber}`,
+    // recall_number can be "N/A" or contain slashes; "/" is illegal in a
+    // Firestore doc path, so sanitize for the id only (keep the real value below).
+    id: `${source}-${recallNumber.replace(/[/\\]+/g, "-")}`,
     source,
     recall_number: recallNumber,
     recall_initiation_date: initDate,
     posted_date: postedDate || null,
-    recalling_firm: raw.recalling_firm ?? "",
-    product_description: raw.product_description ?? "",
-    reason_for_recall: raw.reason_for_recall ?? "",
+    recalling_firm: cap(raw.recalling_firm ?? ""),
+    product_description: cap(raw.product_description ?? ""),
+    reason_for_recall: cap(raw.reason_for_recall ?? ""),
     classification: raw.classification ?? null,
     status: raw.status ?? null,
     initiator: raw.voluntary_mandated ?? null,
-    distribution_pattern: raw.distribution_pattern ?? null,
+    distribution_pattern: raw.distribution_pattern ? cap(raw.distribution_pattern) : null,
     product_quantity: raw.product_quantity ?? null,
     product_category: raw.product_type ?? null,
     product_codes: raw.code_info
-      ? [raw.code_info, ...(raw.more_code_info ? [raw.more_code_info] : [])]
+      ? [cap(raw.code_info), ...(raw.more_code_info ? [cap(raw.more_code_info)] : [])]
       : null,
     vehicle_make: null,
     vehicle_model: null,
