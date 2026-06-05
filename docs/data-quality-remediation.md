@@ -6,13 +6,21 @@ government sources) exposed systemic data holes. This is the single source of tr
 we mark each item off only when it's **verified against the source**, not when it "looks
 populated."
 
-## ⚠️⚠️ OPEN — MUST COMPLETE: Form 4/5 insider backfill 2022→present (DEFERRED 2026-06-04)
+## ✅ RESOLVED (2026-06-05) — insider was ALREADY complete (the "2022+ gap" was false)
 
-**Greg explicitly asked that this NOT slip. It is half-done by design — finish it.**
+**The premise was wrong.** `insider_transactions_v2` (SEC bulk Form 345, **9.9M rows,
+2006→2026q1**, loaded 2026-05-24) is complete, and the MCP tool `get_insider_transactions`
+**defaults to it (`bulk_v2`)** — so insider coverage has been complete + served in
+production since 2026-05-24. AAPL in v2: 4,782 (full history).
 
-**State:** the bulk insider backfill (`scripts/backfill-form4-bulk.ts`, SEC quarterly
-Insider Transactions Data Sets) is intentionally **CAPPED at 2016q1–2021q4**. That
-historical range is clean. **2022→present is NOT loaded yet.**
+**The trap that wasted a day:** `insider_trades` (the legacy daily feed) is NOT what the
+tool serves. Auditing that obvious-named collection (165K, thin) and concluding "insider is
+broken" was wrong. The 2016–2021 bulk loaded into `insider_trades` on 2026-06-04 is
+**redundant** (duplicate of v2; tool ignores it). **STANDING LESSON for this whole audit:
+check what the TOOL queries (the query fn's collection), not the obvious-named collection.**
+Optional: delete the redundant `insider_trades` rows to save storage (not urgent; ask Greg).
+
+_(Historical note: the section below was the original deferral plan — now moot.)_
 
 **Why deferred — doc-ID scheme mismatch would create duplicates:**
 - Bulk loader id = `{accession}-{SK}` (SEC transaction SK from the TSV).
@@ -35,6 +43,61 @@ historical range is clean. **2022→present is NOT loaded yet.**
    transactions per accession; cron keeps topping off latest with the same id (no dupes).
 
 **Done = complete clean `insider_trades` 2016→present + cron top-off with no dupes.**
+
+## 📌 DECISION (2026-06-04) — contracts/grants = PASS-THROUGH, not mirrored
+
+USAspending federal **contracts (~1.86 GB/yr)** + **grants (~1.28 GB/yr)** are too large
+to mirror cost-effectively (full = ~$100+ writes + ~$20–40/mo storage forever; slow-scrape
+reaches the same storage bill, just deferred). **DECIDED (Greg):** serve them via **live
+pass-through to the USAspending API** (free, complete, always current); keep only the small
+recent-window cache we already have for fast common queries. Do **NOT** let the daily cron
+accumulate full history (that's the storage trap). Bulk download stays the **fallback** if
+pass-through ever fails or gets too slow. Rationale: cost then scales with *usage* (what
+subscriptions pay for), not as dead fixed storage. Budget alert is set in Firebase.
+
+**IMPLEMENTATION PENDING (needs MCP redeploy — gated, ask Greg):** wire
+`get_federal_contracts` / `get_federal_grants` to call USAspending live for queries outside
+the recent cache; stop the cron from hoarding history.
+
+**Same split applies to FEC (verified 2026-06-04):** the FEC bulk files at
+`fec.gov/files/bulk-downloads/{cycle}/` divide cleanly —
+- **BULK (cheap, do it):** candidate master `cn` (0.3 MB), committee master `cm` (0.8 MB),
+  cand-committee linkages `ccl` (0.1 MB), committee→candidate `pas2` (23.5 MB). Completes
+  the candidates / committees / PAC-to-candidate-money picture for ~25 MB.
+- **PASS-THROUGH (giant):** individual contributions `indiv` = **4 GB/cycle** (Schedule A,
+  ~100M+ rows/decade) → serve via FEC Schedule A API, not mirrored. PAC contributions
+  `oth` (482 MB) → bounded or pass-through.
+General rule established: **small reference data → bulk; transaction firehoses → pass-through.**
+
+## 🔬 VERIFIED COVERAGE AUDIT + CORRECTION QUEUE (2026-06-05)
+
+Full per-collection audit run (`.tmp/audit-all.ts`), then false-positives re-verified.
+**Method lesson applied: check what the TOOL serves, not the obvious-named collection.**
+
+**✅ COMPLETE / served (no action):** insider (`insider_transactions_v2` 9.9M 2006→2026),
+lobbying (905K), institutional_holdings (802K), congressional_trades (68K 2014→2026),
+xbrl_fundamentals (324K 2006→2026), oig_exclusions (83K), annual_financial_disclosures
+(278), economic_indicators (17.8K 2018→2026 — audit misdetected via scraped_at; real
+`period` field shows history), bills (current 119th Congress), + reference lists
+(ofac_sdn, screening_list, fec_candidates/committees, legislators/historical).
+
+**⚠️ CORRECTION QUEUE — recent-only, bulk-fixable (verify-first each, build dedup-safe loader, queue under supervisor):**
+| Collection | Now | Fix | Source verified? |
+|---|---|---|---|
+| private_placements (Form D) | 3.7K / ~25d | SEC Form D bulk (`form-d-data-sets/YYYYqN_d.zip`), merge by accession | ✅ YES (schema in hand) |
+| product_recalls | 537 | openFDA bulk download | ⬜ |
+| treasury_auctions | 47 | TreasuryDirect API history | ⬜ |
+| federal_register_documents | recent | Federal Register API history | ⬜ |
+| consumer_complaints | ~23d | CFPB API history | ⬜ |
+| sec_fails_to_deliver | April only | SEC FTD bi-monthly files, more history | ⬜ |
+| registration_statements (S-1/S-3) | 317 | EDGAR — per-filing or check for dataset | ⬜ |
+| tender_offers | 273 | EDGAR per-filing | ⬜ |
+| nport_filings | ~30d | EDGAR N-PORT | ⬜ |
+| fec_independent_expenditures | 2.2K | FEC bulk (bounded) | ⬜ |
+| material_events (8-K), proxy_filings (685) | thin | EDGAR per-filing (no clean bulk) — pass-through candidates | ⬜ |
+
+**🔁 PASS-THROUGH (decided):** federal_contracts, federal_grants, fec_contributions (also has a future-date `2036` bug to fix).
+**🐛/hard:** executive_trades (blank dates + President OCR gap); congressional Khanna-style scanned-PTR OCR (proven, parked).
 
 ## ⛔ GOVERNING RULE (set by Greg, 2026-06-03) — read before any scraper work
 
