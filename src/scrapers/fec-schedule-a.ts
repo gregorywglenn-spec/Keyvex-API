@@ -30,6 +30,7 @@
  */
 
 import type { FecContribution } from "../types.js";
+import { correctFutureDate } from "../fec-date-correct.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -169,10 +170,26 @@ function normalizeContribution(
       ? raw.contribution_receipt_amount
       : 0;
 
+  // Correct filer year-typos in contribution_receipt_date (e.g. 2036→2026)
+  // using report_year / cycle as corroborator; verbatim source preserved.
+  const ry = typeof raw.report_year === "number" ? raw.report_year : null;
+  const cy =
+    typeof raw.two_year_transaction_period === "number"
+      ? raw.two_year_transaction_period
+      : null;
+  const dateCorr = correctFutureDate(
+    raw.contribution_receipt_date,
+    [ry, cy],
+    ry != null ? "report_year" : "two_year_transaction_period",
+  );
+
   return {
     sub_id: subIdStr,
     contribution_receipt_amount: amount,
-    contribution_receipt_date: raw.contribution_receipt_date ?? "",
+    contribution_receipt_date: dateCorr.value,
+    contribution_receipt_date_source: dateCorr.source,
+    date_corrected: dateCorr.corrected,
+    date_correction_basis: dateCorr.basis,
     contributor_id: raw.contributor_id ?? "",
     contributor_name: raw.contributor_name ?? "",
     contributor_first_name: raw.contributor_first_name ?? "",

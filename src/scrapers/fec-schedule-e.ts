@@ -23,6 +23,7 @@
  */
 
 import type { FecIndependentExpenditure } from "../types.js";
+import { correctFutureDate, yearOf } from "../fec-date-correct.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,20 @@ function normalizeIE(
   const committeeId = raw.committee_id ?? committee.committee_id ?? "";
   if (!committeeId) return null;
 
+  // Correct filer year-typos in expenditure_date (e.g. 2104→2014) using the
+  // dissemination_date / report_year / cycle as corroborator; source preserved.
+  const dy = yearOf(raw.dissemination_date);
+  const ry = typeof raw.report_year === "number" ? raw.report_year : null;
+  const cy =
+    typeof raw.two_year_transaction_period === "number"
+      ? raw.two_year_transaction_period
+      : null;
+  const expCorr = correctFutureDate(
+    raw.expenditure_date,
+    [dy, ry, cy],
+    dy != null ? "dissemination_date" : ry != null ? "report_year" : "two_year_transaction_period",
+  );
+
   return {
     sub_id: subIdStr,
     committee_id: committeeId,
@@ -145,7 +160,10 @@ function normalizeIE(
     support_oppose_indicator: raw.support_oppose_indicator ?? "",
     expenditure_amount:
       typeof raw.expenditure_amount === "number" ? raw.expenditure_amount : 0,
-    expenditure_date: raw.expenditure_date ?? "",
+    expenditure_date: expCorr.value,
+    expenditure_date_source: expCorr.source,
+    date_corrected: expCorr.corrected,
+    date_correction_basis: expCorr.basis,
     dissemination_date: raw.dissemination_date ?? "",
     disbursement_description: raw.disbursement_description ?? "",
     category_code: raw.category_code ?? "",

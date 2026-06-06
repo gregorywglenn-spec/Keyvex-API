@@ -2728,8 +2728,17 @@ export interface FecContribution {
   sub_id: string;
   /** Dollar amount of the contribution. */
   contribution_receipt_amount: number;
-  /** ISO date the contribution was received. Empty on memo rows. */
+  /** ISO date the contribution was received. PRIMARY (indexed/queried) date —
+   *  year-corrected when the filer typed an implausibly-future year (see
+   *  contribution_receipt_date_source for the verbatim original). */
   contribution_receipt_date: string;
+  /** Verbatim source value, set ONLY when contribution_receipt_date was
+   *  year-corrected (filer typo). Null/absent otherwise. */
+  contribution_receipt_date_source?: string | null;
+  /** True when KeyVex corrected an implausibly-future year via a corroborating field. */
+  date_corrected?: boolean;
+  /** Which corroborating field justified the correction (e.g. "report_year"). */
+  date_correction_basis?: string | null;
   /** FEC-assigned ID if the contributor is a committee (rare for SchA). */
   contributor_id: string;
   /** Filer-provided full name (typically "LAST, FIRST" for individuals). */
@@ -2863,9 +2872,18 @@ export interface FecIndependentExpenditure {
   /** "S" = support, "O" = oppose. Empty when missing on row. */
   support_oppose_indicator: string;
   expenditure_amount: number;
-  /** Date the expenditure was made (YYYY-MM-DD; can be a future / typo'd
-   *  date in FEC filings — we preserve as-is per pure-publisher posture). */
+  /** Date the expenditure was made (YYYY-MM-DD). PRIMARY (indexed/queried) date —
+   *  year-corrected when the filer typed an implausibly-future year, using
+   *  dissemination_date/report_year as the corroborator (see
+   *  expenditure_date_source for the verbatim original). */
   expenditure_date: string;
+  /** Verbatim source value, set ONLY when expenditure_date was year-corrected
+   *  (filer typo). Null/absent otherwise. */
+  expenditure_date_source?: string | null;
+  /** True when KeyVex corrected an implausibly-future year via a corroborating field. */
+  date_corrected?: boolean;
+  /** Which corroborating field justified the correction (e.g. "dissemination_date"). */
+  date_correction_basis?: string | null;
   /** Date the ad / mailer / phone bank was disseminated to the public. */
   dissemination_date: string;
   /** Free-text description of what the money was spent on. */
