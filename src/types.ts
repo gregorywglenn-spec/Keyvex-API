@@ -99,6 +99,13 @@ export interface InsiderTransaction {
   underlying_security_shares: number | null;
   conversion_or_exercise_price: number | null;
   transaction_date: string;
+  /** Verbatim source value, set ONLY when transaction_date was year-corrected
+   *  (filer typo, corroborated against the disclosure/filing date). */
+  transaction_date_source?: string | null;
+  /** True when KeyVex corrected an implausibly-future transaction year. */
+  date_corrected?: boolean;
+  /** Which field corroborated the correction (e.g. "disclosure_date"). */
+  date_correction_basis?: string | null;
   disclosure_date: string;
   reporting_lag_days: number | null;
   shares: number;

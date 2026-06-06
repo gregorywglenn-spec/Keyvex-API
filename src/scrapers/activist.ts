@@ -125,8 +125,9 @@ function parseFloatOrZero(s: string): number {
  */
 function toIsoDate(raw: string): string {
   if (!raw) return "";
-  const us = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (us) return `${us[3]}-${us[1]}-${us[2]}`;
+  // Accept 1- or 2-digit month/day (e.g. "5/20/2026" or "05/20/2026") and zero-pad.
+  const us = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) return `${us[3]}-${us[1]!.padStart(2, "0")}-${us[2]!.padStart(2, "0")}`;
   // Already ISO or unrecognized — pass through (defensive).
   return raw;
 }
