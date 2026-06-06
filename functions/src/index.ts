@@ -1826,6 +1826,10 @@ export const mcp = onRequest(
     // headers. Safe for our authless public endpoint — there's no
     // credential-bearing flow that CORS could compromise.
     cors: true,
+    // FEC_API_KEY mounted so the live-first passthrough for get_fec_contributions
+    // can hit api.open.fec.gov at the real 1,000/hr rate. USAspending + CFPB
+    // passthroughs are keyless. Read-only SA gets accessor rights on deploy.
+    secrets: [fecApiKey],
     // Dedicated least-privilege runtime identity. This service account holds
     // only Cloud Datastore Viewer (Firestore READ-only) + Logs Writer +
     // Monitoring Metric Writer — NO Firestore write. The MCP server's tools
