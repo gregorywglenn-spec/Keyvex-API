@@ -67,6 +67,7 @@ import type {
   NportFilingsQuery,
   NportHolding,
   NportHoldingsQuery,
+  NeedsOcr,
   ProductRecall,
   ProductRecallsQuery,
   GovDocument,
@@ -4915,6 +4916,74 @@ export async function saveProductRecalls(
   }
 
   return { saved, collection: COLLECTION };
+}
+
+// ─── Needs-OCR queue (scanned / image-only / corrupted-text-layer PDFs) ───
+
+/**
+ * Build the stable, Firestore-safe document ID for a needs_ocr record from its
+ * filing_url. Same URL → same doc → re-runs MERGE instead of duplicating.
+ *
+ * Dedup key derivation:
+ *   - strip the scheme (https://) so http/https variants collapse,
+ *   - replace every character that is illegal or awkward in a Firestore doc ID
+ *     ("/", whitespace, etc.) with "_",
+ *   - collapse runs of "_" and trim leading/trailing "_".
+ * Firestore doc IDs must not contain "/" (path separator) and have a 1500-byte
+ * limit; PTR/OGE URLs are well under that, but we hard-cap at 200 chars as
+ * defense in depth.
+ */
+export function needsOcrDocId(filingUrl: string): string {
+  const noScheme = filingUrl.replace(/^[a-z]+:\/\//i, "");
+  const safe = noScheme
+    .replace(/[^A-Za-z0-9._-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return safe.slice(0, 200);
+}
+
+/**
+ * Save needs-OCR references. Idempotent: doc ID = needsOcrDocId(filing_url),
+ * batched 400, merge:true — re-running a sweep updates existing refs in place
+ * rather than creating duplicates. Mirrors the saveProductRecalls pattern.
+ */
+export async function saveNeedsOcr(
+  records: NeedsOcr[],
+): Promise<{ saved: number; collection: string }> {
+  if (isStubMode()) {
+    throw new Error(
+      "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
+    );
+  }
+  const COLLECTION = "needs_ocr";
+  if (records.length === 0) return { saved: 0, collection: COLLECTION };
+
+  const db = await getLiveDb();
+  const collection = db.collection(COLLECTION);
+  const BATCH_SIZE = 400;
+  let saved = 0;
+
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    const chunk = records.slice(i, i + BATCH_SIZE);
+    for (const r of chunk) {
+      const id = r.id || needsOcrDocId(r.filing_url);
+      batch.set(collection.doc(id), { ...r, id }, { merge: true });
+    }
+    await batch.commit();
+    saved += chunk.length;
+  }
+
+  return { saved, collection: COLLECTION };
+}
+
+/** Hard count of records currently in the needs_ocr collection (for pricing
+ *  math). Uses Firestore's server-side aggregation — no document reads. */
+export async function countNeedsOcr(): Promise<number> {
+  if (isStubMode()) return 0;
+  const db = await getLiveDb();
+  const snap = await db.collection("needs_ocr").count().get();
+  return snap.data().count;
 }
 
 // ─── Government publications (GovInfo) query + save ──────────────────────

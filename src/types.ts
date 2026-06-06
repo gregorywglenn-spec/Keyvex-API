@@ -2193,6 +2193,52 @@ export interface ProductRecallsQuery {
 }
 
 /**
+ * "Needs OCR" reference — a scanned / image-only / corrupted PDF filing whose
+ * text layer pdf-parse cannot extract usefully. We do NOT OCR here; we only
+ * RECORD the reference so the documents can be OCR'd later in one batch and so
+ * we get a hard count for pricing math.
+ *
+ * Detection lives in `needsOcr()` (a per-page real-word density heuristic) plus
+ * the existing Senate `isPaperPtr()` HTML detector. A record lands here only
+ * when a filing is determined to lack a usable digital text layer.
+ *
+ * Sources:
+ *   "house"  — House Clerk PTR PDFs (rotated scans like Rep. Ro Khanna's
+ *              2024/8220127.pdf extract near-nothing via pdf-parse).
+ *   "senate" — Senate eFD "paper PTR" amendments (HTML wrapper around a PDF
+ *              embed; caught by isPaperPtr()).
+ *   "oge"    — OGE Form 278 filings whose text layer is corrupted (broken font
+ *              encoding — e.g. President/VP filings noted in oge278t.ts).
+ */
+export interface NeedsOcr {
+  /** Stable dedup key derived from filing_url (sanitized). Re-runs MERGE. */
+  id: string;
+  /** Which scraper surface this filing came from. */
+  source: "house" | "senate" | "oge";
+  /** Canonical URL of the PDF (or HTML paper-PTR wrapper) to OCR later. */
+  filing_url: string;
+  /** Best-known filer/member name (may be "" if not resolvable from the ref). */
+  filer_name: string;
+  /** Filing date as ISO YYYY-MM-DD (may be "" if unknown). */
+  filing_date: string;
+  /** Source doc identifier (House DocID, Senate ptrId, OGE filename). */
+  doc_id: string;
+  /** Pages reported by pdf-parse (undefined for HTML paper-PTRs). */
+  page_count: number | null;
+  /** Total characters pdf-parse extracted (0 for HTML paper-PTRs). */
+  extracted_chars: number;
+  /** Count of /[A-Za-z]{3,}/ matches in the extracted text (the density metric). */
+  real_word_count: number;
+  /** Why this filing was queued for OCR. */
+  reason:
+    | "scanned_no_text_layer"
+    | "paper_ptr"
+    | "corrupted_text_layer";
+  /** When KeyVex detected this (ISO timestamp). */
+  detected_at: string;
+}
+
+/**
  * Enforcement action — a public press release / litigation release from
  * the SEC or DOJ announcing charges, settlements, indictments, or other
  * enforcement activity. Unified schema for both sources via the `source`

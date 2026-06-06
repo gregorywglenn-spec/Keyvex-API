@@ -64,7 +64,7 @@
         "--save"
       ],
       "family": "EDGAR_FTS",
-      "status": "pending",
+      "status": "done",
       "restarts": 0
     },
     {
@@ -74,7 +74,7 @@
         "--save"
       ],
       "family": "EDGAR_FTS",
-      "status": "pending",
+      "status": "done",
       "restarts": 0
     },
     {
@@ -82,7 +82,7 @@
       "script": "scripts/backfill-ftd-bulk.ts",
       "args": [],
       "family": "SEC_FILES",
-      "status": "pending",
+      "status": "done",
       "restarts": 0
     },
     {
@@ -92,7 +92,7 @@
         "--save"
       ],
       "family": "FED_REGISTER",
-      "status": "pending",
+      "status": "done",
       "restarts": 0
     },
     {
@@ -102,6 +102,24 @@
         "--save"
       ],
       "family": "EDGAR_FTS",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "detect-ocr-needed",
+      "script": "scripts/detect-ocr-needed.ts",
+      "args": [
+        "--save"
+      ],
+      "family": "OCR_SWEEP",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "fec-independent-expenditures",
+      "script": "scripts/backfill-fec-ie-api.ts",
+      "args": [],
+      "family": "FEC_API",
       "status": "pending",
       "restarts": 0
     }

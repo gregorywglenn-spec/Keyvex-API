@@ -426,6 +426,90 @@ async function fetchPtrList(
     .filter((e): e is PtrListEntry => e !== null && e.ptrId.length > 0);
 }
 
+/**
+ * Exported ref for the needs-OCR sweep: one Senate PTR's identity + the URL
+ * to fetch its detail HTML. Mirrors the load-bearing fields of PtrListEntry.
+ */
+export interface SenatePtrRef {
+  ptrId: string;
+  detailUrl: string;
+  firstName: string;
+  lastName: string;
+  dateFiled: string;
+}
+
+/**
+ * Fetch Senate PTR refs filed within an explicit [startDate, endDate] window
+ * (inclusive, YYYY-MM-DD). Returns the list plus an authenticated session so
+ * the caller can fetch each PTR's detail HTML. Used by the needs-OCR sweep to
+ * find Senate "paper PTR" amendments (scanned PDF embeds → OCR later).
+ *
+ * Implemented as a thin date-range wrapper over the same /search/report/data/
+ * endpoint fetchPtrList uses, but with caller-supplied bounds instead of a
+ * rolling lookback.
+ */
+export async function fetchSenatePtrRefs(
+  startDate: string,
+  endDate: string,
+): Promise<{
+  session: { fetch: typeof fetch; csrfToken: string };
+  refs: SenatePtrRef[];
+}> {
+  const session = await createSession();
+
+  const fmt = (iso: string): string => {
+    const [y, m, d] = iso.split("-");
+    return `${m}/${d}/${y} 00:00:00`;
+  };
+
+  const body = new FormData();
+  body.append("start", "0");
+  body.append("length", String(CONFIG.PAGE_SIZE * 50)); // generous page for backfill windows
+  body.append("report_types", `[${CONFIG.REPORT_TYPE_PTR}]`);
+  body.append("submitted_start_date", fmt(startDate));
+  body.append("submitted_end_date", fmt(endDate));
+  body.append("candidate_state", "");
+  body.append("senator_state", "");
+  body.append("first_name", "");
+  body.append("last_name", "");
+  body.append("csrfmiddlewaretoken", session.csrfToken);
+
+  await sleep(CONFIG.RATE_LIMIT_MS);
+  const res = await session.fetch(CONFIG.DATA_URL, {
+    method: "POST",
+    headers: {
+      "User-Agent": CONFIG.USER_AGENT,
+      Origin: "https://efdsearch.senate.gov",
+      Referer: CONFIG.SEARCH_URL,
+      "X-CSRFToken": session.csrfToken,
+      "X-Requested-With": "XMLHttpRequest",
+    },
+    body,
+  });
+  if (!res.ok) {
+    throw new Error(`Senate /search/report/data/ HTTP ${res.status}`);
+  }
+  const json = (await res.json()) as { data?: unknown[][] };
+  const rows = Array.isArray(json.data) ? json.data : [];
+  const refs: SenatePtrRef[] = [];
+  for (const row of rows) {
+    const linkHtml = String(row[3] ?? "");
+    const linkMatch = linkHtml.match(/href=['"]([^'"]+)['"]/);
+    if (!linkMatch) continue;
+    const ptrIdMatch = (linkMatch[1] ?? "").match(/\/ptr\/([a-f0-9-]+)\//);
+    if (!ptrIdMatch) continue;
+    const ptrId = ptrIdMatch[1] ?? "";
+    refs.push({
+      ptrId,
+      detailUrl: `${CONFIG.PTR_URL}${ptrId}/`,
+      firstName: String(row[0] ?? ""),
+      lastName: String(row[1] ?? ""),
+      dateFiled: String(row[4] ?? ""),
+    });
+  }
+  return { session, refs };
+}
+
 // ─── PTR HTML parser ────────────────────────────────────────────────────────
 
 /**
@@ -453,7 +537,7 @@ async function fetchPtrList(
  * handled differently (PDF parsing) and aren't what the v1 tool surface
  * targets — log + skip.
  */
-function isPaperPtr(html: string): boolean {
+export function isPaperPtr(html: string): boolean {
   const lower = html.toLowerCase();
   return (
     lower.includes("paper") &&
