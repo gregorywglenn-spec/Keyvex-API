@@ -18,11 +18,11 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   queryActivistOwnership,
-  queryConsumerComplaints,
+  queryConsumerComplaintsCache,
   queryCongressionalTrades,
   queryEnforcementActions,
   queryExecutiveTrades,
-  queryFederalContractAwards,
+  queryFederalContractAwardsCache,
   queryForm144Filings,
   queryForm278Filings,
   queryForm3Holdings,
@@ -391,7 +391,12 @@ const ADAPTERS: SourceAdapter[] = [
     name: "federal_contracts",
     call: (q, limit) => {
       if (!q.recipient_uei && !q.company_name) return null;
-      return queryFederalContractAwards({
+      // unified_search deliberately uses the CACHE path (not the live-first
+      // path the dedicated get_federal_contracts tool uses): the fan-out fires
+      // many collections in parallel and must stay fast — an 8s live timeout
+      // per source would make the whole fan-out chatty and slow. The dedicated
+      // tool gets live data; the fan-out gets the cached subset.
+      return queryFederalContractAwardsCache({
         ...(q.recipient_uei !== undefined && { recipient_uei: q.recipient_uei }),
         ...(q.company_name !== undefined && { recipient_name: q.company_name }),
         ...(q.since !== undefined && { since: q.since }),
@@ -427,7 +432,9 @@ const ADAPTERS: SourceAdapter[] = [
     name: "consumer_complaints",
     call: (q, limit) => {
       if (!q.company_name) return null;
-      return queryConsumerComplaints({
+      // Cache path on purpose — see federal_contracts note above. The
+      // dedicated get_consumer_complaints tool is the live-first path.
+      return queryConsumerComplaintsCache({
         company: q.company_name,
         ...(q.since !== undefined && { since: q.since }),
         ...(q.until !== undefined && { until: q.until }),

@@ -99,6 +99,23 @@ import type {
   TenderOffer,
   TenderOffersQuery,
 } from "./types.js";
+import { liveFirst } from "./passthrough.js";
+// Live-source scrapers used by the live-first passthrough query functions.
+// These modules import only from ./types.js (no firebase-admin), so pulling
+// them in here adds no Firestore SDK cold-start cost.
+import {
+  scrapeContractsByRecipient,
+  scrapeContractsLiveFeed,
+} from "./scrapers/usaspending.js";
+import {
+  scrapeGrantsByRecipient,
+  scrapeGrantsLiveFeed,
+} from "./scrapers/usaspending-grants.js";
+import { scrapeCfpbComplaints } from "./scrapers/cfpb-complaints.js";
+import {
+  scrapeFecScheduleA,
+  type ScrapeFecScheduleAOptions,
+} from "./scrapers/fec-schedule-a.js";
 
 // Resolve service-account.json relative to the project root, not cwd. This
 // matters when the server is launched by an MCP client (Claude Desktop, etc.)
@@ -252,6 +269,14 @@ export interface QueryResult<T> {
    * "transparency-as-differentiator" fix.
    */
   coverage_warning?: string;
+  /**
+   * Live-first passthrough (2026-06-06): for tools that query the live source
+   * API per request (federal contracts/grants, consumer complaints, FEC
+   * contributions), this flags whether the returned rows came from the live
+   * upstream API ("live") or fell back to the cached Firestore subset
+   * ("cache"). Absent on pure-Firestore queries.
+   */
+  source?: "live" | "cache";
 }
 
 /**
@@ -2203,7 +2228,12 @@ export async function saveActivistOwnership(
 
 // ─── Federal contract awards (USAspending) query ──────────────────────────
 
-export async function queryFederalContractAwards(
+/**
+ * Cache (Firestore subset) path for federal contract awards — the fallback
+ * for the live-first passthrough, and the path unified_search uses for its
+ * fast parallel fan-out. Behavior unchanged from the original query fn.
+ */
+export async function queryFederalContractAwardsCache(
   query: FederalContractAwardsQuery,
 ): Promise<QueryResult<FederalContractAward>> {
   if (isStubMode()) {
@@ -2266,6 +2296,141 @@ export async function queryFederalContractAwards(
 }
 
 /**
+ * Live-first federal contract awards. Queries api.usaspending.gov per request
+ * (full current universe), falling back to the cached Firestore subset on any
+ * error or an 8s timeout. Read-through only — never writes to Firestore.
+ *
+ * The live scrapers (scrapeContractsByRecipient / scrapeContractsLiveFeed)
+ * apply recipient + date-window filters server-side at USAspending; remaining
+ * filters (recipient_uei, awarding_agency, naics/psc, min_amount) + sort +
+ * limit are applied here so the live path returns the same envelope shape the
+ * cache path produces.
+ */
+export async function queryFederalContractAwards(
+  query: FederalContractAwardsQuery,
+): Promise<QueryResult<FederalContractAward>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const userLimit = query.limit ?? 50;
+
+  const live = await liveFirst<FederalContractAward>(
+    () => fetchContractsLive(query),
+    async () => (await queryFederalContractAwardsCache(query)).results,
+    { label: "federal contracts (USAspending)" },
+  );
+
+  if (live.source === "cache") {
+    // Cache path already applied filters/sort/limit; just re-shape envelope.
+    const has_more = live.results.length > userLimit;
+    const results = live.results.slice(0, userLimit);
+    const out = await withCoverageWarning(
+      { results, has_more },
+      query,
+      "federal_contracts",
+    );
+    return { ...out, source: "cache", coverage_warning: live.coverage_warning };
+  }
+
+  // Live path: apply remaining client-side filters + sort + limit.
+  let docs = live.results;
+  if (query.recipient_uei) {
+    docs = docs.filter((c) => c.recipient_uei === query.recipient_uei);
+  }
+  if (query.awarding_agency) {
+    docs = docs.filter((c) => c.awarding_agency === query.awarding_agency);
+  }
+  if (query.naics_code) {
+    docs = docs.filter((c) => c.naics_code === query.naics_code);
+  }
+  if (query.psc_code) {
+    docs = docs.filter((c) => c.psc_code === query.psc_code);
+  }
+  if (query.min_amount !== undefined) {
+    docs = docs.filter((c) => c.award_amount >= query.min_amount!);
+  }
+  if (query.since) {
+    docs = docs.filter(
+      (c) => (c.last_modified_date ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (c) => (c.last_modified_date ?? "") <= (query.until ?? "9999"),
+    );
+  }
+
+  const sortField = query.sort_by ?? "last_modified_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = contractSortValue(a, sortField);
+    const bv = contractSortValue(b, sortField);
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more, source: "live" };
+}
+
+function contractSortValue(
+  a: FederalContractAward,
+  field: string,
+): string | number {
+  switch (field) {
+    case "start_date":
+      return a.start_date ?? "";
+    case "award_amount":
+      return a.award_amount ?? 0;
+    case "total_outlays":
+      return a.total_outlays ?? 0;
+    default:
+      return a.last_modified_date ?? "";
+  }
+}
+
+/**
+ * Translate a FederalContractAwardsQuery into a live USAspending pull.
+ * Read-through only — calls the scraper's fetch+normalize and returns the
+ * array WITHOUT saving.
+ */
+async function fetchContractsLive(
+  query: FederalContractAwardsQuery,
+): Promise<FederalContractAward[]> {
+  const lookbackDays = lookbackFromSince(query.since);
+  // Keep page count low so the live pull comfortably fits inside the 8s
+  // timeout (each page is a ~1s round trip to USAspending). 2 pages = up to
+  // 200 records — plenty for a single tool response; on a timeout we fall
+  // back to the (larger) cached subset anyway.
+  const maxPages = 2;
+  if (query.recipient_name) {
+    return scrapeContractsByRecipient(query.recipient_name, lookbackDays, maxPages);
+  }
+  return scrapeContractsLiveFeed(lookbackDays, maxPages);
+}
+
+/**
+ * Convert an optional `since` ISO date into a lookback-days window for the
+ * USAspending scrapers (which take a day count). When no `since` is given,
+ * defaults: 365 days for a recipient pull, 7 for the firehose — but since both
+ * callers pass the same value, we use a reasonable 365-day default so a
+ * dedicated tool query without dates still returns a year of data. Capped at
+ * ~10 years to avoid absurd windows.
+ */
+function lookbackFromSince(since?: string): number {
+  if (!since) return 365;
+  const start = Date.parse(since);
+  if (Number.isNaN(start)) return 365;
+  const days = Math.ceil((Date.now() - start) / 86_400_000);
+  if (days < 1) return 1;
+  if (days > 3650) return 3650;
+  return days;
+}
+
+/**
  * Save scraped federal contract awards to Firestore. Idempotent — re-running
  * the scraper writes the same doc IDs (USAspending's generated_internal_id)
  * with merge:true semantics, so contract modifications correctly overwrite
@@ -2304,7 +2469,11 @@ export async function saveFederalContractAwards(
 
 // ─── Federal grants (USAspending assistance awards) query + save ─────────
 
-export async function queryFederalGrants(
+/**
+ * Cache (Firestore subset) path for federal grants — the fallback for the
+ * live-first passthrough. Behavior unchanged from the original query fn.
+ */
+export async function queryFederalGrantsCache(
   query: FederalGrantsQuery,
 ): Promise<QueryResult<FederalGrant>> {
   if (isStubMode()) {
@@ -2382,6 +2551,100 @@ export async function queryFederalGrants(
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
   return await withCoverageWarning({ results, has_more }, query, "federal_grants");
+}
+
+/**
+ * Live-first federal grants. Queries api.usaspending.gov (assistance awards,
+ * award_type_codes 02/03/04/05) per request, falling back to the cached
+ * Firestore subset on error/timeout. Read-through only — never saves.
+ */
+export async function queryFederalGrants(
+  query: FederalGrantsQuery,
+): Promise<QueryResult<FederalGrant>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  const userLimit = query.limit ?? 50;
+
+  const live = await liveFirst<FederalGrant>(
+    () => fetchGrantsLive(query),
+    async () => (await queryFederalGrantsCache(query)).results,
+    { label: "federal grants (USAspending)" },
+  );
+
+  if (live.source === "cache") {
+    const has_more = live.results.length > userLimit;
+    const results = live.results.slice(0, userLimit);
+    const out = await withCoverageWarning(
+      { results, has_more },
+      query,
+      "federal_grants",
+    );
+    return { ...out, source: "cache", coverage_warning: live.coverage_warning };
+  }
+
+  let docs = live.results;
+  if (query.recipient_uei) {
+    docs = docs.filter((g) => g.recipient_uei === query.recipient_uei);
+  }
+  if (query.awarding_agency) {
+    docs = docs.filter((g) => g.awarding_agency === query.awarding_agency);
+  }
+  if (query.cfda_number) {
+    docs = docs.filter((g) => g.cfda_number === query.cfda_number);
+  }
+  if (query.min_amount !== undefined) {
+    docs = docs.filter((g) => g.award_amount >= (query.min_amount ?? 0));
+  }
+  if (query.since) {
+    docs = docs.filter(
+      (g) => (g.last_modified_date ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (g) => (g.last_modified_date ?? "") <= (query.until ?? "9999"),
+    );
+  }
+
+  const sortField = query.sort_by ?? "last_modified_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av = grantSortValue(a, sortField);
+    const bv = grantSortValue(b, sortField);
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more, source: "live" };
+}
+
+function grantSortValue(a: FederalGrant, field: string): string | number {
+  switch (field) {
+    case "start_date":
+      return a.start_date ?? "";
+    case "award_amount":
+      return a.award_amount ?? 0;
+    case "total_outlays":
+      return a.total_outlays ?? 0;
+    default:
+      return a.last_modified_date ?? "";
+  }
+}
+
+async function fetchGrantsLive(
+  query: FederalGrantsQuery,
+): Promise<FederalGrant[]> {
+  const lookbackDays = lookbackFromSince(query.since);
+  const maxPages = 2;
+  if (query.recipient_name) {
+    return scrapeGrantsByRecipient(query.recipient_name, lookbackDays, maxPages);
+  }
+  return scrapeGrantsLiveFeed(lookbackDays, maxPages);
 }
 
 export async function saveFederalGrants(
@@ -3475,7 +3738,12 @@ export async function saveXbrlFundamentals(
 
 // ─── CFPB Consumer Complaints query + save ────────────────────────────────
 
-export async function queryConsumerComplaints(
+/**
+ * Cache (Firestore subset) path for CFPB consumer complaints — the fallback
+ * for the live-first passthrough, and the path unified_search uses for its
+ * fast parallel fan-out. Behavior unchanged from the original query fn.
+ */
+export async function queryConsumerComplaintsCache(
   query: ConsumerComplaintsQuery,
 ): Promise<QueryResult<ConsumerComplaint>> {
   if (isStubMode()) {
@@ -3534,6 +3802,122 @@ export async function queryConsumerComplaints(
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
   return await withCoverageWarning({ results, has_more }, query, "consumer_complaints");
+}
+
+/**
+ * Live-first CFPB consumer complaints. Queries the CFPB complaints API per
+ * request, falling back to the cached Firestore subset on error/timeout.
+ * Read-through only — never saves.
+ *
+ * The CFPB API only filters server-side by date window; company/product/
+ * state/issue/etc. are applied client-side here (same as the cache path).
+ * Direct id lookup is delegated straight to the cache (Firestore doc get).
+ */
+export async function queryConsumerComplaints(
+  query: ConsumerComplaintsQuery,
+): Promise<QueryResult<ConsumerComplaint>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  // Direct id lookup: no live equivalent worth the round trip — use cache.
+  if (query.id) {
+    return queryConsumerComplaintsCache(query);
+  }
+
+  const userLimit = query.limit ?? 50;
+
+  const live = await liveFirst<ConsumerComplaint>(
+    () => fetchComplaintsLive(query),
+    async () => (await queryConsumerComplaintsCache(query)).results,
+    { label: "CFPB consumer complaints" },
+  );
+
+  if (live.source === "cache") {
+    const has_more = live.results.length > userLimit;
+    const results = live.results.slice(0, userLimit);
+    const out = await withCoverageWarning(
+      { results, has_more },
+      query,
+      "consumer_complaints",
+    );
+    return { ...out, source: "cache", coverage_warning: live.coverage_warning };
+  }
+
+  // Live path: apply all client-side filters (CFPB only filters by date).
+  let docs = live.results;
+  if (query.company) {
+    const needle = query.company.toLowerCase();
+    docs = docs.filter((c) => matchesSubstringSafe(c.company, needle));
+  }
+  if (query.product) {
+    docs = docs.filter((c) => c.product === query.product);
+  }
+  if (query.sub_product) {
+    docs = docs.filter((c) => c.sub_product === query.sub_product);
+  }
+  if (query.issue) {
+    const needle = query.issue.toLowerCase();
+    docs = docs.filter((c) => matchesSubstringSafe(c.issue, needle));
+  }
+  if (query.state) {
+    docs = docs.filter((c) => c.state === query.state!.toUpperCase());
+  }
+  if (query.submitted_via) {
+    docs = docs.filter((c) => c.submitted_via === query.submitted_via);
+  }
+  if (query.timely_response !== undefined) {
+    docs = docs.filter((c) => c.timely_response === query.timely_response);
+  }
+  const sortField = query.sort_by ?? "date_received";
+  if (query.since) {
+    docs = docs.filter(
+      (c) =>
+        ((sortField === "date_sent_to_company"
+          ? c.date_sent_to_company
+          : c.date_received) ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (c) =>
+        ((sortField === "date_sent_to_company"
+          ? c.date_sent_to_company
+          : c.date_received) ?? "") <= (query.until ?? "9999"),
+    );
+  }
+
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av =
+      sortField === "date_sent_to_company"
+        ? a.date_sent_to_company
+        : a.date_received;
+    const bv =
+      sortField === "date_sent_to_company"
+        ? b.date_sent_to_company
+        : b.date_received;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more, source: "live" };
+}
+
+async function fetchComplaintsLive(
+  query: ConsumerComplaintsQuery,
+): Promise<ConsumerComplaint[]> {
+  // One CFPB page (~200 records, ~3s) keeps the live pull inside the 8s
+  // timeout. A company substring match within a ~200-row recent window is
+  // best-effort; on timeout / no match we fall back to the cached subset.
+  const opts: { dateReceivedMin?: string; maxRecords?: number } = {
+    maxRecords: 200,
+  };
+  if (query.since) opts.dateReceivedMin = query.since;
+  return scrapeCfpbComplaints(opts);
 }
 
 export async function saveConsumerComplaints(
@@ -5999,7 +6383,12 @@ export async function saveFecCommittees(
 
 // ─── FEC contributions (Schedule A) query + save ──────────────────────────
 
-export async function queryFecContributions(
+/**
+ * Cache (Firestore subset) path for FEC Schedule A contributions — the
+ * fallback for the live-first passthrough. Behavior unchanged from the
+ * original query fn.
+ */
+export async function queryFecContributionsCache(
   query: FecContributionQuery,
 ): Promise<QueryResult<FecContribution>> {
   if (isStubMode()) {
@@ -6122,6 +6511,150 @@ export async function queryFecContributions(
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
   return await withCoverageWarning({ results, has_more }, query, "fec_contributions");
+}
+
+/**
+ * Live-first FEC Schedule A contributions. Queries api.open.fec.gov per
+ * request (needs FEC_API_KEY in env — loaded via secrets/.env), falling back
+ * to the cached Firestore subset on error/timeout. Read-through only — never
+ * saves. Direct sub_id lookup is delegated to the cache (Firestore doc get).
+ *
+ * The FEC API filters server-side by committee/candidate/state/employer +
+ * amount + date window + cycle; entity_type, contributor_name substring,
+ * exclude_memos, and final sort/limit are applied here to match the cache
+ * path's envelope shape.
+ */
+export async function queryFecContributions(
+  query: FecContributionQuery,
+): Promise<QueryResult<FecContribution>> {
+  if (isStubMode()) {
+    return { results: [], has_more: false };
+  }
+
+  // Direct sub_id lookup: no live equivalent worth a round trip — use cache.
+  if (query.sub_id) {
+    return queryFecContributionsCache(query);
+  }
+
+  const userLimit = query.limit ?? 50;
+
+  const live = await liveFirst<FecContribution>(
+    () => fetchFecContributionsLive(query),
+    async () => (await queryFecContributionsCache(query)).results,
+    { label: "FEC Schedule A contributions" },
+  );
+
+  if (live.source === "cache") {
+    const has_more = live.results.length > userLimit;
+    const results = live.results.slice(0, userLimit);
+    const out = await withCoverageWarning(
+      { results, has_more },
+      query,
+      "fec_contributions",
+    );
+    return { ...out, source: "cache", coverage_warning: live.coverage_warning };
+  }
+
+  // Live path: apply remaining client-side filters + sort + limit.
+  let docs = live.results;
+  if (query.recipient_committee_id) {
+    docs = docs.filter(
+      (c) => c.recipient_committee_id === query.recipient_committee_id,
+    );
+  }
+  if (query.candidate_id) {
+    docs = docs.filter((c) => c.candidate_id === query.candidate_id);
+  }
+  if (query.entity_type) {
+    docs = docs.filter((c) => c.entity_type === query.entity_type);
+  }
+  if (query.contributor_state) {
+    docs = docs.filter(
+      (c) => c.contributor_state === query.contributor_state,
+    );
+  }
+  if (query.cycle !== undefined) {
+    docs = docs.filter(
+      (c) => c.two_year_transaction_period === query.cycle,
+    );
+  }
+  if (query.contributor_name) {
+    const needle = query.contributor_name.toLowerCase();
+    docs = docs.filter((c) =>
+      matchesSubstringSafe(c.contributor_name, needle),
+    );
+  }
+  if (query.contributor_employer) {
+    const needle = query.contributor_employer.toLowerCase();
+    docs = docs.filter((c) =>
+      matchesSubstringSafe(c.contributor_employer, needle),
+    );
+  }
+  if (query.min_amount !== undefined) {
+    docs = docs.filter(
+      (c) => c.contribution_receipt_amount >= (query.min_amount ?? 0),
+    );
+  }
+  if (query.max_amount !== undefined) {
+    docs = docs.filter(
+      (c) => c.contribution_receipt_amount <= (query.max_amount ?? Infinity),
+    );
+  }
+  if (query.since) {
+    docs = docs.filter(
+      (c) => (c.contribution_receipt_date ?? "") >= (query.since ?? ""),
+    );
+  }
+  if (query.until) {
+    docs = docs.filter(
+      (c) => (c.contribution_receipt_date ?? "") <= (query.until ?? "9999"),
+    );
+  }
+  // Default-true memo exclusion (matches cache path).
+  if (query.exclude_memos !== false) {
+    docs = docs.filter((c) => c.memoed_subtotal !== true);
+  }
+
+  const sortField = query.sort_by ?? "contribution_receipt_date";
+  const sortOrder = query.sort_order ?? "desc";
+  docs.sort((a, b) => {
+    const av =
+      sortField === "contribution_receipt_amount"
+        ? a.contribution_receipt_amount
+        : a.contribution_receipt_date;
+    const bv =
+      sortField === "contribution_receipt_amount"
+        ? b.contribution_receipt_amount
+        : b.contribution_receipt_date;
+    if (av === bv) return 0;
+    const cmp = av < bv ? -1 : 1;
+    return sortOrder === "desc" ? -cmp : cmp;
+  });
+
+  const has_more = docs.length > userLimit;
+  const results = docs.slice(0, userLimit);
+  return { results, has_more, source: "live" };
+}
+
+async function fetchFecContributionsLive(
+  query: FecContributionQuery,
+): Promise<FecContribution[]> {
+  // Keep the page cap low so the live pull fits inside the 8s timeout
+  // (FEC paces at 250ms/page; first page also runs a count). 2 pages = up
+  // to 200 rows; on timeout we fall back to the cached subset.
+  const opts: ScrapeFecScheduleAOptions = { maxPages: 2 };
+  if (query.min_amount !== undefined) opts.minAmount = query.min_amount;
+  if (query.max_amount !== undefined) opts.maxAmount = query.max_amount;
+  if (query.since) opts.minDate = query.since;
+  if (query.until) opts.maxDate = query.until;
+  if (query.cycle !== undefined) opts.cycle = query.cycle;
+  if (query.recipient_committee_id)
+    opts.committeeId = query.recipient_committee_id;
+  if (query.candidate_id) opts.candidateId = query.candidate_id;
+  if (query.contributor_state) opts.contributorState = query.contributor_state;
+  if (query.contributor_employer)
+    opts.contributorEmployer = query.contributor_employer;
+  return scrapeFecScheduleA(opts);
 }
 
 /**

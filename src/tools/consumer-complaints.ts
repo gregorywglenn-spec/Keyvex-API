@@ -132,12 +132,13 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<ConsumerComplaint>> {
   const query = validateAndNormalize(args);
-  const { results, has_more, coverage_warning } = await queryConsumerComplaints(query);
+  const { results, has_more, coverage_warning, source } = await queryConsumerComplaints(query);
   return {
     results,
     count: results.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
+    ...(source && { source }),
     query: query as Record<string, unknown>,
   };
 }

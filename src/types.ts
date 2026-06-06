@@ -42,6 +42,14 @@ export interface ResultEnvelope<T> {
    * Present whenever > 0, regardless of filter state.
    */
   unclassifiable_records_retained?: number;
+  /**
+   * Live-first passthrough (2026-06-06): "live" when the tool queried the
+   * upstream source API per request, "cache" when it fell back to the cached
+   * Firestore subset (paired with a coverage_warning). Present only on the
+   * live-first tools (federal contracts/grants, consumer complaints, FEC
+   * contributions); absent on pure-Firestore tools.
+   */
+  source?: "live" | "cache";
   query: Record<string, unknown>;
 }
 
