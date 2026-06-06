@@ -2,6 +2,24 @@
 
 _Generated 2026-06-06 after the data-quality backfill push. Counts/ranges from a live Firestore audit._
 
+---
+
+## 📖 For Derek — how to read KeyVex's data
+
+You've got **read-only** access to the `capitaledge-api` Firestore (Cloud Datastore Viewer, granted to your `firebase-adminsdk-fbsvc@capital-edge-d5038` service account). There are two ways to pull our data, and **you don't need any API keys for either:**
+
+**1. Firestore direct (your read-only SA).** Point your Firebase Admin SDK at project `capitaledge-api` and read the collections in the table below. Fast path, and it gives you the **complete** data for the ~34 full-mirror / bounded / reference collections. You can read everything; you can't write anything.
+
+**2. Our MCP endpoint — `https://mcp.keyvex.com`.** Authless (no key, just call it). Use this when you want the **live passthrough** data described next.
+
+**The one gotcha — the 4 passthrough collections** (`federal_contracts`, `federal_grants`, `fec_contributions`, `consumer_complaints`):
+- These are giant firehoses we deliberately **don't** fully mirror. Reading them straight from **Firestore** gives you only the **cached recent subset** our cron stores (a rolling slice — not full history).
+- For **complete / live** results on those four, call **`mcp.keyvex.com`** instead. It hits the source APIs (USAspending / FEC / CFPB) in real time using *our* keys, server-side — so you get full results and **never need a key of your own.**
+
+Everything else in the table is a full mirror → just read it straight from Firestore. Coverage questions → Greg, or `contact@keyvex.com`.
+
+---
+
 **Legend**
 - **BACKFILLED** — full historical mirror in Firestore; cron keeps it topped off.
 - **BOUNDED** — deliberately mirrored to a recent window (full history is a multi-million-row firehose with little signal); cron tops off.
