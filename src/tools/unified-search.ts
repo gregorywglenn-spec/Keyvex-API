@@ -157,6 +157,13 @@ export const definition: Tool = {
         maximum: 50,
         description: "Max records per source. Default 5, max 50.",
       },
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: 50,
+        description:
+          "Alias for per_source_limit (this is a fan-out, so the cap is per source). Default 5, max 50.",
+      },
       sources: {
         type: "array",
         items: { type: "string" },
@@ -666,6 +673,20 @@ function validateAndNormalize(raw: unknown): UnifiedSearchQuery {
       );
     }
     out.per_source_limit = args.per_source_limit;
+  } else if (args.limit !== undefined) {
+    // `limit` is a near-universal convention; accept it as an alias for
+    // per_source_limit on this fan-out tool (per_source_limit wins if both set).
+    if (
+      typeof args.limit !== "number" ||
+      !Number.isInteger(args.limit) ||
+      args.limit < 1 ||
+      args.limit > 50
+    ) {
+      throw new Error(
+        `INVALID limit: '${String(args.limit)}' — expected integer 1..50`,
+      );
+    }
+    out.per_source_limit = args.limit;
   }
 
   if (args.sources !== undefined) {
