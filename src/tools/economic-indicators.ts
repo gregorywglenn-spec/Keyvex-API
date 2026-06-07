@@ -214,7 +214,9 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
       "energy",
     ];
     if (!valid.includes(args.category as string)) {
-      throw new Error(`INVALID category: '${String(args.category)}'`);
+      throw new Error(
+        `INVALID category: '${String(args.category)}' — expected one of: ${valid.join(", ")}`,
+      );
     }
     out.category = args.category as string;
   }
@@ -228,7 +230,9 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
       "daily",
     ];
     if (!valid.includes(args.period_type as string)) {
-      throw new Error(`INVALID period_type: '${String(args.period_type)}'`);
+      throw new Error(
+        `INVALID period_type: '${String(args.period_type)}' — expected one of: ${valid.join(", ")}`,
+      );
     }
     out.period_type = args.period_type as EconomicIndicatorsQuery["period_type"];
   }
@@ -261,7 +265,9 @@ function validateAndNormalize(raw: unknown): EconomicIndicatorsQuery {
       args.sort_by !== "value" &&
       args.sort_by !== "year"
     ) {
-      throw new Error(`INVALID sort_by: '${String(args.sort_by)}'`);
+      throw new Error(
+        `INVALID sort_by: '${String(args.sort_by)}' — expected one of: period, value, year`,
+      );
     }
     out.sort_by = args.sort_by;
   }
