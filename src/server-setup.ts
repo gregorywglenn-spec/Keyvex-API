@@ -145,6 +145,13 @@ function classifyError(rawMessage: string): string {
   if (/INVALID_ARGUMENT/i.test(rawMessage)) {
     return "INVALID_ARGUMENT";
   }
+  // Validation errors phrased "INVALID <field>: ..." (with a space, e.g.
+  // "INVALID limit:") don't match the CODE: prefix regex, so they fell through
+  // to INTERNAL_ERROR — which looks like a server bug to the caller. Classify
+  // them as the user-input error they are.
+  if (/^INVALID\s/i.test(rawMessage)) {
+    return "INVALID_PARAMETER";
+  }
   return "INTERNAL_ERROR";
 }
 
