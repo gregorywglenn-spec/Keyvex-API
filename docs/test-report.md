@@ -29,6 +29,13 @@ Side-by-side + source-verification pass across the full tool surface, vs Quiver 
 - **Verified:** now `https://www.sec.gov/Archives/edgar/data/<cik>/<acc>/<acc>-index.htm` (confirmed HTTP 200 against EDGAR).
 - **Note for Derek (Firestore-direct):** existing v2 rows still carry the old stored `source_url`; reconstruct from `company_cik`+`accession_number` (formula above) or use the MCP tool, which serves the corrected link.
 
+### 🐞 #3 — `get_consumer_complaints` company search returned nothing (CFPB)
+- **Symptom:** `company:"Wells Fargo"` → 0 — impossible for the most-complained-about bank. Found via `unified_search` showing 0 complaints for Wells Fargo, then reproduced on the dedicated tool.
+- **Root cause:** the scraper never sent a `company`/`search_term` param to CFPB — the company filter was applied **client-side** over a ~2-day window, so it missed everything. Worse, `format=json` **ignores `size`** and dumps the entire match set (29 MB / 9.5s for Wells Fargo), tripping the 8s passthrough timeout → cache fallback → 0.
+- **Fix:** (a) push the company filter to CFPB as `search_term` (server-side, fuzzy: "Wells Fargo" → WELLS FARGO & COMPANY); (b) drop `format=json` and use the ES envelope so `size` bounds the response; (c) default company searches to a 2-year window. `cfpb-complaints.ts` + `firestore.ts`.
+- **Verified:** `company:"Wells Fargo"` → 5 live results in **645 ms** (was 18 s → cache → 0); cron path unaffected.
+- **Bonus:** this was the cause of `unified_search` showing 0 complaints for a company; the dedicated tool now answers its primary use case.
+
 ## Verdict
 The surface is healthy: 38/38 functional, the core source-faithful claim is validated against EDGAR, congressional matches the category leader and beats it on structured fidelity. Two narrow bugs found and fixed. **Fixes go live on the next `firebase deploy` (mcp + form345 loader).**
 

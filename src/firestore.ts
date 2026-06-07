@@ -3910,13 +3910,25 @@ export async function queryConsumerComplaints(
 async function fetchComplaintsLive(
   query: ConsumerComplaintsQuery,
 ): Promise<ConsumerComplaint[]> {
-  // One CFPB page (~200 records, ~3s) keeps the live pull inside the 8s
-  // timeout. A company substring match within a ~200-row recent window is
-  // best-effort; on timeout / no match we fall back to the cached subset.
-  const opts: { dateReceivedMin?: string; maxRecords?: number } = {
-    maxRecords: 200,
-  };
-  if (query.since) opts.dateReceivedMin = query.since;
+  // Push the company filter to CFPB as a full-text search_term so the API
+  // returns that company's complaints server-side, recent-first (e.g.
+  // "Wells Fargo" → WELLS FARGO & COMPANY). Without this, a company filter was
+  // applied client-side over a ~2-day window and missed everything.
+  const opts: {
+    dateReceivedMin?: string;
+    maxRecords?: number;
+    searchTerm?: string;
+  } = { maxRecords: 200 };
+  if (query.company) {
+    opts.searchTerm = query.company;
+    // Company searches want depth — default to a 2-year window (recent-first)
+    // when the caller didn't bound the date themselves.
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 2);
+    opts.dateReceivedMin = query.since ?? d.toISOString().split("T")[0]!;
+  } else if (query.since) {
+    opts.dateReceivedMin = query.since;
+  }
   return scrapeCfpbComplaints(opts);
 }
 

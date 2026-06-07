@@ -98,6 +98,10 @@ export interface ScrapeCfpbOptions {
   dateReceivedMin?: string;
   /** Max records to ingest. Default 2000. */
   maxRecords?: number;
+  /** CFPB full-text search term — pushes a company/keyword filter to the API
+   *  server-side (e.g. "Wells Fargo" → WELLS FARGO & COMPANY). Without this the
+   *  cron's date-windowed pull can't answer "complaints about company X". */
+  searchTerm?: string;
 }
 
 export async function scrapeCfpbComplaints(
@@ -122,8 +126,13 @@ export async function scrapeCfpbComplaints(
     params.set("size", String(CONFIG.PAGE_SIZE));
     params.set("frm", String(frm));
     params.set("date_received_min", dateMin);
-    params.set("format", "json");
+    // NOTE: do NOT set format=json — that returns a flat array that IGNORES
+    // `size` and dumps every match (29MB / 9.5s for a big company). The default
+    // ES envelope respects `size`, so a search_term company query stays bounded
+    // (200 rows / ~1s). no_aggs skips the facet computation we don't use.
+    params.set("no_aggs", "true");
     params.set("sort", "created_date_desc");
+    if (options.searchTerm) params.set("search_term", options.searchTerm);
     const url = `${CONFIG.BASE_URL}?${params.toString()}`;
 
     const res = await fetch(url, {
@@ -132,7 +141,14 @@ export async function scrapeCfpbComplaints(
     if (!res.ok) {
       throw new Error(`CFPB HTTP ${res.status} ${res.statusText}`);
     }
-    const rows = (await res.json()) as RawComplaint[];
+    // Response is the ES envelope { hits: { hits: [{ _source: {...} }] } }.
+    // Stay tolerant of the legacy flat-array shape too (defensive).
+    const json = (await res.json()) as unknown;
+    // normalize() reads each row's `._source`, so pass the hit objects through
+    // unwrapped (the legacy flat `format=json` array was already hit objects).
+    const rows: RawComplaint[] = Array.isArray(json)
+      ? (json as RawComplaint[])
+      : ((json as { hits?: { hits?: RawComplaint[] } }).hits?.hits ?? []);
     if (rows.length === 0) break;
 
     for (const raw of rows) {
