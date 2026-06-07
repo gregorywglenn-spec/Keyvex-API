@@ -4027,6 +4027,118 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "proxy_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "material_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "institutional_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "market_value",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "activist_ownership",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "planned_insider_sales",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "fundamentals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
