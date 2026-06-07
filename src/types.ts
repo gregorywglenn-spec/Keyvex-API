@@ -1412,6 +1412,8 @@ export interface ExecutiveTrade {
 export interface ExecutiveTradesQuery {
   ticker?: string;
   filer_name?: string;
+  /** Substring against filer_position (holds the agency/department, e.g. "Health & Human Services"). */
+  filer_position?: string;
   filer_type?: "cabinet" | "appointee" | "other";
   transaction_type?: "purchase" | "sale" | "exchange";
   since?: string;

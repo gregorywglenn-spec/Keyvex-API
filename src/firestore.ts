@@ -1636,7 +1636,8 @@ export async function queryExecutiveTrades(
   q = q.orderBy(sortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.filer_name ? 5000 : userLimit + 1;
+  const fetchLimit =
+    query.filer_name || query.filer_position ? 5000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -1645,6 +1646,10 @@ export async function queryExecutiveTrades(
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
     docs = docs.filter((t) => matchesSubstringSafe(t.filer_name, needle));
+  }
+  if (query.filer_position) {
+    const needle = query.filer_position.toLowerCase();
+    docs = docs.filter((t) => matchesSubstringSafe(t.filer_position, needle));
   }
 
   const has_more = docs.length > userLimit;

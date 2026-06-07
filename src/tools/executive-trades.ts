@@ -40,6 +40,10 @@ export const definition: Tool = {
     "with get_congressional_trades (same shape) for cross-branch queries like",
     "'who in government traded NVDA': call both and merge by ticker + date.",
     "",
+    "To query by AGENCY/DEPARTMENT, use filer_position (substring) — the",
+    "department is embedded in the position title, e.g. filer_position:",
+    "'Health & Human Services', 'Treasury', 'Department of Defense'.",
+    "",
     "COVERAGE (v1): Cabinet secretaries and Senate-confirmed appointees, via",
     "the OGE PAS Index (clean electronic filings). The President and Vice",
     "President are NOT yet covered — their 278-Ts are published in a separate",
@@ -64,6 +68,11 @@ export const definition: Tool = {
         type: "string",
         description:
           "Full or partial filer name; case-insensitive substring match. Examples: 'Lutnick', 'Bessent'.",
+      },
+      filer_position: {
+        type: "string",
+        description:
+          "Case-insensitive substring against the filer's position/title, which carries the AGENCY/DEPARTMENT. This is how you query by agency. Examples: 'Health & Human Services' (note the ampersand, not 'and'), 'Treasury', 'Department of Defense', 'Secretary'. Free-text from OGE filings, so match on a distinctive phrase.",
       },
       filer_type: {
         type: "string",
@@ -155,6 +164,13 @@ function validateAndNormalize(raw: unknown): ExecutiveTradesQuery {
       throw new Error("filer_name must be a string");
     }
     out.filer_name = args.filer_name;
+  }
+
+  if (args.filer_position !== undefined) {
+    if (typeof args.filer_position !== "string") {
+      throw new Error("filer_position must be a string");
+    }
+    out.filer_position = args.filer_position;
   }
 
   if (args.filer_type !== undefined) {
