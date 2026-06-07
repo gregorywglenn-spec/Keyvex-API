@@ -50,6 +50,9 @@ export const definition: Tool = {
     "",
     "Security types: 'Bill', 'Note', 'Bond', 'TIPS', 'FRN', 'CMB' (cash-",
     "management bill). Use security_type filter to focus on one term group.",
+    "Note: Treasury reports TIPS and FRNs under security_type Note/Bond with an",
+    "inflation-indexed / floating-rate flag (not as their own type); filtering",
+    "security_type:'TIPS' or 'FRN' here resolves to those flags for convenience.",
   ].join(" "),
   inputSchema: {
     type: "object",

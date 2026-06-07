@@ -3999,6 +3999,34 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "inflation_indexed",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "treasury_auctions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "floating_rate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

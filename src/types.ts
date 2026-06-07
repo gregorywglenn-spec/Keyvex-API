@@ -3543,6 +3543,8 @@ export interface TreasuryAuction {
   reopening: boolean;
   callable: boolean;
   inflation_indexed: boolean;
+  /** FRN flag — Treasury reports FRNs under security_type "Note" with this set. */
+  floating_rate?: boolean;
   auction_format: string;
   interest_rate: number | null;
   pdf_announcement_url: string | null;

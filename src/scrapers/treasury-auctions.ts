@@ -109,6 +109,7 @@ interface RawAuction {
   reopening?: string;
   callable?: string;
   inflation_index_security?: string;
+  floating_rate?: string;
   auction_format?: string;
   int_rate?: string;
   pdf_filenm_announcemt?: string;
@@ -173,6 +174,7 @@ function normalize(raw: RawAuction, scrapedAt: string): TreasuryAuction | null {
     reopening: toBool(raw.reopening),
     callable: toBool(raw.callable),
     inflation_indexed: toBool(raw.inflation_index_security),
+    floating_rate: toBool(raw.floating_rate),
     auction_format: toStr(raw.auction_format),
     interest_rate: toNum(raw.int_rate),
     pdf_announcement_url: pdfUrl(raw.pdf_filenm_announcemt),

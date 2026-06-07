@@ -4176,7 +4176,17 @@ export async function queryTreasuryAuctions(
 
   if (query.cusip) q = q.where("cusip", "==", query.cusip);
   if (query.security_type) {
-    q = q.where("security_type", "==", query.security_type);
+    // Treasury does NOT use "TIPS"/"FRN" as security_type values — those are
+    // reported under security_type Note/Bond with a flag. Keep stored data
+    // source-faithful and translate these convenience labels to the flag query.
+    const st = query.security_type.toUpperCase();
+    if (st === "TIPS") {
+      q = q.where("inflation_indexed", "==", true);
+    } else if (st === "FRN") {
+      q = q.where("floating_rate", "==", true);
+    } else {
+      q = q.where("security_type", "==", query.security_type);
+    }
   }
   if (query.reopening !== undefined) {
     q = q.where("reopening", "==", query.reopening);
