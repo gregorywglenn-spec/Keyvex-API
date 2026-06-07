@@ -1622,9 +1622,11 @@ export async function queryExecutiveTrades(
   if (query.transaction_type) {
     q = q.where("transaction_type", "==", query.transaction_type);
   }
-  if (query.min_amount !== undefined) {
-    q = q.where("amount_min", ">=", query.min_amount);
-  }
+  // NOTE: min_amount is applied CLIENT-SIDE (below), not as a server where().
+  // A range filter on amount_min would force Firestore to order by amount_min
+  // first, which conflicts with sorting by date (the natural "biggest trades,
+  // newest first" intent). Collection is small, so a wide date-ordered fetch +
+  // client filter is correct and composes with the date sort + name filters.
 
   const sortField = query.sort_by ?? "filing_date";
   const sortOrder = query.sort_order ?? "desc";
@@ -1637,7 +1639,11 @@ export async function queryExecutiveTrades(
 
   const userLimit = query.limit ?? 50;
   const fetchLimit =
-    query.filer_name || query.filer_position ? 5000 : userLimit + 1;
+    query.filer_name ||
+    query.filer_position ||
+    query.min_amount !== undefined
+      ? 5000
+      : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -1650,6 +1656,10 @@ export async function queryExecutiveTrades(
   if (query.filer_position) {
     const needle = query.filer_position.toLowerCase();
     docs = docs.filter((t) => matchesSubstringSafe(t.filer_position, needle));
+  }
+  if (query.min_amount !== undefined) {
+    const min = query.min_amount;
+    docs = docs.filter((t) => Number(t.amount_min) >= min);
   }
 
   const has_more = docs.length > userLimit;
