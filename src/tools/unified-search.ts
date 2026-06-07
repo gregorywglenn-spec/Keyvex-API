@@ -18,11 +18,11 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   queryActivistOwnership,
-  queryConsumerComplaintsCache,
+  queryConsumerComplaints,
   queryCongressionalTrades,
   queryEnforcementActions,
   queryExecutiveTrades,
-  queryFederalContractAwardsCache,
+  queryFederalContractAwards,
   queryForm144Filings,
   queryForm278Filings,
   queryForm3Holdings,
@@ -391,12 +391,11 @@ const ADAPTERS: SourceAdapter[] = [
     name: "federal_contracts",
     call: (q, limit) => {
       if (!q.recipient_uei && !q.company_name) return null;
-      // unified_search deliberately uses the CACHE path (not the live-first
-      // path the dedicated get_federal_contracts tool uses): the fan-out fires
-      // many collections in parallel and must stay fast — an 8s live timeout
-      // per source would make the whole fan-out chatty and slow. The dedicated
-      // tool gets live data; the fan-out gets the cached subset.
-      return queryFederalContractAwardsCache({
+      // Live-first (same as the dedicated tool). The cached subset returns 0
+      // for most specific companies, which misleads "everything about X". The
+      // 8s-bounded live call + cache fallback is worth the completeness; the
+      // fan-out runs in parallel, so it's bounded by the slowest source.
+      return queryFederalContractAwards({
         ...(q.recipient_uei !== undefined && { recipient_uei: q.recipient_uei }),
         ...(q.company_name !== undefined && { recipient_name: q.company_name }),
         ...(q.since !== undefined && { since: q.since }),
@@ -432,9 +431,10 @@ const ADAPTERS: SourceAdapter[] = [
     name: "consumer_complaints",
     call: (q, limit) => {
       if (!q.company_name) return null;
-      // Cache path on purpose — see federal_contracts note above. The
-      // dedicated get_consumer_complaints tool is the live-first path.
-      return queryConsumerComplaintsCache({
+      // Live-first — see federal_contracts note above. Cache returned 0 for
+      // even Wells Fargo; live (now bounded ~1s via search_term) returns real
+      // complaints.
+      return queryConsumerComplaints({
         company: q.company_name,
         ...(q.since !== undefined && { since: q.since }),
         ...(q.until !== undefined && { until: q.until }),
