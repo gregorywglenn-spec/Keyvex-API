@@ -4127,7 +4127,7 @@
       ]
     },
     {
-      "collectionGroup": "fundamentals",
+      "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
         {
