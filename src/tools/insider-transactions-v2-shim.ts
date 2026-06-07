@@ -309,8 +309,18 @@ export function applyV2BackwardCompatShim(
   const transactionNature =
     row.transaction_nature ?? deriveTransactionNature(row.trans_code);
 
+  // The bulk loader (form345-bulk.ts) stored a malformed browse-edgar SEARCH
+  // url for source_url because it thought CIK wasn't on the row — but
+  // company_cik IS here. Build the real EDGAR Archives filing URL at serve-time
+  // so the link is actually auditable (fixes all rows without a 9.9M migration).
+  const filingUrl =
+    row.company_cik && row.accession_number
+      ? `https://www.sec.gov/Archives/edgar/data/${Number(row.company_cik)}/${row.accession_number.replace(/-/g, "")}/${row.accession_number}-index.htm`
+      : row.source_url;
+
   return {
     ...v2Rest,
+    source_url: filingUrl,
     row_type: v2TxType,
     transaction_type: buyOrSell,
     transaction_nature: transactionNature,
@@ -328,6 +338,6 @@ export function applyV2BackwardCompatShim(
     is_derivative: v2TxType === "deriv",
     reporting_lag_days: reportingLag,
     data_source: docTypeToLegacyDataSource(row.document_type),
-    sec_filing_url: row.source_url,
+    sec_filing_url: filingUrl,
   };
 }

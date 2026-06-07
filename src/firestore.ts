@@ -6222,7 +6222,12 @@ export async function queryFecCandidates(
   // fast and avoids the composite-index combinatorics. Same pattern as
   // queryLegislators.
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.candidate_name ? 2000 : Math.max(userLimit * 4, 500);
+  // candidate_name is a client-side substring over a ~25K-row reference
+  // collection ordered by last_file_date. A small window dropped older filers
+  // (e.g. Schumer, whose last filing predates thousands of 2026 candidates),
+  // so the name search must scan the whole collection. 30K reads on a tiny
+  // reference collection is cheap; guarantees no misses.
+  const fetchLimit = query.candidate_name ? 30000 : Math.max(userLimit * 4, 500);
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -6322,7 +6327,7 @@ export async function queryFecCommittees(
 
   // Client-side sort + substring filter — same rationale as queryFecCandidates.
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.committee_name ? 2000 : Math.max(userLimit * 4, 500);
+  const fetchLimit = query.committee_name ? 50000 : Math.max(userLimit * 4, 500);
   q = q.limit(fetchLimit);
 
   const snap = await q.get();

@@ -313,13 +313,16 @@ function buildOwners(ownerRows: Record<string, string>[] | undefined): BulkRepor
   });
 }
 
-function buildSourceUrl(accession: string): string {
-  // Accession 0001234567-25-000123 → EDGAR archive directory
-  //   /Archives/edgar/data/<unpadded_cik>/<accession_no_dashes>/<accession>-index.html
-  // But CIK isn't on the bulk row directly — use accession-only browse URL.
-  // SEC accepts the no-dashes form in their browse endpoint:
+function buildSourceUrl(accession: string, cik: string | undefined | null): string {
+  // Proper EDGAR Archives filing URL (auditable, resolves directly):
+  //   /Archives/edgar/data/<unpadded_cik>/<accession_no_dashes>/<accession>-index.htm
   const accNoDash = accession.replace(/-/g, "");
-  return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&filenum=&filenum=&type=&dateb=&owner=include&count=40&search_text=${accNoDash}`;
+  const cikNum = cik ? String(Number(cik)) : "";
+  if (cikNum && cikNum !== "0" && cikNum !== "NaN") {
+    return `https://www.sec.gov/Archives/edgar/data/${cikNum}/${accNoDash}/${accession}-index.htm`;
+  }
+  // Fallback only if CIK is somehow missing on the row.
+  return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&owner=include&count=40&search_text=${accNoDash}`;
 }
 
 function pad10(cik: string | undefined | null): string {
@@ -445,7 +448,7 @@ function buildTransaction(args: {
     source_zip: `${quarter}_form345.zip`,
     schema_era: era,
     bulk_loaded_at: loadedAt,
-    source_url: buildSourceUrl(accession),
+    source_url: buildSourceUrl(accession, submission.ISSUERCIK),
 
     accession_number: accession,
     filing_date: parseSecDate(submission.FILING_DATE) ?? transDate, // filing_date should be present; fall back to transDate as defense
@@ -609,7 +612,7 @@ function buildHolding(args: {
     source_zip: `${quarter}_form345.zip`,
     schema_era: era,
     bulk_loaded_at: loadedAt,
-    source_url: buildSourceUrl(accession),
+    source_url: buildSourceUrl(accession, submission.ISSUERCIK),
 
     accession_number: accession,
     filing_date: filingDate ?? periodOfReport!, // one of them is non-null per the guard above
@@ -701,7 +704,7 @@ function buildFiling(args: {
     source_zip: `${quarter}_form345.zip`,
     schema_era: era,
     bulk_loaded_at: loadedAt,
-    source_url: buildSourceUrl(accession),
+    source_url: buildSourceUrl(accession, submission.ISSUERCIK),
 
     accession_number: accession,
     filing_date: filingDate ?? periodOfReport!,
