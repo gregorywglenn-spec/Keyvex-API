@@ -442,8 +442,19 @@ export async function scrapeFecScheduleA(
     d.setUTCDate(d.getUTCDate() - options.lookbackDays);
     minDate = d.toISOString().slice(0, 10);
   }
-  if (!minDate && !maxDate && !options.committeeId && !options.candidateId) {
-    // Safety default: 7-day window so unfiltered runs don't blow up
+  if (
+    !minDate &&
+    !maxDate &&
+    !options.committeeId &&
+    !options.candidateId &&
+    !options.contributorEmployer &&
+    !options.contributorState
+  ) {
+    // 7-day safety default ONLY for truly unfiltered runs (protects the cron
+    // firehose). When a content filter (committee / candidate / employer /
+    // state) is present the result set is already bounded, so let the cycle
+    // window cover the full 2-year period — otherwise e.g. an employer search
+    // with no date silently returned only the last 7 days (≈ nothing).
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - 7);
     minDate = d.toISOString().slice(0, 10);
