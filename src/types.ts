@@ -3203,11 +3203,9 @@ export interface OigExclusionsQuery {
   exclusion_type?: string;
   npi?: string;
   is_business?: boolean;
-  /** When true, filter to entries that have been reinstated. Default: all. */
-  is_reinstated?: boolean;
   since?: string;
   until?: string;
-  sort_by?: "exclusion_date" | "reinstatement_date";
+  sort_by?: "exclusion_date";
   sort_order?: "desc" | "asc";
   limit?: number;
 }

@@ -50,11 +50,15 @@ export const definition: Tool = {
     "  - 1128b7  Fraud, kickbacks, and other prohibited activities",
     "  - 1128b8  Entities controlled by a sanctioned individual",
     "",
+    "Scope: the LEIE lists only CURRENTLY-ACTIVE exclusions — OIG removes a",
+    "party once reinstated (reinstatements are a separate OIG publication not",
+    "ingested here). So every record is, by definition, an active exclusion,",
+    "and reinstatement_date is effectively always empty.",
+    "",
     "Pure-publisher posture: we surface the listing as-published. Some",
     "names match common-name individuals who aren't the excluded party —",
     "the agent / user is responsible for context disambiguation (DOB,",
-    "address, NPI). Reinstatement_date populated means the exclusion has",
-    "been lifted.",
+    "address, NPI).",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -97,11 +101,6 @@ export const definition: Tool = {
         type: "boolean",
         description: "Filter to businesses only (true) or individuals only (false).",
       },
-      is_reinstated: {
-        type: "boolean",
-        description:
-          "Filter to entries whose exclusion has been lifted (true) or only currently-excluded (false).",
-      },
       since: {
         type: "string",
         description: "ISO date (YYYY-MM-DD). Applied to sort_by field.",
@@ -112,7 +111,7 @@ export const definition: Tool = {
       },
       sort_by: {
         type: "string",
-        enum: ["exclusion_date", "reinstatement_date"],
+        enum: ["exclusion_date"],
         description: "Default exclusion_date.",
       },
       sort_order: {
@@ -183,17 +182,13 @@ function validateAndNormalize(raw: unknown): OigExclusionsQuery {
   if (args.is_business !== undefined) {
     out.is_business = parseBooleanArg(args.is_business, "is_business");
   }
-  if (args.is_reinstated !== undefined) {
-    out.is_reinstated = parseBooleanArg(args.is_reinstated, "is_reinstated");
-  }
   if (args.since !== undefined) out.since = parseIsoDate(args.since, "since");
   if (args.until !== undefined) out.until = parseIsoDate(args.until, "until");
   if (args.sort_by !== undefined) {
-    if (
-      args.sort_by !== "exclusion_date" &&
-      args.sort_by !== "reinstatement_date"
-    ) {
-      throw new Error(`INVALID sort_by: '${String(args.sort_by)}'`);
+    if (args.sort_by !== "exclusion_date") {
+      throw new Error(
+        `INVALID sort_by: '${String(args.sort_by)}' — only 'exclusion_date' is supported`,
+      );
     }
     out.sort_by = args.sort_by;
   }

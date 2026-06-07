@@ -3995,16 +3995,15 @@ export async function queryOigExclusions(
 
   const userLimit = query.limit ?? 50;
 
-  // Substring filters (name, business_name, city, specialty, is_reinstated)
-  // need a wide window. OIG collection is ~90K records so we cap fetch at
-  // 20000 to balance memory vs coverage. Combine with state filter to
-  // narrow when possible.
+  // Substring filters (name, business_name, city, specialty) need a wide
+  // window. OIG collection is ~90K records so we cap fetch at 20000 to
+  // balance memory vs coverage. Combine with state filter to narrow when
+  // possible.
   const needsClientSideFilter =
     query.name ||
     query.business_name ||
     query.city ||
-    query.specialty ||
-    query.is_reinstated !== undefined;
+    query.specialty;
   const fetchLimit = needsClientSideFilter ? 20000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
@@ -4028,13 +4027,6 @@ export async function queryOigExclusions(
   if (query.specialty) {
     const needle = query.specialty.toLowerCase();
     docs = docs.filter((e) => matchesSubstringSafe(e.specialty, needle));
-  }
-  if (query.is_reinstated !== undefined) {
-    docs = docs.filter((e) =>
-      query.is_reinstated
-        ? e.reinstatement_date !== null
-        : e.reinstatement_date === null,
-    );
   }
 
   const has_more = docs.length > userLimit;
