@@ -4,2134 +4,4000 @@
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "percent_of_class", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percent_of_class",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cusip", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cusip",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_cik", "order": "ASCENDING" },
-        { "fieldPath": "percent_of_class", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percent_of_class",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_activist", "order": "ASCENDING" },
-        { "fieldPath": "event_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_activist",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "event_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_activist", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_activist",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_activist", "order": "ASCENDING" },
-        { "fieldPath": "percent_of_class", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_activist",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percent_of_class",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_activist", "order": "ASCENDING" },
-        { "fieldPath": "shares_owned", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_activist",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_owned",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "event_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "event_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "percent_of_class", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "percent_of_class",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "activist_ownership",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "shares_owned", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_owned",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "annual_financial_disclosures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "annual_financial_disclosures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "annual_financial_disclosures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "chamber", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "annual_financial_disclosures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "annual_financial_disclosures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "report_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "report_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "annual_financial_disclosures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "state", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "bills",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bill_type", "order": "ASCENDING" },
-        { "fieldPath": "latest_action_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bill_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "latest_action_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "bills",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "congress", "order": "ASCENDING" },
-        { "fieldPath": "latest_action_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "congress",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "latest_action_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "cftc_cot_reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cftc_contract_market_code", "order": "ASCENDING" },
-        { "fieldPath": "noncomm_net", "order": "DESCENDING" }
+        {
+          "fieldPath": "cftc_contract_market_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "noncomm_net",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "cftc_cot_reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cftc_contract_market_code", "order": "ASCENDING" },
-        { "fieldPath": "report_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cftc_contract_market_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "report_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "cftc_cot_reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "commodity_name", "order": "ASCENDING" },
-        { "fieldPath": "comm_net", "order": "DESCENDING" }
+        {
+          "fieldPath": "commodity_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "comm_net",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "cftc_cot_reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "commodity_name", "order": "ASCENDING" },
-        { "fieldPath": "noncomm_net", "order": "DESCENDING" }
+        {
+          "fieldPath": "commodity_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "noncomm_net",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "cftc_cot_reports",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "commodity_name", "order": "ASCENDING" },
-        { "fieldPath": "report_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "commodity_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "report_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bioguide_id", "order": "ASCENDING" },
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "chamber", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "owner", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" },
-        { "fieldPath": "amount_min", "order": "DESCENDING" }
+        {
+          "fieldPath": "owner",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "amount_min",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "chamber", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "congressional_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" },
-        { "fieldPath": "amount_min", "order": "DESCENDING" }
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "amount_min",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "consumer_complaints",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "product", "order": "ASCENDING" },
-        { "fieldPath": "date_received", "order": "DESCENDING" }
+        {
+          "fieldPath": "product",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_received",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "consumer_complaints",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "state", "order": "ASCENDING" },
-        { "fieldPath": "date_received", "order": "DESCENDING" }
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_received",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "consumer_complaints",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "sub_product", "order": "ASCENDING" },
-        { "fieldPath": "date_received", "order": "DESCENDING" }
+        {
+          "fieldPath": "sub_product",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_received",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "consumer_complaints",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "submitted_via", "order": "ASCENDING" },
-        { "fieldPath": "date_received", "order": "DESCENDING" }
+        {
+          "fieldPath": "submitted_via",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_received",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "consumer_complaints",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "timely_response", "order": "ASCENDING" },
-        { "fieldPath": "date_received", "order": "DESCENDING" }
+        {
+          "fieldPath": "timely_response",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_received",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "category", "order": "ASCENDING" },
-        { "fieldPath": "period", "order": "DESCENDING" }
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "period_type", "order": "ASCENDING" },
-        { "fieldPath": "period", "order": "DESCENDING" }
+        {
+          "fieldPath": "period_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "series_id", "order": "ASCENDING" },
-        { "fieldPath": "period", "order": "DESCENDING" }
+        {
+          "fieldPath": "series_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source", "order": "ASCENDING" },
-        { "fieldPath": "category", "order": "ASCENDING" },
-        { "fieldPath": "period", "order": "DESCENDING" }
+        {
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source", "order": "ASCENDING" },
-        { "fieldPath": "period", "order": "DESCENDING" }
+        {
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "economic_indicators",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source", "order": "ASCENDING" },
-        { "fieldPath": "series_id", "order": "ASCENDING" },
-        { "fieldPath": "period", "order": "DESCENDING" }
+        {
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "series_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "enforcement_actions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source", "order": "ASCENDING" },
-        { "fieldPath": "published_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "published_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "enforcement_actions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "topics", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "published_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "topics",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "published_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_candidates",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cycles", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cycles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_candidates",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "office", "order": "ASCENDING" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "office",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_candidates",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "party", "order": "ASCENDING" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "party",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_candidates",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "state", "order": "ASCENDING" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_committees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_ids", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_ids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_committees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "committee_type", "order": "ASCENDING" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "committee_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_committees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cycles", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cycles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_committees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "designation", "order": "ASCENDING" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "designation",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_committees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "state", "order": "ASCENDING" },
-        { "fieldPath": "last_file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "contributor_state", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "contributor_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "contributor_state", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "contributor_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "contributor_state", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "contributor_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "entity_type", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "entity_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "entity_type", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "entity_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "entity_type", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "entity_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_committee_id", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_committee_id", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_committee_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_committee_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_contributions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "contribution_receipt_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "contribution_receipt_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_office_state", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_office_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_office_state", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_office_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "candidate_office_state", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "candidate_office_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "committee_id", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "committee_id", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "committee_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "committee_id", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "committee_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "support_oppose_indicator", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "support_oppose_indicator",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "support_oppose_indicator", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "support_oppose_indicator",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "support_oppose_indicator", "order": "ASCENDING" },
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "support_oppose_indicator",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "fec_independent_expenditures",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "two_year_transaction_period", "order": "ASCENDING" },
-        { "fieldPath": "expenditure_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "two_year_transaction_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
-        { "fieldPath": "award_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "awarding_agency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "award_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "awarding_agency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
-        { "fieldPath": "naics_code", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "awarding_agency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "naics_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "naics_code", "order": "ASCENDING" },
-        { "fieldPath": "award_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "naics_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "award_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "naics_code", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "naics_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "psc_code", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "psc_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_uei", "order": "ASCENDING" },
-        { "fieldPath": "award_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_uei",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "award_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_uei", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_uei",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_uei", "order": "ASCENDING" },
-        { "fieldPath": "start_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_uei",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_contracts",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_uei", "order": "ASCENDING" },
-        { "fieldPath": "total_outlays", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_uei",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_outlays",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_grants",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
-        { "fieldPath": "award_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "awarding_agency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "award_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_grants",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "awarding_agency", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "awarding_agency",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_grants",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cfda_number", "order": "ASCENDING" },
-        { "fieldPath": "award_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "cfda_number",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "award_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_grants",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cfda_number", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cfda_number",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_grants",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "recipient_uei", "order": "ASCENDING" },
-        { "fieldPath": "last_modified_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "recipient_uei",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_register_documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "agency_slugs", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "publication_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "agency_slugs",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "publication_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "federal_register_documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "document_type", "order": "ASCENDING" },
-        { "fieldPath": "publication_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "document_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publication_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "foreign_agents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "foreign_principal_country", "order": "ASCENDING" },
-        { "fieldPath": "foreign_principal_reg_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "foreign_principal_country",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "foreign_principal_reg_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "foreign_agents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "foreign_principal_country", "order": "ASCENDING" },
-        { "fieldPath": "registration_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "foreign_principal_country",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registration_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "foreign_agents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "has_foreign_principal", "order": "ASCENDING" },
-        { "fieldPath": "registration_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "has_foreign_principal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registration_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "foreign_agents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "registration_number", "order": "ASCENDING" },
-        { "fieldPath": "registration_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "registration_number",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "registration_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "gov_documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "collection", "order": "ASCENDING" },
-        { "fieldPath": "date_issued", "order": "DESCENDING" }
+        {
+          "fieldPath": "collection",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "gov_documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "collection", "order": "ASCENDING" },
-        { "fieldPath": "last_modified", "order": "DESCENDING" }
+        {
+          "fieldPath": "collection",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_modified",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "gov_documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "congress", "order": "ASCENDING" },
-        { "fieldPath": "date_issued", "order": "DESCENDING" }
+        {
+          "fieldPath": "congress",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "gov_documents",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "doc_class", "order": "ASCENDING" },
-        { "fieldPath": "date_issued", "order": "DESCENDING" }
+        {
+          "fieldPath": "doc_class",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "shares_owned", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_owned",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_derivative", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "is_derivative", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "is_derivative", "order": "ASCENDING" },
-        { "fieldPath": "shares_owned", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_owned",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "initial_ownership_baselines",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "shares_owned", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_owned",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_filings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_filings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "document_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "document_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_filings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_holdings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_of_report",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_holdings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "reporting_owner_cik", "order": "ASCENDING" },
-        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+        {
+          "fieldPath": "reporting_owner_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_of_report",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_holdings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "holding_type", "order": "ASCENDING" },
-        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "holding_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_of_report",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_holdings_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_of_report",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_derivative", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "is_derivative", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_code", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "disclosure_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "disclosure_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "ASCENDING" }
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "total_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "aff10b5one", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "aff10b5one",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "reporting_owner_cik", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "reporting_owner_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "schema_era", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "schema_era",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "aff10b5one", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "aff10b5one",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "trans_code", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "trans_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "insider_transactions_v2",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "trans_code", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "trans_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cusip", "order": "ASCENDING" },
-        { "fieldPath": "market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "cusip",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "fund_cik", "order": "ASCENDING" },
-        { "fieldPath": "market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "fund_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "position_change", "order": "ASCENDING" },
-        { "fieldPath": "market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "position_change",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "quarter", "order": "ASCENDING" },
-        { "fieldPath": "market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "quarter",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "shares_change_pct", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_change_pct",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "institutional_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "shares_held", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "shares_held",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_period", "order": "ASCENDING" },
-        { "fieldPath": "dt_posted", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dt_posted",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_period", "order": "ASCENDING" },
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "income", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "general_issue_codes",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "income",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "dt_posted", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dt_posted",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "filing_period", "order": "ASCENDING" },
-        { "fieldPath": "dt_posted", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dt_posted",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "dt_posted", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "general_issue_codes",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "dt_posted",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_year", "order": "ASCENDING" },
-        { "fieldPath": "income", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "income",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "dt_posted", "order": "DESCENDING" }
+        {
+          "fieldPath": "general_issue_codes",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "dt_posted",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "lobbying_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "general_issue_codes", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "income", "order": "DESCENDING" }
+        {
+          "fieldPath": "general_issue_codes",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "income",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "material_events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "material_events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_amendment", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_amendment",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "material_events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "item_codes", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "item_codes",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "material_events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "material_events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "item_codes", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "item_codes",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "material_events",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "period_of_report", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_of_report",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_cik", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "period_ending", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "period_ending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "sec_file_number", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "sec_file_number",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "asset_cat", "order": "ASCENDING" },
-        { "fieldPath": "value_usd", "order": "DESCENDING" }
+        {
+          "fieldPath": "asset_cat",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cusip", "order": "ASCENDING" },
-        { "fieldPath": "value_usd", "order": "DESCENDING" }
+        {
+          "fieldPath": "cusip",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "derivative_type", "order": "ASCENDING" },
-        { "fieldPath": "value_usd", "order": "DESCENDING" }
+        {
+          "fieldPath": "derivative_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_cik", "order": "ASCENDING" },
-        { "fieldPath": "value_usd", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_id", "order": "ASCENDING" },
-        { "fieldPath": "value_usd", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_derivative", "order": "ASCENDING" },
-        { "fieldPath": "period_ending", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_ending",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "nport_holdings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "value_usd", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "ofac_sdn",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "entity_type", "order": "ASCENDING" },
-        { "fieldPath": "ent_num", "order": "ASCENDING" }
+        {
+          "fieldPath": "entity_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ent_num",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "oig_exclusions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "exclusion_type", "order": "ASCENDING" },
-        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "exclusion_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "exclusion_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "oig_exclusions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "general_category", "order": "ASCENDING" },
-        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "general_category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "exclusion_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "oig_exclusions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_business", "order": "ASCENDING" },
-        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_business",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "exclusion_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "oig_exclusions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "state", "order": "ASCENDING" },
-        { "fieldPath": "exclusion_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "exclusion_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "aggregate_market_value", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "aggregate_market_value",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "aggregate_market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "aggregate_market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "aggregate_market_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "aggregate_market_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "approximate_sale_date", "order": "ASCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "approximate_sale_date",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "approximate_sale_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "approximate_sale_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "planned_insider_sales",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "private_placements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "federal_exemptions", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "federal_exemptions",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "private_placements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_amendment", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_amendment",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "private_placements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "issuer_cik", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "issuer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "private_placements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "issuer_state", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "issuer_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "product_recalls",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "classification", "order": "ASCENDING" },
-        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "classification",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recall_initiation_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "product_recalls",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source", "order": "ASCENDING" },
-        { "fieldPath": "classification", "order": "ASCENDING" },
-        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "classification",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recall_initiation_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "product_recalls",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source", "order": "ASCENDING" },
-        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recall_initiation_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "product_recalls",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recall_initiation_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "product_recalls",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "vehicle_make", "order": "ASCENDING" },
-        { "fieldPath": "recall_initiation_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "vehicle_make",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recall_initiation_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "proxy_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "proxy_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "proxy_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "is_merger_related", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "is_merger_related",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "proxy_filings",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "registration_statements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_cik", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "registration_statements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_ticker", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "registration_statements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filing_type", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filing_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "registration_statements",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "sec_file_number", "order": "ASCENDING" },
-        { "fieldPath": "file_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "sec_file_number",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "roll_call_votes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bill_id", "order": "ASCENDING" },
-        { "fieldPath": "start_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bill_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "roll_call_votes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "congress", "order": "ASCENDING" },
-        { "fieldPath": "start_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "congress",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "screening_list",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "countries", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "name", "order": "ASCENDING" }
+        {
+          "fieldPath": "countries",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "screening_list",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "source_short", "order": "ASCENDING" },
-        { "fieldPath": "name", "order": "ASCENDING" }
+        {
+          "fieldPath": "source_short",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "screening_list",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "name", "order": "ASCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "sec_fails_to_deliver",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cusip", "order": "ASCENDING" },
-        { "fieldPath": "settlement_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cusip",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "settlement_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "sec_fails_to_deliver",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "fail_value", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fail_value",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "sec_fails_to_deliver",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "quantity_fails", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "quantity_fails",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "sec_fails_to_deliver",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "settlement_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "settlement_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "tender_offers",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "target_ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "target_ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "auction_date", "order": "DESCENDING" },
-        { "fieldPath": "bid_to_cover_ratio", "order": "DESCENDING" }
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "bid_to_cover_ratio",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "auction_date", "order": "DESCENDING" },
-        { "fieldPath": "offering_amount", "order": "DESCENDING" }
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "offering_amount",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "bid_to_cover_ratio", "order": "ASCENDING" },
-        { "fieldPath": "auction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "bid_to_cover_ratio",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cusip", "order": "ASCENDING" },
-        { "fieldPath": "auction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "cusip",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "offering_amount", "order": "ASCENDING" },
-        { "fieldPath": "auction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "offering_amount",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "reopening", "order": "ASCENDING" },
-        { "fieldPath": "auction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "reopening",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "treasury_auctions",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "security_type", "order": "ASCENDING" },
-        { "fieldPath": "auction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "security_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "auction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "category", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "cik", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "company_cik", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "concept", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "concept",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "category", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "category",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "concept", "order": "ASCENDING" },
-        { "fieldPath": "form", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "concept",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "form",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "concept", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "concept",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "fiscal_period", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fiscal_period",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "fiscal_year", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fiscal_year",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "form", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "form",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "xbrl_fundamentals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "period_end", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "period_end",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "filer_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "filer_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ticker", "order": "ASCENDING" },
-        { "fieldPath": "transaction_type", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "amount_min", "order": "ASCENDING" },
-        { "fieldPath": "filing_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "amount_min",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "executive_trades",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "amount_min", "order": "ASCENDING" },
-        { "fieldPath": "transaction_date", "order": "DESCENDING" }
+        {
+          "fieldPath": "amount_min",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "institutional_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cusip",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tender_offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "target_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tender_offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bidder_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tender_offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "form_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tender_offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "is_issuer_tender",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tender_offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "is_amendment",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "insider_transactions_v2",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "reporting_owner_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

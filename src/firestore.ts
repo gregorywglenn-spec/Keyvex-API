@@ -6124,11 +6124,15 @@ export async function queryTenderOffers(
     q = q.where("is_amendment", "==", false);
   }
 
-  // Client-side sort + substring filter (same pattern as FEC / legislators).
+  // Order by filing_date SERVER-SIDE so the fetched window is the most-recent
+  // filings. Without this, Firestore returned an arbitrary (doc-id-ordered,
+  // i.e. oldest 2001-era) window, and a `since` filter for recent dates matched
+  // nothing. Composite indexes exist for each equality filter + filing_date.
   const userLimit = query.limit ?? 50;
+  const sortOrder = query.sort_order ?? "desc";
   const needsClient = query.target_name || query.bidder_name;
   const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
-  q = q.limit(fetchLimit);
+  q = q.orderBy("filing_date", sortOrder).limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as TenderOffer);
@@ -6148,7 +6152,6 @@ export async function queryTenderOffers(
   if (query.since) docs = docs.filter((o) => o.filing_date >= query.since!);
   if (query.until) docs = docs.filter((o) => o.filing_date <= query.until!);
 
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     if (a.filing_date === b.filing_date) return 0;
     const cmp = a.filing_date < b.filing_date ? -1 : 1;

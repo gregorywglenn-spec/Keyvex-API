@@ -120,6 +120,30 @@
       "script": "scripts/backfill-fec-ie-api.ts",
       "args": [],
       "family": "FEC_API",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "roll-call-votes",
+      "script": "scripts/backfill-roll-call-votes.ts",
+      "args": [],
+      "family": "CONGRESS",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "cftc-cot",
+      "script": "scripts/backfill-cftc-cot.ts",
+      "args": [],
+      "family": "CFTC",
+      "status": "done",
+      "restarts": 0
+    },
+    {
+      "name": "13f-tickers",
+      "script": "scripts/backfill-13f-tickers.ts",
+      "args": [],
+      "family": "OPENFIGI",
       "status": "pending",
       "restarts": 0
     }

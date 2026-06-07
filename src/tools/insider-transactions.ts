@@ -807,16 +807,19 @@ function validateAndNormalizeV2(raw: unknown): InsiderTransactionsV2Query {
   }
 
   if (args.sort_by !== undefined) {
-    // v2 sort_by is a different (smaller) enum than legacy. If a caller passes
-    // a legacy-only sort field (e.g. "disclosure_date" or "total_value") with
-    // data_source="bulk_v2", reject early with a clear error rather than
-    // silently re-mapping — neither field exists on the v2 schema.
-    if (args.sort_by !== "transaction_date" && args.sort_by !== "filing_date") {
+    // v2 sort_by is a smaller enum than legacy. "disclosure_date" is the legacy
+    // alias for v2's "filing_date" (the date the filing was disclosed/filed), so
+    // map it transparently instead of erroring. "total_value" has no indexed
+    // equivalent on the 9.9M-row v2 schema, so point the caller at the legacy
+    // backend (which can sort by it) rather than failing opaquely.
+    let sb = args.sort_by;
+    if (sb === "disclosure_date") sb = "filing_date";
+    if (sb !== "transaction_date" && sb !== "filing_date") {
       throw new Error(
-        `INVALID sort_by for data_source='bulk_v2': '${String(args.sort_by)}' — expected 'transaction_date' or 'filing_date'. Legacy-only values (disclosure_date, total_value) are not available on the v2 schema.`,
+        `INVALID sort_by for data_source='bulk_v2': '${String(args.sort_by)}' — v2 supports 'transaction_date' or 'filing_date' ('disclosure_date' maps to filing_date). To sort by 'total_value', pass data_source='legacy', or use min_amount to focus on large trades and sort by transaction_date.`,
       );
     }
-    out.sort_by = args.sort_by;
+    out.sort_by = sb;
   }
 
   if (args.sort_order !== undefined) {
