@@ -55,8 +55,28 @@ export function applyToolHandlers(server: Server): void {
         `No tool registered named '${request.params.name}'`,
       );
     }
+    const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+    // Enforce the tool schema's additionalProperties:false. The SDK does not
+    // validate args against inputSchema, so an unknown/misspelled param was
+    // silently dropped and the tool returned UNFILTERED data that looked like a
+    // legitimate match (e.g. company_name on a tool that only supports ticker).
+    // Reject unknown params with an actionable error listing the valid ones.
+    const schema = tool.definition.inputSchema as {
+      properties?: Record<string, unknown>;
+      additionalProperties?: boolean;
+    };
+    if (schema.additionalProperties === false && schema.properties) {
+      const known = Object.keys(schema.properties);
+      const unknown = Object.keys(args).filter((k) => !known.includes(k));
+      if (unknown.length > 0) {
+        return errorResult(
+          "UNKNOWN_PARAMETER",
+          `Unknown parameter(s): ${unknown.join(", ")}. Valid parameters for ${request.params.name}: ${known.join(", ")}.`,
+        );
+      }
+    }
     try {
-      const result = await tool.handler(request.params.arguments ?? {});
+      const result = await tool.handler(args);
       return {
         content: [
           { type: "text" as const, text: JSON.stringify(result, null, 2) },
