@@ -1879,9 +1879,9 @@ export interface OfacSdnQuery {
 export interface RegistrationStatement {
   /** EDGAR accession number, primary key. */
   filing_id: string;
-  /** "S-1" | "S-1/A" | "S-3" | "S-3/A". */
+  /** "S-1" | "S-1/A" | "S-3" | "S-3/A" | "S-3ASR" (WKSI auto shelf). */
   filing_type: string;
-  /** True when filing_type ends in /A. */
+  /** True when filing_type ends in /A or is a post-effective amendment (carries POS). */
   is_amendment: boolean;
   /** ISO date filed. */
   file_date: string;
@@ -1914,9 +1914,15 @@ export interface RegistrationStatementsQuery {
   /** Ticker filter (e.g., 'KPTI'). */
   filer_ticker?: string;
   /** Filter to exact filing_type. */
-  filing_type?: "S-1" | "S-1/A" | "S-3" | "S-3/A";
-  /** When true, only S-1 family (IPO-style). When false, only S-3 family (shelf). */
+  filing_type?:
+    | "S-1"
+    | "S-1/A"
+    | "S-3"
+    | "S-3/A"
+    | "S-3ASR";
+  /** When true, restrict to S-1 family (S-1 + S-1/A, IPO-style). */
   s1_only?: boolean;
+  /** When true, restrict to S-3 family (S-3 + S-3/A + S-3ASR, shelf). */
   s3_only?: boolean;
   /** When true, exclude amendments. Default false. */
   exclude_amendments?: boolean;

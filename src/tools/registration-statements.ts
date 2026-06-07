@@ -23,21 +23,20 @@ import type {
 export const definition: Tool = {
   name: "get_registration_statements",
   annotations: {
-    title: "Registration Statements (SEC S-1/S-3/S-3ASR/S-8)",
+    title: "Registration Statements (SEC S-1/S-3/S-3ASR)",
     readOnlyHint: true,
     destructiveHint: false,
     openWorldHint: true,
   },
   description: [
-    "Returns SEC Form S-1 / S-3 / S-3ASR / S-8 registration statements —",
+    "Returns SEC Form S-1 / S-3 / S-3ASR registration statements —",
     "securities offering registrations filed with the SEC. Use this when",
     "the user asks about: which companies are going public (IPO pipeline",
     "via S-1), shelf registrations (S-3 / S-3ASR — company registers",
     "securities to sell over multiple offerings without re-registering;",
     "large established issuers use the automatic S-3ASR variant),",
-    "employee-benefit-plan registrations (S-8), recent secondary",
-    "offerings, registration amendments updating prior filings, or to",
-    "bridge from a company name / ticker to the prospectus prose.",
+    "recent secondary offerings, registration amendments updating prior",
+    "filings, or to bridge from a company name / ticker to the prospectus prose.",
     "",
     "Forms covered:",
     "  S-1    — Initial registration (IPO + first-time registrants)",
@@ -50,9 +49,6 @@ export const definition: Tool = {
     "           Well-Known Seasoned Issuers (large established companies",
     "           like Apple, Ford, most of the S&P 500). Effective on",
     "           filing. These issuers file S-3ASR, NOT plain S-3.",
-    "  S-8    — Securities registered under employee benefit plans",
-    "           (stock option / ESPP / 401k pools)",
-    "  S-8 POS — Post-effective amendment to an S-8",
     "",
     "Source: SEC EDGAR full-text search. Returns one record per filing,",
     "deduped by accession. Exhibit attachments (EX-10, opinion letters,",
@@ -66,11 +62,10 @@ export const definition: Tool = {
     "agents follow for the prose.",
     "",
     "SCOPE — covers S-1 (IPO), S-3 + S-3ASR (shelf, including WKSI auto",
-    "shelves), and S-8 + S-8 POS (employee-benefit-plan registrations),",
-    "plus /A amendments. S-4 merger/acquisition registrations and",
-    "F-series foreign-issuer forms are NOT ingested. 424B prospectus",
-    "supplements (offering takedowns off an existing shelf) are out of",
-    "scope — query the shelf registration itself.",
+    "shelves), plus /A amendments. S-8 employee-benefit-plan registrations,",
+    "S-4 merger/acquisition registrations, and F-series foreign-issuer forms",
+    "are NOT ingested. 424B prospectus supplements (offering takedowns off an",
+    "existing shelf) are out of scope — query the shelf registration itself.",
     "",
     "Amendment chains: all amendments share the same sec_file_number as",
     "the original. Use sec_file_number filter to fetch an entire amendment",
@@ -102,7 +97,7 @@ export const definition: Tool = {
       },
       filing_type: {
         type: "string",
-        enum: ["S-1", "S-1/A", "S-3", "S-3/A", "S-3ASR", "S-8", "S-8 POS"],
+        enum: ["S-1", "S-1/A", "S-3", "S-3/A", "S-3ASR"],
         description: "Exact filing-type match.",
       },
       s1_only: {
@@ -210,7 +205,7 @@ function validateAndNormalize(raw: unknown): RegistrationStatementsQuery {
   if (args.filing_type !== undefined) {
     if (
       typeof args.filing_type !== "string" ||
-      !["S-1", "S-1/A", "S-3", "S-3/A", "S-3ASR", "S-8", "S-8 POS"].includes(
+      !["S-1", "S-1/A", "S-3", "S-3/A", "S-3ASR"].includes(
         args.filing_type,
       )
     ) {

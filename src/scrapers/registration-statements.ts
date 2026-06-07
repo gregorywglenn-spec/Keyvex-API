@@ -11,8 +11,19 @@
  *
  * Filter quirk: EDGAR FTS surfaces all attachments alongside the primary
  * (sequence=1) document. We filter to file_type that exactly matches
- * the canonical filing types (S-1, S-1/A, S-3, S-3/A) to drop EX-10
- * supplemental agreements, EX-FILING FEES, opinion letters, etc.
+ * the canonical filing types to drop EX-10 supplemental agreements,
+ * EX-FILING FEES, opinion letters, etc.
+ *
+ * Form coverage: plain S-1/S-3 (IPO + non-WKSI shelf) PLUS S-3ASR
+ * (automatic shelf registration — the form ALL Well-Known Seasoned
+ * Issuers use, e.g. Apple/Ford/most S&P 500; they file zero plain S-3).
+ * Without S-3ASR, major issuers are entirely absent from the collection.
+ *
+ * Deliberately EXCLUDED: S-8 / S-8 POS (employee-benefit-plan share
+ * registrations) — high-volume (~1,500/month over 25 years) and low-signal
+ * for an investor audience (employee comp / dilution, not capital-raising);
+ * and 424B prospectus supplements — offering takedowns, not registration
+ * statements, and a single 424B variant exceeds the 10k FTS monthly cap.
  */
 
 import type { RegistrationStatement } from "../types.js";
@@ -24,11 +35,25 @@ const CONFIG = {
   SEARCH_URL: "https://efts.sec.gov/LATEST/search-index",
   RATE_LIMIT_MS: 150,
   FTS_HITS_PER_PAGE: 100,
-  FORM_CODES: ["S-1", "S-1/A", "S-3", "S-3/A"],
+  FORM_CODES: ["S-1", "S-1/A", "S-3", "S-3/A", "S-3ASR"],
 };
 
-/** Canonical filing types we keep — must exactly match. */
-const KEEP_FILE_TYPES = new Set(["S-1", "S-1/A", "S-3", "S-3/A"]);
+/** Canonical filing types we keep — must exactly match the form code. */
+const KEEP_FILE_TYPES = new Set([
+  "S-1",
+  "S-1/A",
+  "S-3",
+  "S-3/A",
+  "S-3ASR",
+]);
+
+/**
+ * A filing is an amendment if its form ends in "/A" (S-1/A, S-3/A) or is a
+ * post-effective amendment ("S-8 POS", "POS AM" etc. — anything carrying POS).
+ */
+function isAmendmentType(fileType: string): boolean {
+  return fileType.endsWith("/A") || fileType.includes("POS");
+}
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -118,7 +143,7 @@ function normalizeHit(
   return {
     filing_id: accession,
     filing_type: fileType,
-    is_amendment: fileType.endsWith("/A"),
+    is_amendment: isAmendmentType(fileType),
     file_date: src.file_date ?? "",
     filer_name: display.name,
     filer_cik: filerCik,

@@ -25,8 +25,6 @@ import type { RegistrationStatement } from "../src/types.js";
 const UA = process.env.SEC_USER_AGENT ?? "KeyVexMCP/0.1 contact@keyvex.com";
 const SEARCH_URL = "https://efts.sec.gov/LATEST/search-index";
 const EDGAR_URL = "https://www.sec.gov";
-const FORM_CODES = ["S-1", "S-1/A", "S-3", "S-3/A"];
-const KEEP_FILE_TYPES = new Set(["S-1", "S-1/A", "S-3", "S-3/A"]);
 const PAGE = 100;
 const RATE_MS = 200;
 
@@ -34,7 +32,30 @@ const SAVE = process.argv.includes("--save");
 const ONLY = process.argv.find((a) => a.startsWith("--only="))?.split("=")[1];
 const START = process.argv.find((a) => a.startsWith("--start="))?.split("=")[1];
 const END = process.argv.find((a) => a.startsWith("--end="))?.split("=")[1];
-const PROG = ".tmp/regstmt-backfill-progress.json";
+
+// --forms=A,B,C overrides the default set. Used to backfill ONLY the newly-added
+// form codes (S-3ASR / S-8 / S-8 POS) across history without re-fetching the
+// S-1/S-3 history that's already in the collection. The default set mirrors
+// src/scrapers/registration-statements.ts CONFIG.FORM_CODES exactly.
+const FORMS_OVERRIDE = process.argv
+  .find((a) => a.startsWith("--forms="))
+  ?.split("=")[1];
+const FORM_CODES = FORMS_OVERRIDE
+  ? FORMS_OVERRIDE.split(",").map((s) => s.trim()).filter(Boolean)
+  : ["S-1", "S-1/A", "S-3", "S-3/A", "S-3ASR"];
+const KEEP_FILE_TYPES = new Set(FORM_CODES);
+
+// A filing is an amendment if its form ends in "/A" or is a post-effective
+// amendment (anything carrying "POS", e.g. "S-8 POS", "POS AM").
+const isAmendmentType = (ft: string): boolean =>
+  ft.endsWith("/A") || ft.includes("POS");
+
+// Scope the month-progress file to the form set so an override run tracks its
+// own progress independently of the default full-history run.
+const PROG_SLUG = FORMS_OVERRIDE
+  ? "-" + FORMS_OVERRIDE.replace(/[^a-z0-9]/gi, "").toLowerCase().slice(0, 40)
+  : "";
+const PROG = `.tmp/regstmt-backfill-progress${PROG_SLUG}.json`;
 mkdirSync(".tmp", { recursive: true });
 const done: Record<string, boolean> = existsSync(PROG) ? JSON.parse(readFileSync(PROG, "utf8")) : {};
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -87,7 +108,7 @@ function normalizeHit(hit: any, scrapedAt: string): RegistrationStatement | null
   return {
     filing_id: accession,
     filing_type: fileType,
-    is_amendment: fileType.endsWith("/A"),
+    is_amendment: isAmendmentType(fileType),
     file_date: src.file_date ?? "",
     filer_name: display.name,
     filer_cik: filerCik,
