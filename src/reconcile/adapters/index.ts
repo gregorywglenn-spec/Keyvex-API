@@ -5,11 +5,13 @@
 import type { SourceAdapter } from "../types.js";
 import { congressHouseAdapter } from "./congress-house.js";
 import { congressSenateAdapter } from "./congress-senate.js";
+import { secTenderOffersAdapter } from "./sec-tender-offers.js";
 
 export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressHouseAdapter.name]: congressHouseAdapter,
   [congressSenateAdapter.name]: congressSenateAdapter,
-  // Future: sec-form4, fec-schedule-a, … (each a 5-field drop-in)
+  [secTenderOffersAdapter.name]: secTenderOffersAdapter,
+  // Future: sec-form-d, sec-form-144, sec-13dg, … (reuse fetchEdgarFilingsByForm)
 };
 
 export function getAdapter(name: string): SourceAdapter | undefined {

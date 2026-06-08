@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — SEC Schedule TO — tender offers (EDGAR full-index) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — SEC Schedule TO — tender offers (EDGAR full-index)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>tender_offers</code> · generated 2026-06-08T22:02:46.935Z</p>
+
+<div class="banner ok">
+  <div class="big">99.93% coverage</div>
+  44,639 of 44,670 source filings present in KeyVex
+  · <b>31 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real House Clerk PTR with trades that are genuinely absent from KeyVex. If a “missing” filing
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 44,641 House records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>SC TO-T</td><td class="num">2,522</td><td>✓ present</td></tr>
+<tr><td>SC TO-T/A</td><td class="num">12,170</td><td>✓ present</td></tr>
+<tr><td>SC TO-I</td><td class="num">11,670</td><td>✓ present</td></tr>
+<tr><td>SC TO-I/A</td><td class="num">18,279</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr class="hasgap"><td>2001</td><td class="num">2,408</td><td class="num">2,407</td><td class="num">1</td><td class="num">99.96%</td></tr>
+<tr><td>2002</td><td class="num">2,219</td><td class="num">2,219</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2003</td><td class="num">2,049</td><td class="num">2,049</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2004</td><td class="num">1,658</td><td class="num">1,656</td><td class="num">2</td><td class="num">99.88%</td></tr>
+<tr class="hasgap"><td>2005</td><td class="num">1,676</td><td class="num">1,675</td><td class="num">1</td><td class="num">99.94%</td></tr>
+<tr class="hasgap"><td>2006</td><td class="num">1,904</td><td class="num">1,900</td><td class="num">4</td><td class="num">99.79%</td></tr>
+<tr class="hasgap"><td>2007</td><td class="num">2,461</td><td class="num">2,460</td><td class="num">1</td><td class="num">99.96%</td></tr>
+<tr class="hasgap"><td>2008</td><td class="num">1,847</td><td class="num">1,842</td><td class="num">5</td><td class="num">99.73%</td></tr>
+<tr class="hasgap"><td>2009</td><td class="num">2,381</td><td class="num">2,379</td><td class="num">2</td><td class="num">99.92%</td></tr>
+<tr class="hasgap"><td>2010</td><td class="num">2,151</td><td class="num">2,147</td><td class="num">4</td><td class="num">99.81%</td></tr>
+<tr class="hasgap"><td>2011</td><td class="num">1,825</td><td class="num">1,823</td><td class="num">2</td><td class="num">99.89%</td></tr>
+<tr class="hasgap"><td>2012</td><td class="num">1,867</td><td class="num">1,866</td><td class="num">1</td><td class="num">99.95%</td></tr>
+<tr><td>2013</td><td class="num">1,813</td><td class="num">1,813</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2014</td><td class="num">1,708</td><td class="num">1,705</td><td class="num">3</td><td class="num">99.82%</td></tr>
+<tr class="hasgap"><td>2015</td><td class="num">1,799</td><td class="num">1,798</td><td class="num">1</td><td class="num">99.94%</td></tr>
+<tr class="hasgap"><td>2016</td><td class="num">1,727</td><td class="num">1,726</td><td class="num">1</td><td class="num">99.94%</td></tr>
+<tr><td>2017</td><td class="num">1,639</td><td class="num">1,639</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2018</td><td class="num">1,478</td><td class="num">1,478</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2019</td><td class="num">1,345</td><td class="num">1,344</td><td class="num">1</td><td class="num">99.93%</td></tr>
+<tr><td>2020</td><td class="num">1,277</td><td class="num">1,277</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2021</td><td class="num">1,123</td><td class="num">1,123</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2022</td><td class="num">1,180</td><td class="num">1,178</td><td class="num">2</td><td class="num">99.83%</td></tr>
+<tr><td>2023</td><td class="num">1,327</td><td class="num">1,327</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2024</td><td class="num">1,531</td><td class="num">1,531</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2025</td><td class="num">1,548</td><td class="num">1,548</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2026</td><td class="num">729</td><td class="num">729</td><td class="num">0</td><td class="num">100.00%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (31)</h2>
+
+<table><thead><tr><th>ptr_id</th><th>year</th><th>member</th><th>source link</th></tr></thead><tbody>
+<tr><td>0000893220-00-001450</td><td>2001</td><td>SIERRACITIES COM INC (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1034812/000089322000001450/0000893220-00-001450-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001019892-04-000354</td><td>2004</td><td>RSI HOLDINGS INC (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/853697/000101989204000354/0001019892-04-000354-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001019892-04-000372</td><td>2004</td><td>RSI HOLDINGS INC (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/853697/000101989204000372/0001019892-04-000372-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001019892-05-000029</td><td>2005</td><td>RSI HOLDINGS INC (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/853697/000101989205000029/0001019892-05-000029-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000099106-06-000005</td><td>2006</td><td>TRANS LUX CORP (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/99106/000009910606000005/0000099106-06-000005-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000099106-06-000006</td><td>2006</td><td>TRANS LUX CORP (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/99106/000009910606000006/0000099106-06-000006-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000099106-06-000002</td><td>2006</td><td>TRANS LUX CORP (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/99106/000009910606000002/0000099106-06-000002-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001140361-06-007930</td><td>2006</td><td>DICON FIBEROPTICS INC (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1119012/000114036106007930/0001140361-06-007930-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001193125-07-216280</td><td>2007</td><td>Summer Infant, Inc. (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1314772/000119312507216280/0001193125-07-216280-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001116502-08-000062</td><td>2008</td><td>CHINA NATURAL RESOURCES INC (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/793628/000111650208000062/0001116502-08-000062-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001116502-08-000059</td><td>2008</td><td>SILICON STORAGE TECHNOLOGY INC (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/855906/000111650208000059/0001116502-08-000059-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001413464-08-000072</td><td>2008</td><td>Smart Energy Solutions, Inc. (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1086082/000141346408000072/0001413464-08-000072-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000950133-08-002856</td><td>2008</td><td>WILLIAMS INDUSTRIES INC (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/107294/000095013308002856/0000950133-08-002856-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000950133-08-002366</td><td>2008</td><td>WILLIAMS INDUSTRIES INC (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/107294/000095013308002366/0000950133-08-002366-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000950123-09-038421</td><td>2009</td><td>REVLON INC /DE/ (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/887921/000095012309038421/0000950123-09-038421-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000950123-09-050637</td><td>2009</td><td>Greenville Federal Financial CORP (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1330365/000095012309050637/0000950123-09-050637-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001019056-10-000334</td><td>2010</td><td>TRUDY CORP (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/815098/000101905610000334/0001019056-10-000334-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001489138-10-000002</td><td>2010</td><td>KRATOS DEFENSE &amp; SECURITY SOLUTIONS, INC. (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1069258/000148913810000002/0001489138-10-000002-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001019056-10-000835</td><td>2010</td><td>TRUDY CORP (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/815098/000101905610000835/0001019056-10-000835-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001019056-10-000953</td><td>2010</td><td>TRUDY CORP (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/815098/000101905610000953/0001019056-10-000953-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001041885-11-000007</td><td>2011</td><td>ALSERES PHARMACEUTICALS INC /DE (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/94784/000104188511000007/0001041885-11-000007-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001207017-11-000108</td><td>2011</td><td>TAIWAN FUND INC (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/804123/000120701711000108/0001207017-11-000108-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001513162-12-000007</td><td>2012</td><td>THESTREET, INC. (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1080056/000151316212000007/0001513162-12-000007-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001144204-14-019633</td><td>2014</td><td>Cole Credit Property Trust Inc (SC TO-T)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1289272/000114420414019633/0001144204-14-019633-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001144204-14-022226</td><td>2014</td><td>Cole Credit Property Trust Inc (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1289272/000114420414022226/0001144204-14-022226-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001319171-14-000009</td><td>2014</td><td>INTERNATIONAL BALER CORP (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/781902/000131917114000009/0001319171-14-000009-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001260415-15-000015</td><td>2015</td><td>DYNASIL CORP OF AMERICA (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/30831/000126041515000015/0001260415-15-000015-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001582244-16-000153</td><td>2016</td><td>Corning Natural Gas Holding Corp (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1582244/000158224416000153/0001582244-16-000153-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001058854-19-000051</td><td>2019</td><td>LEE ENTERPRISES, INC (SC TO-I/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/58361/000105885419000051/0001058854-19-000051-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001622627-22-000003</td><td>2022</td><td>DELCATH SYSTEMS, INC. (SC TO-T/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/872912/000162262722000003/0001622627-22-000003-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001622627-22-000012</td><td>2022</td><td>DELCATH SYSTEMS, INC. (SC TO-I)</td><td><a href="https://www.sec.gov/Archives/edgar/data/872912/000162262722000012/0001622627-22-000012-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+</tbody></table>
+
+<h2>Informational: ids in KeyVex but not in the scanned source window</h2>
+<p class="muted">2 ids KeyVex holds that the scanned index years don’t list
+(other years, or filings since removed upstream). Not gaps — shown for completeness. Sample: <code>0000950123-04-012925</code> <code>0000950149-05-000703</code></p>
+
+</body></html>
