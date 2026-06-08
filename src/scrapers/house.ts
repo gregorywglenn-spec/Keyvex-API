@@ -607,11 +607,16 @@ export function parseHousePtrText(
       comment = comment ? `${qualifier}; ${comment}` : qualifier;
     }
 
-    // ─── Filter to buy/sell only (skip Exchange) ──────────────────────
-    let txType: "buy" | "sell" | undefined;
+    // ─── Classify transaction type — buy / sell / exchange ────────────
+    // E (Exchange) used to be dropped here (`else continue`), which silently
+    // erased every exchange-only filing from KeyVex entirely — the G1 gap the
+    // reconciler surfaced (e.g. Beyer "Bond Reached Maturity", Pfluger
+    // SiriusXM spin-off). Exchanges are disclosed trades; capture them.
+    let txType: "buy" | "sell" | "exchange" | undefined;
     if (txCode === "P") txType = "buy";
     else if (txCode === "S") txType = "sell";
-    else continue; // E or anything else: skip
+    else if (txCode === "E") txType = "exchange";
+    else continue; // genuinely unrecognized code: skip
 
     trades.push({
       id: `house-${meta.doc_id}-${trades.length + 1}`,

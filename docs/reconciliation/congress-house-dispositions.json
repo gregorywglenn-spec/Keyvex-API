@@ -1,0 +1,567 @@
+{
+  "_README": "Reviewed verdicts for House PTR filings the reconciler lists as missing. Each entry documents WHY a filing has no KeyVex rows, so a gap is 'explained' (nil) rather than 'unexplained-missing'. disposition: 'nil_nothing_to_report' | 'nil_amendment' | 'recovered' | 'unreadable'. Reviewed against the upright-rendered government PDF (builder + Greg in the canvas viewer).",
+  "dataset": "congress-house",
+  "dispositions": {
+    "8214458": {
+      "member": "Diane Black (TN06)",
+      "year": "2013",
+      "disposition": "nil_amendment",
+      "note": "Amendment correcting a prior PTR: the CSX sale reported 2013-01-25 was in error (actually 2012-01-25, on the 2012 annual statement). No transaction rows on the form. Confirmed by clean Sonnet OCR at 270 deg (nil=true) and visual review.",
+      "reviewed": "2026-06-08"
+    },
+    "8216783": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8216853": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8216974": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2020",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217103": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2020",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217326": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2020",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217631": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2020",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217772": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2020",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217802": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2020",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217844": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8217926": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218139": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218262": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218372": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218373": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218374": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218414": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218481": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2021",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218642": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218652": {
+      "member": "Richard B. Reisdorf (MN01)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8218933": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219135": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219218": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219256": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219276": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219320": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2022",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219362": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219422": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219447": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219525": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219748": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219922": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8219972": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220023": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220051": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2023",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220155": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220176": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220203": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220529": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220567": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220628": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220672": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220695": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220717": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2024",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220755": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220782": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8220958": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8221223": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8221310": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "8221332": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2026",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9107269": {
+      "member": "Michael T. McCaul (TX10)",
+      "year": "2015",
+      "disposition": "nil_amendment",
+      "note": "Amendment correcting a mistakenly-checked 'yes' for a transaction that should have been 'no' — reads nothing to report. Confirmed by Greg in the canvas viewer.",
+      "reviewed": "2026-06-08"
+    },
+    "9107689": {
+      "member": "Kenny Marchant (TX24)",
+      "year": "2015",
+      "disposition": "nil_nothing_to_report",
+      "note": "Form states none/nothing to report — no transaction rows. Confirmed by Greg in the canvas viewer.",
+      "reviewed": "2026-06-08"
+    },
+    "9111537": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2017",
+      "disposition": "nil_nothing_to_report",
+      "note": "No transaction. Confirmed by Greg in the canvas viewer.",
+      "reviewed": "2026-06-08"
+    },
+    "9111842": {
+      "member": "Kenny Marchant (TX24)",
+      "year": "2017",
+      "disposition": "nil_nothing_to_report",
+      "note": "Nothing to report — no transaction rows. Confirmed by Greg in the canvas viewer.",
+      "reviewed": "2026-06-08"
+    },
+    "9112137": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2017",
+      "disposition": "nil_nothing_to_report",
+      "note": "No transaction. Confirmed by Greg in the canvas viewer.",
+      "reviewed": "2026-06-08"
+    },
+    "9112491": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9112726": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9113275": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9113596": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9113747": {
+      "member": "Kenny Marchant (TX24)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9113749": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9113769": {
+      "member": "Francis Rooney (FL19)",
+      "year": "2018",
+      "disposition": "recovered",
+      "trades_recovered": 34,
+      "note": "'See attached schedules' filing — grid blank on page 1, 34 real transactions on the attached typed schedule (page 2): 4 Brown Advisory + 23 GS Brokerage muni trades, 3 property LLCs, 3 Morgan Stanley CUSIP holdings, 1831 Michael Faraday twice. Recovered via vision OCR at 270 deg / high-res after teaching the reader the attached-schedule pattern. extraction_method=vision_ocr (not byte-exact). Inserted as house-9113769-ocr-1..34.",
+      "reviewed": "2026-06-08"
+    },
+    "9114129": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114207": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114259": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2018",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114336": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114434": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114448": {
+      "member": "Earl Blumenauer (OR03)",
+      "year": "2019",
+      "disposition": "nil_amendment",
+      "note": "Correction letter (not a PTR grid), dated 2019-02-25, retracting an entry reported in error: an additional investment in The Joinery on 01/31/2019 ($100,001-$250,000). Retraction — no valid transaction to record. Confirmed by clean OCR (nil=true) and Greg.",
+      "reviewed": "2026-06-08"
+    },
+    "9114501": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114598": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9114999": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115093": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115198": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115335": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115442": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2019",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115546": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115623": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2025",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115711": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2026",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    },
+    "9115762": {
+      "member": "Harold Dallas Rogers (KY05)",
+      "year": "2026",
+      "disposition": "nil_reviewed",
+      "note": "No usable transaction data (amendment / correction / nothing-to-report). Reviewed by Greg in the canvas viewer on 2026-06-08; Rooney 9113769 was the only one of the 79 with recoverable trades.",
+      "reviewed": "2026-06-08"
+    }
+  },
+  "_summary": {
+    "reviewed_count": 79,
+    "recovered": 1,
+    "nil": 78,
+    "note": "All 79 reconciler-missing House filings reviewed against the upright government PDFs. Outcome: 1 recovered (Rooney, 34 trades, vision_ocr), 78 nil (no usable transactions). Reviewer: Greg.",
+    "verification": "78 nil = Greg full visual review + objective OCR spot-check (improved schedule-aware reader, high-res): 8 filings detailed individually + 6 of the 71 Harold Rogers recurring 'nothing to report' PTRs re-OCR'd, all confirmed nil. Rogers files a recurring nothing-to-report PTR, explaining the 71 count. 1 recovered (Rooney, 34 trades). No unexplained-missing remain."
+  }
+}

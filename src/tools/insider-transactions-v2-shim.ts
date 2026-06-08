@@ -166,6 +166,11 @@ export function deriveCongressionalNature(args: {
   // No transfer signal in comment — fall back to transaction_type
   const tt = args.transaction_type;
   if (tt === "buy" || tt === "sell") return "OPEN_MARKET";
+  // Exchange (PTR code E): a real disclosed trade but NOT an open-market
+  // buy/sell — bond maturities, corporate spin-offs, share-class exchanges.
+  // Classify as a non-open-market change so directional buy/sell queries
+  // exclude it, while unfiltered "all trades" queries still surface it.
+  if (tt === "exchange") return "NON_OPEN_MARKET_TRANSFER";
   return "INSUFFICIENT_DATA";
 }
 

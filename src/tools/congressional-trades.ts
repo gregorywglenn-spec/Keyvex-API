@@ -77,9 +77,9 @@ export const definition: Tool = {
       },
       transaction_type: {
         type: "string",
-        enum: ["buy", "sell"],
+        enum: ["buy", "sell", "exchange"],
         description:
-          "Purchases or sales only. Maps to Senate's 'Purchase' / 'Sale - Full' / 'Sale - Partial' columns.",
+          "Filter by disclosed transaction type. 'buy' = Purchase (P); 'sell' = Sale, full or partial (S); 'exchange' = Exchange (E) — bond maturities, corporate spin-offs, and share-class exchanges, which are disclosed trades too. Leave empty to include all three.",
       },
       owner: {
         type: "string",
@@ -252,10 +252,11 @@ function validateAndNormalize(raw: unknown): CongressionalTradesQuery {
   if (args.transaction_type !== undefined) {
     if (
       args.transaction_type !== "buy" &&
-      args.transaction_type !== "sell"
+      args.transaction_type !== "sell" &&
+      args.transaction_type !== "exchange"
     ) {
       throw new Error(
-        `INVALID transaction_type: '${String(args.transaction_type)}' — expected 'buy' or 'sell'`,
+        `INVALID transaction_type: '${String(args.transaction_type)}' — expected 'buy', 'sell', or 'exchange'`,
       );
     }
     out.transaction_type = args.transaction_type;

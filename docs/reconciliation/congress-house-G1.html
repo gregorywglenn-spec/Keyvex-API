@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — Congress — House PTR filings (House Clerk index) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — Congress — House PTR filings (House Clerk index)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>congressional_trades</code> · generated 2026-06-08T19:48:16.963Z</p>
+
+<div class="banner ok">
+  <div class="big">99.05% coverage</div>
+  8,149 of 8,227 source filings present in KeyVex
+  · <b>78 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real House Clerk PTR with trades that are genuinely absent from KeyVex. If a “missing” filing
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 142,995 House records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>buy</td><td class="num">71,336</td><td>✓ present</td></tr>
+<tr><td>sell</td><td class="num">71,431</td><td>✓ present</td></tr>
+<tr><td>exchange</td><td class="num">228</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr class="hasgap"><td>2013</td><td class="num">8</td><td class="num">7</td><td class="num">1</td><td class="num">87.50%</td></tr>
+<tr><td>2014</td><td class="num">708</td><td class="num">708</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2015</td><td class="num">728</td><td class="num">726</td><td class="num">2</td><td class="num">99.73%</td></tr>
+<tr><td>2016</td><td class="num">765</td><td class="num">765</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2017</td><td class="num">801</td><td class="num">798</td><td class="num">3</td><td class="num">99.63%</td></tr>
+<tr class="hasgap"><td>2018</td><td class="num">830</td><td class="num">821</td><td class="num">9</td><td class="num">98.92%</td></tr>
+<tr class="hasgap"><td>2019</td><td class="num">683</td><td class="num">671</td><td class="num">12</td><td class="num">98.24%</td></tr>
+<tr class="hasgap"><td>2020</td><td class="num">733</td><td class="num">727</td><td class="num">6</td><td class="num">99.18%</td></tr>
+<tr class="hasgap"><td>2021</td><td class="num">680</td><td class="num">671</td><td class="num">9</td><td class="num">98.68%</td></tr>
+<tr class="hasgap"><td>2022</td><td class="num">624</td><td class="num">616</td><td class="num">8</td><td class="num">98.72%</td></tr>
+<tr class="hasgap"><td>2023</td><td class="num">460</td><td class="num">451</td><td class="num">9</td><td class="num">98.04%</td></tr>
+<tr class="hasgap"><td>2024</td><td class="num">451</td><td class="num">442</td><td class="num">9</td><td class="num">98.00%</td></tr>
+<tr class="hasgap"><td>2025</td><td class="num">515</td><td class="num">508</td><td class="num">7</td><td class="num">98.64%</td></tr>
+<tr class="hasgap"><td>2026</td><td class="num">241</td><td class="num">238</td><td class="num">3</td><td class="num">98.76%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (78)</h2>
+
+<table><thead><tr><th>ptr_id</th><th>year</th><th>member</th><th>source link</th></tr></thead><tbody>
+<tr><td>8214458</td><td>2013</td><td>Diane Black (TN06)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2013/8214458.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9107689</td><td>2015</td><td>Kenny Marchant (TX24)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2015/9107689.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9107269</td><td>2015</td><td>Michael T. McCaul (TX10)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2015/9107269.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9111842</td><td>2017</td><td>Kenny Marchant (TX24)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2017/9111842.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9111537</td><td>2017</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2017/9111537.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9112137</td><td>2017</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2017/9112137.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9113747</td><td>2018</td><td>Kenny Marchant (TX24)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9113747.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9112491</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9112491.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9112726</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9112726.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9113275</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9113275.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9113596</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9113596.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9113749</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9113749.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114129</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9114129.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114207</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9114207.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114259</td><td>2018</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2018/9114259.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114448</td><td>2019</td><td>Earl Blumenauer (OR03)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9114448.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114336</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9114336.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114434</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9114434.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114501</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9114501.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114598</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9114598.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9114999</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9114999.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115093</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9115093.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115198</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9115198.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115335</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9115335.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115442</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/9115442.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8216783</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/8216783.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8216853</td><td>2019</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2019/8216853.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8216974</td><td>2020</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2020/8216974.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217103</td><td>2020</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2020/8217103.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217326</td><td>2020</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2020/8217326.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217631</td><td>2020</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2020/8217631.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217772</td><td>2020</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2020/8217772.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217802</td><td>2020</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2020/8217802.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217844</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8217844.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8217926</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8217926.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218139</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218139.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218262</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218262.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218372</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218372.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218373</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218373.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218374</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218374.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218414</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218414.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218481</td><td>2021</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2021/8218481.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218652</td><td>2022</td><td>Richard B. Reisdorf (MN01)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8218652.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218642</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8218642.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8218933</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8218933.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219135</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8219135.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219218</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8219218.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219256</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8219256.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219276</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8219276.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219320</td><td>2022</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2022/8219320.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219362</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219362.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219422</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219422.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219447</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219447.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219525</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219525.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219748</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219748.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219922</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219922.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8219972</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8219972.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220023</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8220023.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220051</td><td>2023</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2023/8220051.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220155</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220155.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220176</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220176.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220203</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220203.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220529</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220529.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220567</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220567.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220628</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220628.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220672</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220672.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220695</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220695.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220717</td><td>2024</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/8220717.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220755</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/8220755.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220782</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/8220782.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8220958</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/8220958.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115546</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/9115546.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115623</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/9115623.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8221223</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/8221223.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8221310</td><td>2025</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2025/8221310.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>8221332</td><td>2026</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/8221332.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115711</td><td>2026</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/9115711.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>9115762</td><td>2026</td><td>Harold Dallas Rogers (KY05)</td><td><a href="https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2026/9115762.pdf" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+</tbody></table>
+
+<h2>Informational: ids in KeyVex but not in the scanned source window</h2>
+<p class="muted">0 ids KeyVex holds that the scanned index years don’t list
+(other years, or filings since removed upstream). Not gaps — shown for completeness.</p>
+
+</body></html>

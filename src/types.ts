@@ -1314,7 +1314,15 @@ export interface CongressionalTrade {
   state: string;
   state_district: string;
   office: string;
-  transaction_type: "buy" | "sell";
+  /**
+   * Source-faithful transaction type. House/Senate PTR codes are P (purchase)
+   * → "buy", S (sale) → "sell", E (exchange) → "exchange". Exchanges are real
+   * disclosed trades (bond maturities, corporate spin-offs, share-class
+   * exchanges) — captured per the data-quality benchmark, never dropped. The
+   * derived `transaction_nature` puts exchanges in NON_OPEN_MARKET_TRANSFER so
+   * directional buy/sell queries exclude them while "all trades" queries don't.
+   */
+  transaction_type: "buy" | "sell" | "exchange";
   transaction_date: string;
   disclosure_date: string;
   reporting_lag_days: number | null;
@@ -1336,6 +1344,17 @@ export interface CongressionalTrade {
    *  Optional because of forward-write-only backfill; the MCP read shim
    *  derives on-the-fly for historical rows. */
   transaction_nature?: TransactionNature;
+  /**
+   * Extraction provenance for House PTRs. Absent or "text_layer" = parsed
+   * from the PDF's embedded text layer (the default path for electronic
+   * filings). "vision_ocr" = the asset, transaction_type, amount bracket,
+   * owner code, and dates were read from a SCANNED image (no text layer
+   * existed) via vision OCR. For vision_ocr rows these fields are KeyVex's
+   * interpretation of the source image, not a byte-exact text mirror —
+   * audit them against `report_url`. Per the source-faithful posture this
+   * flag labels the interpretation rather than silently blending OCR'd
+   * values in with text-layer values. */
+  extraction_method?: "text_layer" | "vision_ocr";
 }
 
 /**
@@ -1347,7 +1366,7 @@ export interface CongressionalTradesQuery {
   member_name?: string;
   bioguide_id?: string;
   chamber?: "senate" | "house";
-  transaction_type?: "buy" | "sell";
+  transaction_type?: "buy" | "sell" | "exchange";
   owner?: "Self" | "Spouse" | "Joint" | "Dependent";
   since?: string;
   until?: string;
