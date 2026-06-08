@@ -16,6 +16,14 @@ const UA = "KeyVexMCP/0.1 contact@keyvex.com";
 const sleep = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
+/** Normalize an EDGAR index date to ISO. Quarterly master.idx uses YYYY-MM-DD;
+ *  the daily-index uses YYYYMMDD. Return YYYY-MM-DD either way. */
+function toIsoDate(d: string): string {
+  const t = d.trim();
+  if (/^\d{8}$/.test(t)) return `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`;
+  return t;
+}
+
 export interface EdgarFiling {
   accession: string; // dashed, e.g. 0000320193-24-000123 (matches KeyVex)
   formType: string;
@@ -76,12 +84,55 @@ export async function fetchEdgarFilingsByForm(opts: {
           formType,
           cik: parts[0]!.trim(),
           company: parts[1]!.trim(),
-          dateFiled: parts[3]!.trim(),
+          dateFiled: toIsoDate(parts[3]!),
         });
         n++;
       }
       opts.onProgress?.(`${y} QTR${q}: ${n}`);
     }
+  }
+  return out;
+}
+
+/**
+ * Enumerate every EDGAR filing of the given form types on ONE day, from the
+ * daily-index (the per-day equivalent of master.idx). Complete — the right
+ * source for a daily cron (FTS is incomplete). Returns [] on 404 (weekend/
+ * holiday/not-yet-published).
+ *   https://www.sec.gov/Archives/edgar/daily-index/{YYYY}/QTR{n}/master.{YYYYMMDD}.idx
+ */
+export async function fetchEdgarDailyIndex(
+  dateISO: string,
+  forms: string[],
+): Promise<EdgarFiling[]> {
+  const [y, m, d] = dateISO.split("-");
+  if (!y || !m || !d) return [];
+  const q = Math.floor((parseInt(m, 10) - 1) / 3) + 1;
+  const url = `https://www.sec.gov/Archives/edgar/daily-index/${y}/QTR${q}/master.${y}${m}${d}.idx`;
+  let text: string;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": UA } });
+    if (!res.ok) return [];
+    text = await res.text();
+  } catch {
+    return [];
+  }
+  const formSet = new Set(forms.map((f) => f.trim()));
+  const out: EdgarFiling[] = [];
+  for (const line of text.split("\n")) {
+    const parts = line.split("|");
+    if (parts.length !== 5) continue;
+    const formType = parts[2]!.trim();
+    if (!formSet.has(formType)) continue;
+    const fm = parts[4]!.trim().match(/(\d{10}-\d{2}-\d{6})\.txt$/);
+    if (!fm) continue;
+    out.push({
+      accession: fm[1]!,
+      formType,
+      cik: parts[0]!.trim(),
+      company: parts[1]!.trim(),
+      dateFiled: toIsoDate(parts[3]!),
+    });
   }
   return out;
 }

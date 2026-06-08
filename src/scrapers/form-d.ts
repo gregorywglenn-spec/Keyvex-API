@@ -23,6 +23,7 @@ import type {
   PrivatePlacement,
   PrivatePlacementRelatedPerson,
 } from "../types.js";
+import { fetchEdgarDailyIndex } from "../reconcile/sec-edgar-index.js";
 
 const CONFIG = {
   USER_AGENT:
@@ -350,55 +351,37 @@ export async function scrapeFormDLiveFeed(
   }
   const byAccession = new Map<string, FilingMeta>();
 
-  for (const form of CONFIG.FORM_CODES) {
-    const formEncoded = encodeURIComponent(form);
-    let from = 0;
-    let pulled = 0;
-    while (pulled < maxFilingsPerForm) {
-      const url =
-        `${CONFIG.SEARCH_URL}?q=&forms=${formEncoded}` +
-        `&dateRange=custom&startdt=${startStr}&enddt=${endStr}` +
-        `&hits=${CONFIG.FTS_HITS_PER_PAGE}&from=${from}`;
-      let data: EdgarSearchResponse;
-      try {
-        data = await fetchJson(url);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[form-d] ${form} from=${from}: SKIP — ${msg}`);
-        break;
-      }
-      const hits = data.hits?.hits ?? [];
-      const total = data.hits?.total?.value ?? hits.length;
-      if (from === 0) {
-        console.error(
-          `[form-d]   ${form}: ${total} total in window, paging ${CONFIG.FTS_HITS_PER_PAGE} at a time`,
-        );
-      }
-      for (const hit of hits) {
-        const src = hit._source;
-        if (!src) continue;
-        const accession = src.adsh ?? "";
-        if (!accession || byAccession.has(accession)) continue;
-        // ciks[0] is the issuer / archive root cik.
-        const archiveCik = (src.ciks?.[0] ?? "").replace(/^0+/, "");
-        const idParts = (hit._id ?? "").split(":");
-        const primaryDoc = rawXmlPath(idParts[1] ?? "");
-        if (!archiveCik || !primaryDoc) continue;
-        byAccession.set(accession, {
-          accession,
-          archiveCik,
-          filedAt: src.file_date ?? "",
-          fileType: src.file_type ?? src.form ?? "D",
-          primaryDocFilename: primaryDoc,
-        });
-      }
-      pulled += hits.length;
-      console.error(
-        `[form-d]   ${form} from=${from}: +${hits.length} (running ${byAccession.size} unique)`,
-      );
-      if (hits.length < CONFIG.FTS_HITS_PER_PAGE) break;
-      from += CONFIG.FTS_HITS_PER_PAGE;
+  // Enumerate via EDGAR's COMPLETE daily-index (one file per day), NOT FTS.
+  // FTS silently omits ~30% of Form D filings (verified 2026-06-08 against the
+  // EDGAR full-index reconciler), which is why the old cron under-captured the
+  // current quarter. The daily-index lists every filing for a day; Form D's
+  // structured doc is always primary_doc.xml. maxFilingsPerForm is repurposed
+  // as a total safety cap (default unlimited).
+  const totalCap = options.maxFilingsPerForm ?? Infinity;
+  for (let dayOffset = 0; dayOffset <= lookbackDays; dayOffset++) {
+    const dt = new Date(end);
+    dt.setUTCDate(dt.getUTCDate() - dayOffset);
+    const dayISO = dt.toISOString().split("T")[0] ?? "";
+    const filings = await fetchEdgarDailyIndex(dayISO, CONFIG.FORM_CODES);
+    let added = 0;
+    for (const f of filings) {
+      if (byAccession.has(f.accession)) continue;
+      if (byAccession.size >= totalCap) break;
+      byAccession.set(f.accession, {
+        accession: f.accession,
+        archiveCik: f.cik.replace(/^0+/, ""),
+        filedAt: f.dateFiled,
+        fileType: f.formType,
+        primaryDocFilename: "primary_doc.xml",
+      });
+      added++;
     }
+    if (filings.length > 0) {
+      console.error(
+        `[form-d]   ${dayISO}: ${filings.length} in daily-index, +${added} new (running ${byAccession.size})`,
+      );
+    }
+    await sleep(CONFIG.RATE_LIMIT_MS);
   }
 
   console.error(
