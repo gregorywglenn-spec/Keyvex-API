@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — Congress — Senate PTR filings (Senate eFD) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — Congress — Senate PTR filings (Senate eFD)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>congressional_trades</code> · generated 2026-06-08T21:27:33.114Z</p>
+
+<div class="banner ok">
+  <div class="big">100.00% coverage</div>
+  1,735 of 1,735 source filings present in KeyVex
+  · <b>0 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real House Clerk PTR with trades that are genuinely absent from KeyVex. If a “missing” filing
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 15,473 House records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>buy</td><td class="num">7,754</td><td>✓ present</td></tr>
+<tr><td>sell</td><td class="num">7,587</td><td>✓ present</td></tr>
+<tr><td>exchange</td><td class="num">132</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr><td>2014</td><td class="num">92</td><td class="num">92</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2015</td><td class="num">162</td><td class="num">162</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2016</td><td class="num">166</td><td class="num">166</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2017</td><td class="num">178</td><td class="num">178</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2018</td><td class="num">181</td><td class="num">181</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2019</td><td class="num">176</td><td class="num">176</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2020</td><td class="num">138</td><td class="num">138</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2021</td><td class="num">122</td><td class="num">122</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2022</td><td class="num">100</td><td class="num">100</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2023</td><td class="num">96</td><td class="num">96</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2024</td><td class="num">113</td><td class="num">113</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2025</td><td class="num">142</td><td class="num">142</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2026</td><td class="num">69</td><td class="num">69</td><td class="num">0</td><td class="num">100.00%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (0)</h2>
+
+<p>None — every source filing in the scanned window is present in KeyVex.</p>
+
+<h2>Informational: ids in KeyVex but not in the scanned source window</h2>
+<p class="muted">35 ids KeyVex holds that the scanned index years don’t list
+(other years, or filings since removed upstream). Not gaps — shown for completeness. Sample: <code>05a652a7-5402-47c6-85ad-04c1c978815b</code> <code>079b4d68-f8a1-45a2-b43e-f5569366bfa6</code> <code>0b5d45bc-919c-42ab-970e-a7b14f080cc5</code> <code>19a274dd-2f9c-4468-b9f2-dc68f2d2ac6b</code> <code>263a0113-cdbb-43b8-a994-75fec2fd65c4</code> <code>2bc0e244-3dad-4723-a878-c62957b5d63a</code> <code>2d09ce3a-1dfb-4110-b9aa-fe0dbde0d490</code> <code>3073357f-338e-4f4f-b3eb-5c0feabcfa74</code> <code>4051c0ea-b864-490b-b70f-ae138819aa7e</code> <code>425096a9-b206-40a7-86b8-67fa4081b252</code> <code>446c7588-5f97-42c0-8983-3ca975b91793</code> <code>49a203db-a9ea-4a15-9a86-ec96dfaeb096</code> <code>49fcb4d6-d449-49d2-9f2a-190fb36a2180</code> <code>502805c9-fddf-417d-a07a-21e01f76767f</code> <code>52ba7b0b-343b-440d-8465-06987c9fbebb</code> <code>6f691f61-e375-42ab-af01-72da4328447c</code> <code>70614aca-cf77-4a70-b0c8-245a097a7350</code> <code>7b874404-594a-4139-8873-2f6a06322e03</code> <code>829529d5-698a-4b58-9af0-8a189cb7a6a8</code> <code>83284e95-9d97-4869-9063-92548f2d9d80</code> <code>90faa158-bcfe-403f-807f-1ff21fb3275f</code> <code>a218bcbb-2699-4325-ab84-98b30ee53db0</code> <code>a57e8890-7890-4e0e-bef7-bd8fb22c9d44</code> <code>a5ea65ef-3943-4944-b192-988ab6adaa21</code> <code>aa5e11c9-0cff-4bd6-ab2d-4062c5f75a1e</code></p>
+
+</body></html>

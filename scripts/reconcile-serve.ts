@@ -21,10 +21,14 @@
  *   npx tsx scripts/reconcile-serve.ts                 # serves congress-house-G1
  *   npx tsx scripts/reconcile-serve.ts --report=congress-house-G1 --port=7878
  */
+import "../src/load-secrets.js";
 import { createServer } from "node:http";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import * as mupdf from "mupdf";
+import * as cheerio from "cheerio";
+import { createSession } from "../src/scrapers/senate.js";
+import { getLiveDb } from "../src/firestore.js";
 
 const arg = (k: string) =>
   process.argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1];
@@ -49,12 +53,21 @@ if (!existsSync(htmlPath)) {
   process.exit(1);
 }
 
-/** Rewrite gov PDF links → localhost /filing (renders to viewable images). */
+/**
+ * Rewrite gov links → localhost routes so the preview (localhost-only) can open
+ * them. House PDFs → /filing (rendered to images). Senate eFD PTR pages →
+ * /senate-ptr (fetched through an authenticated session + rendered as a table).
+ */
 function localizeLinks(html: string): string {
-  return html.replace(
-    /https:\/\/disclosures-clerk\.house\.gov\/[^\s"'<>]+/g,
-    (u) => `/filing?u=${encodeURIComponent(u)}`,
-  );
+  return html
+    .replace(
+      /https:\/\/efdsearch\.senate\.gov\/search\/view\/ptr\/([a-f0-9-]+)\/?/g,
+      (_u, id) => `/senate-ptr?id=${id}`,
+    )
+    .replace(
+      /https:\/\/disclosures-clerk\.house\.gov\/[^\s"'<>]+/g,
+      (u) => `/filing?u=${encodeURIComponent(u)}`,
+    );
 }
 
 function validateGovUrl(target: string): URL | null {
@@ -199,10 +212,12 @@ function renderMissingList(): string {
     .sort()
     .map((y) => {
       const items = byYear[y]!
-        .map(
-          (r) =>
-            `<li><a href="/filing?u=${encodeURIComponent(r.url)}&rot=0">${esc(r.id)} — ${esc(r.member)}</a></li>`,
-        )
+        .map((r) => {
+          const href = r.url.includes("efdsearch.senate.gov")
+            ? `/senate-ptr?id=${r.id}`
+            : `/filing?u=${encodeURIComponent(r.url)}&rot=0`;
+          return `<li><a href="${href}">${esc(r.id)} — ${esc(r.member)}</a></li>`;
+        })
         .join("\n");
       return `<h2>${esc(y)} <span class="muted">(${byYear[y]!.length})</span></h2><ul>${items}</ul>`;
     })
@@ -216,9 +231,186 @@ function renderMissingList(): string {
   a{color:#6ab0ff} ul{line-height:1.9;margin:.3rem 0} .muted{color:#888}
   .intro{background:#f39c1218;border:1px solid #f39c12;padding:.7rem 1rem;border-radius:8px;color:#f5c97a}
 </style></head><body>
-<h1>Remaining missing House filings — ${rows.length}</h1>
-<p class="intro">These are scanned filings where OCR returned nothing (marked <code>nil</code>) — but at least some hold real trades read sideways (e.g. Diane Black). Click one, then use the <b>rotate</b> buttons to straighten it. <a href="/">← G1 report</a></p>
+<h1>Remaining missing filings — ${rows.length}</h1>
+<p class="intro">${
+    REPORT.includes("senate")
+      ? "Senate PTRs the eFD index lists that KeyVex lacks. Click one — it's fetched live from the eFD and shown as a table, with each row flagged <b>kept</b> vs <b>DROPPED</b> (non-equity / exchange) so you can see why it's missing."
+      : "Scanned filings where OCR returned nothing — but some hold real trades read sideways (e.g. Diane Black). Click one, then use the <b>rotate</b> buttons to straighten it."
+  } <a href="/">← G1 report</a></p>
 ${sections}
+</body></html>`;
+}
+
+// ─── Senate eFD PTR viewer (authenticated fetch + table render) ───────────────
+
+let efdSession: { fetch: typeof fetch; csrfToken: string } | null = null;
+async function getEfdSession(force = false): Promise<{ fetch: typeof fetch }> {
+  if (efdSession && !force) return efdSession;
+  efdSession = await createSession();
+  return efdSession;
+}
+
+function srcDateToISO(d: string): string {
+  const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return d;
+  return `${m[3]}-${m[1]!.padStart(2, "0")}-${m[2]!.padStart(2, "0")}`;
+}
+
+/**
+ * Source-vs-stored verifier for one Senate PTR. Fetches the eFD detail page
+ * (agreement-gated session) AND queries what KeyVex now stores for that ptr_id,
+ * then renders BOTH tables so the capture-all re-scrape can be checked against
+ * the government source row-for-row. Each eFD source row is flagged ✓ in KeyVex
+ * / ✗ missing by matching ticker + date + amount.
+ */
+async function renderSenatePtrHtml(
+  ptrId: string,
+  nav: { idx: number; total: number; prev?: string; next?: string; label?: string },
+): Promise<string> {
+  const detailUrl = `https://efdsearch.senate.gov/search/view/ptr/${ptrId}/`;
+  let html = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const s = await getEfdSession(attempt > 0);
+      const res = await s.fetch(detailUrl, {
+        headers: {
+          "User-Agent": "KeyVexMCP/0.1 contact@keyvex.com",
+          Referer: "https://efdsearch.senate.gov/search/",
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      html = await res.text();
+      break;
+    } catch (e) {
+      if (attempt >= 1)
+        return `<p style="color:#f5b041;padding:1rem">Could not load PTR ${esc(ptrId)} (${esc(e instanceof Error ? e.message : String(e))}). <a href="${esc(detailUrl)}" target="_blank">open at eFD ↗</a></p>`;
+    }
+  }
+
+  // KeyVex side: what we stored for this filing.
+  const db = await getLiveDb();
+  const stored = (
+    await db.collection("congressional_trades").where("ptr_id", "==", ptrId).get()
+  ).docs.map((d) => d.data() as Record<string, unknown>);
+  const storedKeys = new Set(
+    stored.map(
+      (t) =>
+        `${String(t.ticker ?? "").toUpperCase()}|${t.transaction_date}|${t.amount_range}`,
+    ),
+  );
+
+  const $ = cheerio.load(html);
+  const isPaper = /\.pdf|embed|paper/i.test(html) && $("table tr").length < 2;
+  const srcRows: string[] = [];
+  let srcCount = 0,
+    matched = 0;
+  $("table tr").each((i, row) => {
+    if (i === 0) return;
+    const cells = $(row)
+      .find("td")
+      .map((_, td) => $(td).text().trim())
+      .get();
+    if (cells.length < 8) return;
+    srcCount++;
+    const ticker = (cells[3] ?? "").toUpperCase().trim();
+    const key = `${ticker}|${srcDateToISO(cells[1] ?? "")}|${cells[7] ?? ""}`;
+    const inKv = storedKeys.has(key);
+    if (inKv) matched++;
+    const status = inKv
+      ? '<span style="color:#3fb950">✓ in KeyVex</span>'
+      : '<span style="color:#f85149">✗ missing</span>';
+    srcRows.push(
+      `<tr><td>${esc(cells[1] ?? "")}</td><td>${esc(cells[2] ?? "")}</td><td>${esc(ticker)}</td><td>${esc(cells[4] ?? "")}</td><td>${esc(cells[5] ?? "")}</td><td>${esc(cells[6] ?? "")}</td><td>${esc(cells[7] ?? "")}</td><td>${status}</td></tr>`,
+    );
+  });
+
+  const storedRows = stored
+    .map(
+      (t) =>
+        `<tr><td>${esc(String(t.transaction_date ?? ""))}</td><td>${esc(String(t.owner ?? ""))}</td><td>${esc(String(t.ticker ?? ""))}</td><td>${esc(String(t.asset_name ?? ""))}</td><td>${esc(String(t.asset_type ?? ""))}</td><td>${esc(String(t.transaction_type ?? ""))}</td><td>${esc(String(t.amount_range ?? ""))}</td></tr>`,
+    )
+    .join("");
+
+  const navBtn = (href: string | undefined, label: string) =>
+    href ? `<a class="btn" href="${href}">${label}</a>` : `<span class="btn off">${label}</span>`;
+  const allMatch = srcCount > 0 && matched === srcCount;
+  const summary = isPaper
+    ? '<p class="note">Looks like a PAPER PTR (PDF amendment) — no HTML trade table.</p>'
+    : `<p class="note">eFD source: <b>${srcCount}</b> rows · KeyVex stored: <b>${stored.length}</b> · matched: <b style="color:${allMatch ? "#3fb950" : "#f5b041"}">${matched}/${srcCount}</b>${allMatch ? " ✓ complete" : srcCount > matched ? " — some source rows not matched (check ✗ below; may be parse/format diff)" : ""}.</p>`;
+  return `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(nav.label ?? ptrId)}</title>
+<style>
+  body{margin:0;background:#1c1c1c;color:#eee;font:14px -apple-system,Segoe UI,sans-serif}
+  .bar{padding:.55rem .8rem;background:#222;position:sticky;top:0;border-bottom:1px solid #555;display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+  .bar .sp{flex:1}
+  a{color:#6ab0ff}
+  .btn{display:inline-block;padding:.25rem .6rem;border:1px solid #6ab0ff55;border-radius:6px;text-decoration:none;color:#cfe6ff}
+  .btn.off{opacity:.4;border-color:#666}
+  .lab{font-weight:600}
+  h3{margin:1rem .8rem .2rem;font-size:.95rem}
+  table{border-collapse:collapse;width:100%;margin:.3rem 0}
+  th,td{border:1px solid #444;padding:.35rem .5rem;text-align:left;font-size:13px;vertical-align:top}
+  th{background:#2a2a2a}
+  .note{padding:.5rem .8rem;color:#f5b041}
+</style></head><body>
+<div class="bar">
+  <span class="lab">${esc(nav.label ?? "")}</span><span class="muted">(${nav.idx}/${nav.total})</span>
+  <span class="sp"></span>
+  ${navBtn(nav.prev, "← prev")} ${navBtn(nav.next, "next →")}
+  <a class="btn" href="/senate-all">all</a>
+  <a class="btn" href="${esc(detailUrl)}" target="_blank" rel="noopener">eFD ↗</a>
+</div>
+${summary}
+<h3>eFD source (government record)</h3>
+${srcRows.length ? `<table><thead><tr><th>tx date</th><th>owner</th><th>ticker</th><th>asset</th><th>asset type</th><th>tx</th><th>amount</th><th>in KeyVex?</th></tr></thead><tbody>${srcRows.join("")}</tbody></table>` : '<p class="note">No source rows parsed (paper PTR or unexpected layout).</p>'}
+<h3>KeyVex stored (${stored.length})</h3>
+${storedRows ? `<table><thead><tr><th>tx date</th><th>owner</th><th>ticker</th><th>asset</th><th>asset type</th><th>type</th><th>amount</th></tr></thead><tbody>${storedRows}</tbody></table>` : '<p class="note">KeyVex stores nothing for this ptr_id.</p>'}
+</body></html>`;
+}
+
+/** Browse list of ALL Senate filings KeyVex holds (from Firestore). */
+let senateAllCache: { id: string; member: string; date: string }[] | null = null;
+async function loadSenateAll(): Promise<{ id: string; member: string; date: string }[]> {
+  if (senateAllCache) return senateAllCache;
+  const db = await getLiveDb();
+  const snap = await db
+    .collection("congressional_trades")
+    .where("chamber", "==", "senate")
+    .select("ptr_id", "member_name", "disclosure_date")
+    .get();
+  const byId = new Map<string, { id: string; member: string; date: string }>();
+  for (const d of snap.docs) {
+    const t = d.data() as Record<string, unknown>;
+    const id = String(t.ptr_id ?? "");
+    if (id && !byId.has(id))
+      byId.set(id, {
+        id,
+        member: String(t.member_name ?? ""),
+        date: String(t.disclosure_date ?? ""),
+      });
+  }
+  senateAllCache = [...byId.values()].sort((a, b) => (a.date < b.date ? 1 : -1));
+  return senateAllCache;
+}
+async function renderSenateAllList(): Promise<string> {
+  const all = await loadSenateAll();
+  const items = all
+    .map(
+      (r) =>
+        `<li><a href="/senate-ptr?id=${r.id}">${esc(r.date)} — ${esc(r.member)}</a> <span class="muted">${esc(r.id)}</span></li>`,
+    )
+    .join("\n");
+  return `<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Senate filings — ${all.length}</title>
+<style>
+  body{margin:0;background:#1c1c1c;color:#eee;font:14px -apple-system,Segoe UI,sans-serif;padding:1rem 1.3rem;max-width:900px}
+  h1{font-size:1.2rem} a{color:#6ab0ff} ul{line-height:1.8} .muted{color:#777;font-size:12px}
+</style></head><body>
+<h1>All Senate filings KeyVex holds — ${all.length}</h1>
+<p class="muted">Newest first. Click any to see the eFD source vs what KeyVex stored. <a href="/">← G1 report</a></p>
+<ul>${items}</ul>
 </body></html>`;
 }
 
@@ -247,6 +439,44 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/missing") {
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(renderMissingList());
+    return;
+  }
+
+  // Browse list of ALL Senate filings KeyVex holds.
+  if (url.pathname === "/senate-all") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(await renderSenateAllList());
+    return;
+  }
+
+  // Render a Senate eFD PTR: eFD source vs KeyVex stored (verifier).
+  if (url.pathname === "/senate-ptr") {
+    const id = (url.searchParams.get("id") ?? "").trim();
+    if (!/^[a-f0-9-]{8,}$/i.test(id)) {
+      res.writeHead(400).end("bad ptr id");
+      return;
+    }
+    // Prev/next nav over the full filing list (the missing list is empty now).
+    const all = await loadSenateAll();
+    const idx = all.findIndex((m) => m.id === id);
+    const cur = idx >= 0 ? all[idx] : undefined;
+    const nav = {
+      idx: idx >= 0 ? idx + 1 : 0,
+      total: all.length,
+      prev: idx > 0 ? `/senate-ptr?id=${all[idx - 1]!.id}` : undefined,
+      next:
+        idx >= 0 && idx < all.length - 1
+          ? `/senate-ptr?id=${all[idx + 1]!.id}`
+          : undefined,
+      label: cur ? `${cur.member} (${cur.date})` : `PTR ${id}`,
+    };
+    try {
+      const out = await renderSenatePtrHtml(id, nav);
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(out);
+    } catch (e) {
+      res.writeHead(502).end(`error: ${e instanceof Error ? e.message : e}`);
+    }
     return;
   }
 

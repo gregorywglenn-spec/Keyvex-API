@@ -510,6 +510,115 @@ export async function fetchSenatePtrRefs(
   return { session, refs };
 }
 
+/** Inclusive monthly [startISO, endISO] sub-windows covering [startISO,endISO]. */
+function monthlyWindows(startISO: string, endISO: string): [string, string][] {
+  const out: [string, string][] = [];
+  const [sy, sm] = startISO.split("-").map(Number);
+  const [ey, em] = endISO.split("-").map(Number);
+  let y = sy!,
+    m = sm!;
+  while (y < ey! || (y === ey! && m <= em!)) {
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate(); // day 0 of next month = last day
+    out.push([
+      `${y}-${String(m).padStart(2, "0")}-01`,
+      `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`,
+    ]);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+  return out;
+}
+
+/**
+ * Enumerate EVERY Senate PTR ref in [startISO,endISO] by walking MONTHLY
+ * sub-windows on a single reused session.
+ *
+ * Why: the eFD `/search/report/data/` endpoint caps each response at ~80-90
+ * rows regardless of the requested `length`, so a wide single window silently
+ * truncates — a 2018 full-year query returns 75 refs but month-windowing
+ * recovers 178 (the real count). Monthly windows stay well under the cap, so
+ * the union is a complete census denominator. The session is recreated once on
+ * a failed window (the agreement session can lapse over a long run).
+ */
+export async function fetchSenatePtrRefsWindowed(
+  startISO: string,
+  endISO: string,
+  onProgress?: (msg: string) => void,
+): Promise<SenatePtrRef[]> {
+  const fmt = (iso: string): string => {
+    const [y, m, d] = iso.split("-");
+    return `${m}/${d}/${y} 00:00:00`;
+  };
+  const CAP = CONFIG.PAGE_SIZE * 50;
+  let session = await createSession();
+  const byId = new Map<string, SenatePtrRef>();
+
+  for (const [ws, we] of monthlyWindows(startISO, endISO)) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const body = new FormData();
+        body.append("start", "0");
+        body.append("length", String(CAP));
+        body.append("report_types", `[${CONFIG.REPORT_TYPE_PTR}]`);
+        body.append("submitted_start_date", fmt(ws));
+        body.append("submitted_end_date", fmt(we));
+        body.append("candidate_state", "");
+        body.append("senator_state", "");
+        body.append("first_name", "");
+        body.append("last_name", "");
+        body.append("csrfmiddlewaretoken", session.csrfToken);
+        await sleep(CONFIG.RATE_LIMIT_MS);
+        const res = await session.fetch(CONFIG.DATA_URL, {
+          method: "POST",
+          headers: {
+            "User-Agent": CONFIG.USER_AGENT,
+            Origin: "https://efdsearch.senate.gov",
+            Referer: CONFIG.SEARCH_URL,
+            "X-CSRFToken": session.csrfToken,
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = (await res.json()) as { data?: unknown[][] };
+        const rows = Array.isArray(json.data) ? json.data : [];
+        // A monthly window at/near the cap means even a month truncated — rare,
+        // but surface it so it's never a silent undercount.
+        if (rows.length >= 80) {
+          onProgress?.(`window ${ws}..${we} returned ${rows.length} (near cap — consider weekly windows)`);
+        }
+        for (const row of rows) {
+          const linkHtml = String(row[3] ?? "");
+          const linkMatch = linkHtml.match(/href=['"]([^'"]+)['"]/);
+          if (!linkMatch) continue;
+          const ptrIdMatch = (linkMatch[1] ?? "").match(/\/ptr\/([a-f0-9-]+)\//);
+          if (!ptrIdMatch) continue;
+          const ptrId = ptrIdMatch[1] ?? "";
+          if (!ptrId || byId.has(ptrId)) continue;
+          byId.set(ptrId, {
+            ptrId,
+            detailUrl: `${CONFIG.PTR_URL}${ptrId}/`,
+            firstName: String(row[0] ?? ""),
+            lastName: String(row[1] ?? ""),
+            dateFiled: String(row[4] ?? ""),
+          });
+        }
+        break; // window done
+      } catch (e) {
+        if (attempt >= 1) {
+          onProgress?.(`window ${ws}..${we} FAILED: ${e instanceof Error ? e.message : e}`);
+          break;
+        }
+        session = await createSession(); // refresh and retry once
+      }
+    }
+  }
+  return [...byId.values()];
+}
+
 // ─── PTR HTML parser ────────────────────────────────────────────────────────
 
 /**
@@ -577,21 +686,26 @@ export function parseSenatePtr(
     const amountRange = cells[7] ?? "";
     const comment = cells[8] ?? "";
 
-    // Equity-only filter for v1
-    if (
-      !["Stock", "Stock Option", "OP"].includes(assetType) &&
-      !ticker
-    ) {
-      return;
-    }
+    // Capture-all posture (2026-06-08, per Greg): NO silent category exclusions.
+    // The old equity-only filter here dropped untickered bonds / funds / real
+    // estate / crypto entirely; removed. Every disclosed asset class is kept —
+    // exclusions, if any, are an explicit, documented decision, never a buried
+    // `return`.
 
-    // Type-of-transaction filter
+    // Transaction type — buy / sell / exchange (Senate uses Purchase /
+    // Sale-Full / Sale-Partial / Exchange). Exchange used to be dropped here
+    // (the same hole the House parser had); now captured. A row with no
+    // recognizable transaction type is a header/blank artifact, not a category
+    // — skip only that.
     const isBuy = txTypeRaw.includes("purchase");
     const isSell =
       txTypeRaw.includes("sale") || txTypeRaw.includes("sell");
-    if (!isBuy && !isSell) return;
-
-    const transaction_type: "buy" | "sell" = isBuy ? "buy" : "sell";
+    const isExchange = txTypeRaw.includes("exchange");
+    let transaction_type: "buy" | "sell" | "exchange";
+    if (isBuy) transaction_type = "buy";
+    else if (isSell) transaction_type = "sell";
+    else if (isExchange) transaction_type = "exchange";
+    else return; // no recognizable tx type → not a transaction row
 
     // Phase A (2026-05-24): derive transaction_nature from the comment text.
     // Pelosi's "Contribution of N shares to Trinity University" gets caught
@@ -607,7 +721,9 @@ export function parseSenatePtr(
       id: `senate-${meta.ptrId}-${i}`,
       ticker,
       asset_name: assetName,
-      asset_type: assetType || "Stock",
+      // Faithful asset type — do NOT default to "Stock" now that all asset
+      // classes are captured (would mislabel bonds/funds/real estate).
+      asset_type: assetType,
       member_name: `${meta.firstName} ${meta.lastName}`.trim(),
       member_first: meta.firstName,
       member_last: meta.lastName,
