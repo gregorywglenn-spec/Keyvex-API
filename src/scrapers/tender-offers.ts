@@ -148,7 +148,7 @@ function buildFilingIndexUrl(cik: string, accession: string): string {
   return `${CONFIG.EDGAR_URL}/Archives/edgar/data/${cikNum}/${accNoDashes}/${accession}-index.htm`;
 }
 
-function normalizeHit(hit: EdgarHit, scrapedAt: string): TenderOffer | null {
+export function normalizeHit(hit: EdgarHit, scrapedAt: string): TenderOffer | null {
   const src = hit._source;
   if (!src) return null;
   const accession = src.adsh ?? "";
