@@ -78,6 +78,7 @@
 
 import { XMLParser } from "fast-xml-parser";
 import type { Form3Holding } from "../types.js";
+import { fetchEdgarDailyIndex, fetchPrimaryDocUrl } from "../reconcile/sec-edgar-index.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -531,53 +532,62 @@ interface EdgarSearchHit {
  */
 export async function scrapeForm3LiveFeed(
   lookbackDays = 7,
-  maxFilings = 100,
+  maxFilings = 100000,
 ): Promise<Form3Holding[]> {
   const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = start.toISOString().split("T")[0];
-  const endStr = end.toISOString().split("T")[0];
 
-  const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=3&dateRange=custom&startdt=${startStr}&enddt=${endStr}`;
-  const data = (await fetchJson(url)) as { hits?: { hits?: EdgarSearchHit[] } };
-  const hits = data.hits?.hits ?? [];
-
-  console.error(
-    `[form3 live] ${hits.length} Form 3 filings in last ${lookbackDays}d`,
-  );
-
-  const filings: FilingMeta[] = [];
-  for (const hit of hits.slice(0, maxFilings)) {
-    const src = hit._source;
-    if (!src) continue;
-    // For Form 3 the issuer CIK is at ciks[1]; ciks[0] is the reporting owner
-    // (insider). Same convention as Form 4.
-    const companyCik = (src.ciks?.[1] ?? src.ciks?.[0] ?? "").replace(
-      /^0+/,
-      "",
-    );
-    const accession = src.adsh ?? "";
-    const filedAt = src.file_date ?? "";
-    const filename = rawXmlPath((hit._id ?? "").split(":")[1] ?? "");
-    if (!accession || !companyCik || !filename) continue;
-    filings.push({
-      accession,
-      companyCik,
-      filedAt,
-      url: `${CONFIG.EDGAR_URL}/Archives/edgar/data/${companyCik}/${formatAccession(accession)}/${filename}`,
-    });
+  // Enumerate via EDGAR's COMPLETE daily index, NOT full-text search. FTS
+  // silently caps/under-reports — measured at only ~35% recent-window coverage
+  // before this fix (same leak class fixed for N-PORT and Form D). The daily
+  // index gives (cik, accession) but NOT the doc filename, and Form 3's
+  // structured doc is `ownership.xml` (not primary_doc.xml), so resolve each via
+  // fetchPrimaryDocUrl (index.json). The issuer CIK comes from the XML itself
+  // (parseForm3Xml reads issuerCik), so the index CIK is only the archive path.
+  const seen = new Map<string, { accession: string; companyCik: string; filedAt: string }>();
+  for (let dayOffset = 0; dayOffset <= lookbackDays; dayOffset++) {
+    const dt = new Date(end);
+    dt.setUTCDate(dt.getUTCDate() - dayOffset);
+    const dayISO = dt.toISOString().split("T")[0] ?? "";
+    if (!dayISO) continue;
+    let idx: Awaited<ReturnType<typeof fetchEdgarDailyIndex>>;
+    try {
+      idx = await fetchEdgarDailyIndex(dayISO, ["3", "3/A"]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[form3 live] daily-index ${dayISO}: SKIP — ${msg}`);
+      continue;
+    }
+    for (const f of idx) {
+      if (f.formType !== "3" && f.formType !== "3/A") continue;
+      if (seen.has(f.accession)) continue;
+      if (seen.size >= maxFilings) break;
+      seen.set(f.accession, {
+        accession: f.accession,
+        companyCik: f.cik.replace(/^0+/, ""),
+        filedAt: f.dateFiled,
+      });
+    }
   }
 
+  console.error(
+    `[form3 live] ${seen.size} Form 3 filings in last ${lookbackDays}d (daily-index)`,
+  );
+
   const allHoldings: Form3Holding[] = [];
-  for (const filing of filings) {
+  for (const ref of seen.values()) {
     try {
+      const url = await fetchPrimaryDocUrl(ref.companyCik, ref.accession);
+      if (!url) {
+        console.error(`[form3 live]   ${ref.accession}: SKIP — no primary XML`);
+        continue;
+      }
+      const filing: FilingMeta = { ...ref, url };
       const xmlText = await fetchText(filing.url);
       const holdings = parseForm3Xml(xmlText, filing);
       allHoldings.push(...holdings);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[form3 live]   ${filing.accession}: SKIP — ${msg}`);
+      console.error(`[form3 live]   ${ref.accession}: SKIP — ${msg}`);
     }
   }
 

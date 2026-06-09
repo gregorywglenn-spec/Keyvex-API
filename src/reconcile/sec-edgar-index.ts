@@ -142,3 +142,46 @@ export function edgarFilingUrl(cik: string, accession: string): string {
   const noDash = accession.replace(/-/g, "");
   return `https://www.sec.gov/Archives/edgar/data/${cik.replace(/^0+/, "")}/${noDash}/${accession}-index.htm`;
 }
+
+/**
+ * Resolve the actual primary structured-XML document URL for a filing.
+ *
+ * The daily index gives (cik, accession) but NOT the document filename — and
+ * ownership forms DON'T use a fixed name: Form 3/4 ship `ownership.xml`, others
+ * ship `primary_doc.xml`, others a form-specific `*.xml`. Assuming a fixed name
+ * 404s (verified 2026-06-09 on a Form 3 = ownership.xml). This reads the
+ * filing's index.json and picks the structured doc — preferred names first,
+ * then any non-index `.xml`. Returns null if the filing has no XML (older
+ * paper filings). Rate-limited so callers can loop without extra pacing.
+ */
+export async function fetchPrimaryDocUrl(
+  cikRaw: string,
+  accession: string,
+): Promise<string | null> {
+  const cik = cikRaw.replace(/^0+/, "");
+  const accNo = accession.replace(/-/g, "");
+  const base = `https://www.sec.gov/Archives/edgar/data/${cik}/${accNo}`;
+  await sleep(120);
+  let res: Response;
+  try {
+    res = await fetch(`${base}/index.json`, { headers: { "User-Agent": UA } });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  let names: string[];
+  try {
+    const j = (await res.json()) as { directory?: { item?: { name?: string }[] } };
+    names = (j.directory?.item ?? []).map((i) => i.name ?? "").filter(Boolean);
+  } catch {
+    return null;
+  }
+  const prefer = ["ownership.xml", "primary_doc.xml"];
+  for (const p of prefer) {
+    if (names.includes(p)) return `${base}/${p}`;
+  }
+  const xml = names.find(
+    (n) => n.toLowerCase().endsWith(".xml") && !n.toLowerCase().includes("index"),
+  );
+  return xml ? `${base}/${xml}` : null;
+}
