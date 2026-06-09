@@ -12,6 +12,7 @@ import { federalRegisterAdapter } from "./federal-register.js";
 import { secNportAdapter } from "./sec-nport.js";
 import { ofacSdnAdapter } from "./ofac-sdn.js";
 import { oigExclusionsAdapter } from "./oig-exclusions.js";
+import { cslAdapter } from "./csl.js";
 
 export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressHouseAdapter.name]: congressHouseAdapter,
@@ -23,6 +24,7 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [secNportAdapter.name]: secNportAdapter,
   [ofacSdnAdapter.name]: ofacSdnAdapter,
   [oigExclusionsAdapter.name]: oigExclusionsAdapter,
+  [cslAdapter.name]: cslAdapter,
   // Future: sec-form-144, sec-13dg, lobbying, fec-* …
 };
 
