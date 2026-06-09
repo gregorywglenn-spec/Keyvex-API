@@ -4051,7 +4051,7 @@ export async function queryOigExclusions(
 
 export async function saveOigExclusions(
   exclusions: OigExclusion[],
-): Promise<{ saved: number; collection: string }> {
+): Promise<{ saved: number; collection: string; pruned: number }> {
   if (isStubMode()) {
     throw new Error(
       "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
@@ -4059,7 +4059,7 @@ export async function saveOigExclusions(
   }
   const COLLECTION = "oig_exclusions";
   if (exclusions.length === 0) {
-    return { saved: 0, collection: COLLECTION };
+    return { saved: 0, collection: COLLECTION, pruned: 0 };
   }
 
   const db = await getLiveDb();
@@ -4077,7 +4077,14 @@ export async function saveOigExclusions(
     saved += chunk.length;
   }
 
-  return { saved, collection: COLLECTION };
+  const pruned = await pruneStaleDocs(
+    db,
+    COLLECTION,
+    new Set(exclusions.map((e) => e.id)),
+    "oig",
+  );
+
+  return { saved, collection: COLLECTION, pruned };
 }
 
 // ─── Economic Indicators (BLS) query + save ─────────────────────────────────
@@ -4806,16 +4813,58 @@ export async function queryOfacSdn(
   return await withCoverageWarning({ results, has_more }, query, "ofac_sdn");
 }
 
+/**
+ * Prune stale docs from a CURRENT-SNAPSHOT collection (sanctions / exclusions /
+ * screening): after a full-refresh save, delete any doc whose id is NOT in the
+ * freshly-saved set — i.e., entries the source has since removed. Without this,
+ * a full-replace scraper that only writes (merge:true) lets delisted records
+ * accumulate forever as false positives (e.g. an entity the government took OFF
+ * the sanctions list still reading as "sanctioned").
+ *
+ * SAFETY: never prune on a suspiciously small refresh. If the fresh set is less
+ * than half the existing collection, treat the source pull as partial/failed
+ * and SKIP pruning (log loudly) rather than risk wiping a healthy list on a bad
+ * download. Returns the number of stale docs deleted.
+ */
+async function pruneStaleDocs(
+  db: Awaited<ReturnType<typeof getLiveDb>>,
+  collectionName: string,
+  currentIds: Set<string>,
+  label: string,
+): Promise<number> {
+  const refs = await db.collection(collectionName).listDocuments();
+  const existing = refs.length;
+  if (existing > 0 && currentIds.size < existing * 0.5) {
+    console.error(
+      `[${label}] PRUNE SKIPPED — fresh set ${currentIds.size} < 50% of existing ${existing} ` +
+        `(suspected partial/failed source pull); not deleting anything.`,
+    );
+    return 0;
+  }
+  const stale = refs.filter((r) => !currentIds.has(r.id));
+  let deleted = 0;
+  for (let i = 0; i < stale.length; i += 400) {
+    const batch = db.batch();
+    for (const ref of stale.slice(i, i + 400)) batch.delete(ref);
+    await batch.commit();
+    deleted += Math.min(400, stale.length - i);
+  }
+  if (deleted > 0) {
+    console.error(`[${label}] pruned ${deleted} stale docs no longer in source`);
+  }
+  return deleted;
+}
+
 export async function saveOfacSdn(
   entries: OfacSdnEntry[],
-): Promise<{ saved: number; collection: string }> {
+): Promise<{ saved: number; collection: string; pruned: number }> {
   if (isStubMode()) {
     throw new Error(
       "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
     );
   }
   const COLLECTION = "ofac_sdn";
-  if (entries.length === 0) return { saved: 0, collection: COLLECTION };
+  if (entries.length === 0) return { saved: 0, collection: COLLECTION, pruned: 0 };
 
   const db = await getLiveDb();
   const collection = db.collection(COLLECTION);
@@ -4835,7 +4884,14 @@ export async function saveOfacSdn(
     }
   }
 
-  return { saved, collection: COLLECTION };
+  const pruned = await pruneStaleDocs(
+    db,
+    COLLECTION,
+    new Set(entries.map((e) => e.ent_num)),
+    "ofac",
+  );
+
+  return { saved, collection: COLLECTION, pruned };
 }
 
 // ─── Registration statements (S-1, S-3) query + save ─────────────────────
@@ -5628,14 +5684,14 @@ export async function queryScreeningList(
 
 export async function saveScreeningList(
   entries: ScreeningListEntry[],
-): Promise<{ saved: number; collection: string }> {
+): Promise<{ saved: number; collection: string; pruned: number }> {
   if (isStubMode()) {
     throw new Error(
       "Cannot save to Firestore in stub mode (no service account at secrets/service-account.json)",
     );
   }
   const COLLECTION = "screening_list";
-  if (entries.length === 0) return { saved: 0, collection: COLLECTION };
+  if (entries.length === 0) return { saved: 0, collection: COLLECTION, pruned: 0 };
 
   const db = await getLiveDb();
   const collection = db.collection(COLLECTION);
@@ -5652,7 +5708,14 @@ export async function saveScreeningList(
     saved += chunk.length;
   }
 
-  return { saved, collection: COLLECTION };
+  const pruned = await pruneStaleDocs(
+    db,
+    COLLECTION,
+    new Set(entries.map((e) => e.id)),
+    "csl",
+  );
+
+  return { saved, collection: COLLECTION, pruned };
 }
 
 // ─── Enforcement actions (SEC + DOJ) query + save ────────────────────────

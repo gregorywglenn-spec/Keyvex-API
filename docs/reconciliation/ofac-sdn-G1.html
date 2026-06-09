@@ -26,7 +26,7 @@
 </style></head><body>
 
 <h1>KeyVex Reconciliation — OFAC Specially Designated Nationals (SDN.csv)</h1>
-<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>ofac_sdn</code> · generated 2026-06-09T19:05:41.047Z</p>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>ofac_sdn</code> · generated 2026-06-09T19:26:10.479Z</p>
 
 <div class="banner ok">
   <div class="big">100.00% coverage</div>
@@ -45,14 +45,14 @@
 
 
 <h2>Per-type census — can any category silently read zero?</h2>
-<p class="muted">Counts are over the 19,133 records KeyVex holds.
+<p class="muted">Counts are over the 19,056 records KeyVex holds.
 Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
 
 <table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
-<tr><td>individual</td><td class="num">7,531</td><td>✓ present</td></tr>
-<tr><td>vessel</td><td class="num">1,513</td><td>✓ present</td></tr>
+<tr><td>individual</td><td class="num">7,477</td><td>✓ present</td></tr>
+<tr><td>vessel</td><td class="num">1,499</td><td>✓ present</td></tr>
 <tr><td>aircraft</td><td class="num">344</td><td>✓ present</td></tr>
-<tr><td>(none) <span class="muted">(unexpected)</span></td><td class="num">9,745</td><td>✓ present</td></tr>
+<tr><td>(none) <span class="muted">(unexpected)</span></td><td class="num">9,736</td><td>✓ present</td></tr>
 </tbody></table>
 
 <h2>Coverage by year</h2>
@@ -67,91 +67,12 @@ Expected types are always shown, even at zero, so a dropped category can’t hid
 
 <p>None — every source filing in the scanned window is present in KeyVex.</p>
 
-<h2>In KeyVex but NOT in the current source (77)</h2>
+<h2>In KeyVex but NOT in the current source (0)</h2>
 <p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
 For an append-only archive these are usually just other-year filings (harmless). For a
 <b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
 items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
 record won’t appear in the live source lookup.</p>
-<p class="muted">Showing first 77 of 77 — complete list in the companion <code>-extras.csv</code>.</p>
-<table><thead><tr><th>id</th><th>verify link</th></tr></thead><tbody>
-<tr><td>10226</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=10226" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>10234</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=10234" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>10271</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=10271" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>10278</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=10278" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>10313</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=10313" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>10726</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=10726" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11271</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11271" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11282</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11282" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11287</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11287" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11289</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11289" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11529</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11529" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11547</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11547" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11548</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11548" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11646</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11646" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>11915</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=11915" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>12625</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=12625" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>12689</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=12689" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>12752</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=12752" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>15496</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=15496" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>15596</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=15596" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>15801</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=15801" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>16133</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=16133" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>16458</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=16458" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>17293</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=17293" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>18592</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=18592" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>19232</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=19232" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>19348</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=19348" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>19449</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=19449" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>20149</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=20149" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>21384</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=21384" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>25038</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=25038" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>26658</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=26658" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>27155</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=27155" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>27281</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=27281" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>27284</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=27284" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>27310</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=27310" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>29485</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=29485" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>31127</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=31127" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>33653</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=33653" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>34558</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=34558" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>34941</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=34941" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>35511</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=35511" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>35619</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=35619" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>35640</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=35640" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>35699</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=35699" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>36824</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=36824" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>36863</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=36863" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>37382</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=37382" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>37390</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=37390" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>37811</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=37811" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>37820</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=37820" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>39683</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=39683" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>39684</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=39684" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>39691</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=39691" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>47192</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=47192" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>47193</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=47193" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>48315</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=48315" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>49625</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=49625" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>51313</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=51313" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>54707</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=54707" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6531</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6531" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6539</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6539" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6550</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6550" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6663</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6663" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6680</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6680" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6726</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6726" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>6832</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=6832" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>7311</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=7311" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>7319</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=7319" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>7618</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=7618" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>8219</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=8219" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>8221</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=8221" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>8807</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=8807" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>9335</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=9335" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>9571</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=9571" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>9983</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=9983" target="_blank" rel="noopener">check source ↗</a></td></tr>
-<tr><td>9994</td><td><a href="https://sanctionssearch.ofac.treas.gov/Details.aspx?id=9994" target="_blank" rel="noopener">check source ↗</a></td></tr>
-</tbody></table>
+<p>None — KeyVex holds nothing the source doesn’t.</p>
 
 </body></html>

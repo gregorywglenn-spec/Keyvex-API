@@ -26,7 +26,7 @@
 </style></head><body>
 
 <h1>KeyVex Reconciliation — US Consolidated Screening List (trade.gov consolidated.json)</h1>
-<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>screening_list</code> · generated 2026-06-09T19:13:46.741Z</p>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>screening_list</code> · generated 2026-06-09T19:29:01.669Z</p>
 
 <div class="banner ok">
   <div class="big">100.00% coverage</div>
@@ -45,22 +45,22 @@
 
 
 <h2>Per-type census — can any category silently read zero?</h2>
-<p class="muted">Counts are over the 25,834 records KeyVex holds.
+<p class="muted">Counts are over the 25,757 records KeyVex holds.
 Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
 
 <table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
-<tr><td>CAP <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
-<tr><td>CMIC <span class="muted">(unexpected)</span></td><td class="num">68</td><td>✓ present</td></tr>
-<tr><td>DPL <span class="muted">(unexpected)</span></td><td class="num">1,596</td><td>✓ present</td></tr>
-<tr><td>DTC <span class="muted">(unexpected)</span></td><td class="num">787</td><td>✓ present</td></tr>
-<tr><td>EL <span class="muted">(unexpected)</span></td><td class="num">3,420</td><td>✓ present</td></tr>
-<tr><td>ISN <span class="muted">(unexpected)</span></td><td class="num">161</td><td>✓ present</td></tr>
-<tr><td>MBS <span class="muted">(unexpected)</span></td><td class="num">12</td><td>✓ present</td></tr>
-<tr><td>MEU <span class="muted">(unexpected)</span></td><td class="num">70</td><td>✓ present</td></tr>
-<tr><td>PLC <span class="muted">(unexpected)</span></td><td class="num">78</td><td>✓ present</td></tr>
-<tr><td>SDN <span class="muted">(unexpected)</span></td><td class="num">19,133</td><td>✓ present</td></tr>
-<tr><td>SSI <span class="muted">(unexpected)</span></td><td class="num">286</td><td>✓ present</td></tr>
-<tr><td>UVL <span class="muted">(unexpected)</span></td><td class="num">222</td><td>✓ present</td></tr>
+<tr><td>SDN</td><td class="num">19,056</td><td>✓ present</td></tr>
+<tr><td>EL</td><td class="num">3,420</td><td>✓ present</td></tr>
+<tr><td>DPL</td><td class="num">1,596</td><td>✓ present</td></tr>
+<tr><td>DTC</td><td class="num">787</td><td>✓ present</td></tr>
+<tr><td>SSI</td><td class="num">286</td><td>✓ present</td></tr>
+<tr><td>UVL</td><td class="num">222</td><td>✓ present</td></tr>
+<tr><td>MEU</td><td class="num">70</td><td>✓ present</td></tr>
+<tr><td>PLC</td><td class="num">78</td><td>✓ present</td></tr>
+<tr><td>CMIC</td><td class="num">68</td><td>✓ present</td></tr>
+<tr><td>ISN</td><td class="num">161</td><td>✓ present</td></tr>
+<tr><td>MBS</td><td class="num">12</td><td>✓ present</td></tr>
+<tr><td>CAP</td><td class="num">1</td><td>✓ present</td></tr>
 </tbody></table>
 
 <h2>Coverage by year</h2>
@@ -75,12 +75,12 @@ Expected types are always shown, even at zero, so a dropped category can’t hid
 
 <p>None — every source filing in the scanned window is present in KeyVex.</p>
 
-<h2>In KeyVex but NOT in the current source (77)</h2>
+<h2>In KeyVex but NOT in the current source (0)</h2>
 <p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
 For an append-only archive these are usually just other-year filings (harmless). For a
 <b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
 items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
 record won’t appear in the live source lookup. (No per-id link builder for this dataset — ids shown bare; full list in the companion <code>-extras.csv</code>.)</p>
-<p class="muted">Sample: <code>csl-SDN-10226</code> <code>csl-SDN-10234</code> <code>csl-SDN-10271</code> <code>csl-SDN-10278</code> <code>csl-SDN-10313</code> <code>csl-SDN-10726</code> <code>csl-SDN-11271</code> <code>csl-SDN-11282</code> <code>csl-SDN-11287</code> <code>csl-SDN-11289</code> <code>csl-SDN-11529</code> <code>csl-SDN-11547</code> <code>csl-SDN-11548</code> <code>csl-SDN-11646</code> <code>csl-SDN-11915</code> <code>csl-SDN-12625</code> <code>csl-SDN-12689</code> <code>csl-SDN-12752</code> <code>csl-SDN-15496</code> <code>csl-SDN-15596</code> <code>csl-SDN-15801</code> <code>csl-SDN-16133</code> <code>csl-SDN-16458</code> <code>csl-SDN-17293</code> <code>csl-SDN-18592</code></p>
+<p>None — KeyVex holds nothing the source doesn’t.</p>
 
 </body></html>
