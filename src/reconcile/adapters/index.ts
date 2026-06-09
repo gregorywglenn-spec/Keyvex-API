@@ -28,6 +28,39 @@ const sec8kRecentAdapter = makeEdgarRecentWindowAdapter({
   forms: ["8-K", "8-K/A"],
   days: 30,
 });
+const sec144RecentAdapter = makeEdgarRecentWindowAdapter({
+  name: "sec-144-recent",
+  title: "SEC Form 144 — recent-window completeness (last 30d, planned_insider_sales)",
+  collection: "planned_insider_sales",
+  keyvexIdField: "accession_number", // doc id is composite; match on bare accession
+  forms: ["144", "144/A"],
+  days: 30,
+});
+const secForm3RecentAdapter = makeEdgarRecentWindowAdapter({
+  name: "sec-form3-recent",
+  title: "SEC Form 3 — recent-window completeness (last 30d, initial_ownership_baselines)",
+  collection: "initial_ownership_baselines",
+  keyvexIdField: "accession_number",
+  forms: ["3", "3/A"],
+  days: 30,
+});
+const sec13dgRecentAdapter = makeEdgarRecentWindowAdapter({
+  name: "sec-13dg-recent",
+  title: "SEC 13D/13G — recent-window completeness (last 30d, activist_ownership)",
+  collection: "activist_ownership",
+  keyvexIdField: "accession_number",
+  // Daily index uses SHORT form codes (NOT the FTS "SCHEDULE 13D" form).
+  forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"],
+  days: 30,
+});
+const secProxyRecentAdapter = makeEdgarRecentWindowAdapter({
+  name: "sec-proxy-recent",
+  title: "SEC DEF 14A — recent-window completeness (last 30d, proxy_filings)",
+  collection: "proxy_filings",
+  keyvexIdField: "accession_number",
+  forms: ["DEF 14A", "DEFA14A", "DEFM14A", "DEFR14A"],
+  days: 30,
+});
 
 export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressHouseAdapter.name]: congressHouseAdapter,
@@ -44,7 +77,11 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [fecCandidatesAdapter.name]: fecCandidatesAdapter,
   [fecCommitteesAdapter.name]: fecCommitteesAdapter,
   [sec8kRecentAdapter.name]: sec8kRecentAdapter,
-  // Future: sec-form-144, sec-13dg, lobbying …
+  [sec144RecentAdapter.name]: sec144RecentAdapter,
+  [secForm3RecentAdapter.name]: secForm3RecentAdapter,
+  [sec13dgRecentAdapter.name]: sec13dgRecentAdapter,
+  [secProxyRecentAdapter.name]: secProxyRecentAdapter,
+  // Future: lobbying …
 };
 
 export function getAdapter(name: string): SourceAdapter | undefined {
