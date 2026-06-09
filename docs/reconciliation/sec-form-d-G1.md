@@ -1,16 +1,16 @@
 # KeyVex Reconciliation — SEC Form D — private placements (EDGAR full-index, 2016+) — G1
 
-- generated: 2026-06-08T22:39:33.663Z
+- generated: 2026-06-09T00:22:44.186Z
 - collection: `private_placements`
 
-## G1 coverage: 98.46%  (526,180 / 534,434 filings; 8,254 missing)
+## G1 coverage: 100.00%  (534,425 / 534,434 filings; 9 missing)
 meets the ≥98% floor.
 
 ## Per-type census (no category may silently read zero)
 | transaction_type | count | status |
 |---|--:|---|
-| D | 326,532 | present |
-| D/A | 199,689 | present |
+| D | 332,050 | present |
+| D/A | 202,416 | present |
 
 ## Coverage by year
 | year | source | have | missing | coverage |
@@ -25,8 +25,8 @@ meets the ≥98% floor.
 | 2023 | 52969 | 52969 | 0 | 100.00% |
 | 2024 | 54740 | 54737 | 3 | 99.99% |
 | 2025 | 56517 | 56517 | 0 | 100.00% |
-| 2026 | 28046 | 19801 | 8245 | 70.60% |
+| 2026 | 28046 | 28046 | 0 | 100.00% |
 
 _Missing list unclassified — re-run with `--classify=all`._
 
-## Missing filings: 8,254 (full list in the .csv; links in the .html)
+## Missing filings: 9 (full list in the .csv; links in the .html)
