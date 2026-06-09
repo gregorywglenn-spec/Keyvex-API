@@ -35,3 +35,15 @@ coverage/
 
 # Research scratch space (raw doc fetches, exploration outputs)
 .research-tmp/
+
+# Local scratch / workbench — one-off probes, progress JSON, scratch PDFs.
+# NEVER commit: this folder is ~150MB of exploration scraps. Keeping it ignored
+# is what prevents a careless `git add .` from bloating the repo permanently.
+.tmp/
+.tmp*
+
+# OCR engine language data (re-downloadable; a 5MB binary blob, not source)
+*.traineddata
+
+# Firebase CLI deploy cache (auto-generated, rewrites on every hosting deploy)
+.firebase/
