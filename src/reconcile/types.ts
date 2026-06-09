@@ -84,6 +84,13 @@ export interface SourceAdapter {
   /** clickable government link for one item (fallback when SourceItem.url is empty) */
   sourceUrl(item: SourceItem): string;
   /**
+   * Optional: build a clickable source link from a bare id. Used to make the
+   * "extra in KeyVex" (stale) list verifiable — for current-snapshot datasets
+   * (OFAC SDN, OIG exclusions, CSL) these are records KeyVex kept after the
+   * source removed them, and Greg needs a link to confirm each is truly gone.
+   */
+  urlForId?(id: string): string;
+  /**
    * Optionally classify ONE missing item by fetching the source doc. Opt-in
    * because it costs a network round-trip per item; when absent, missing items
    * stay "unclassified" and the report says so honestly.
@@ -137,6 +144,8 @@ export interface ReconResult {
   /** ids KeyVex has that the source set doesn't (informational; may be other years) */
   extraInKeyvexCount: number;
   extraInKeyvexSample: string[];
+  /** the COMPLETE extra-in-KeyVex id list (stale-record signal for snapshot datasets) */
+  extraInKeyvex: string[];
 
   /** per-type census (the "no category reads zero" guard) */
   typeCounts: TypeCount[];

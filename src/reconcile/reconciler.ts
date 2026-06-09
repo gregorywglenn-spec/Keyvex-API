@@ -192,6 +192,7 @@ export async function runReconciliation(
     missingByYear: groupByYear(missing),
     extraInKeyvexCount: extraInKeyvex.length,
     extraInKeyvexSample: extraInKeyvex.slice(0, 25),
+    extraInKeyvex,
     typeCounts,
   };
 

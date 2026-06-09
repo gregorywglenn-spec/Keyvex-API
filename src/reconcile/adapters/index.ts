@@ -10,6 +10,7 @@ import { secRegistrationStatementsAdapter } from "./sec-registration-statements.
 import { secFormDAdapter } from "./sec-form-d.js";
 import { federalRegisterAdapter } from "./federal-register.js";
 import { secNportAdapter } from "./sec-nport.js";
+import { ofacSdnAdapter } from "./ofac-sdn.js";
 
 export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressHouseAdapter.name]: congressHouseAdapter,
@@ -19,6 +20,7 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [secFormDAdapter.name]: secFormDAdapter,
   [federalRegisterAdapter.name]: federalRegisterAdapter,
   [secNportAdapter.name]: secNportAdapter,
+  [ofacSdnAdapter.name]: ofacSdnAdapter,
   // Future: sec-form-144, sec-13dg, lobbying, fec-* …
 };
 

@@ -24,7 +24,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { getAdapter, ADAPTERS } from "../src/reconcile/adapters/index.js";
 import { runReconciliation } from "../src/reconcile/reconciler.js";
-import { renderHtml, renderCsv, renderMarkdown } from "../src/reconcile/report.js";
+import {
+  renderHtml,
+  renderCsv,
+  renderMarkdown,
+  renderExtrasCsv,
+} from "../src/reconcile/report.js";
 
 function arg(k: string): string | undefined {
   return process.argv.find((a) => a.startsWith(`--${k}=`))?.split("=")[1];
@@ -83,9 +88,18 @@ async function main(): Promise<void> {
 
   mkdirSync(outDir, { recursive: true });
   const base = join(outDir, `${name}-G1`);
-  writeFileSync(`${base}.html`, renderHtml(result));
+  writeFileSync(`${base}.html`, renderHtml(result, { urlForId: adapter.urlForId }));
   writeFileSync(`${base}.csv`, renderCsv(result));
   writeFileSync(`${base}.md`, renderMarkdown(result));
+  // Stale/extra list (in KeyVex, not in current source) — verifiable list with
+  // links. Always written so the count is auditable; for snapshot datasets this
+  // is the primary quality signal.
+  if (result.extraInKeyvexCount > 0) {
+    writeFileSync(
+      `${base}-extras.csv`,
+      renderExtrasCsv(result, adapter.urlForId),
+    );
+  }
 
   // Console summary (the at-a-glance; the HTML is the verifiable artifact).
   console.error("");
@@ -94,7 +108,12 @@ async function main(): Promise<void> {
     `  coverage:  ${result.coveragePct.toFixed(2)}%  (${result.keyvexIdsPresent.toLocaleString()} / ${result.sourceTotal.toLocaleString()} filings)`,
   );
   console.error(`  missing:   ${result.missing.length.toLocaleString()}`);
-  console.error(`  records:   ${result.keyvexTotalRecords.toLocaleString()} House docs in KeyVex`);
+  console.error(`  records:   ${result.keyvexTotalRecords.toLocaleString()} docs in KeyVex`);
+  console.error(
+    `  extra:     ${result.extraInKeyvexCount.toLocaleString()} in KeyVex but NOT in current source${
+      result.extraInKeyvexCount > 0 ? "  (stale-record signal — see -extras.csv)" : ""
+    }`,
+  );
   console.error(`  per-type:`);
   for (const t of result.typeCounts) {
     const mark = t.expected && t.count === 0 ? "  ⚠ READS ZERO" : "";

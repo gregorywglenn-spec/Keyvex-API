@@ -39,7 +39,10 @@ function classOf(item: SourceItem): string {
 
 // ─── HTML ────────────────────────────────────────────────────────────────────
 
-export function renderHtml(r: ReconResult): string {
+export function renderHtml(
+  r: ReconResult,
+  opts?: { urlForId?: (id: string) => string },
+): string {
   const exchangeHole = r.typeCounts.some(
     (t) => t.expected && t.type === "exchange" && t.count === 0,
   );
@@ -149,14 +152,14 @@ export function renderHtml(r: ReconResult): string {
 <div class="verify">
   <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
   a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
-  be a real House Clerk PTR with trades that are genuinely absent from KeyVex. If a “missing” filing
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
   is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
 </div>
 
 ${warnBlock}
 
 <h2>Per-type census — can any category silently read zero?</h2>
-<p class="muted">Counts are over the ${r.keyvexTotalRecords.toLocaleString()} House records KeyVex holds.
+<p class="muted">Counts are over the ${r.keyvexTotalRecords.toLocaleString()} records KeyVex holds.
 Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
 ${
   anyExpectedZero
@@ -189,13 +192,32 @@ ${missingRows}
 </tbody></table>`
 }
 
-<h2>Informational: ids in KeyVex but not in the scanned source window</h2>
-<p class="muted">${r.extraInKeyvexCount.toLocaleString()} ids KeyVex holds that the scanned index years don’t list
-(other years, or filings since removed upstream). Not gaps — shown for completeness.${
-    r.extraInKeyvexSample.length
-      ? " Sample: " + r.extraInKeyvexSample.map((s) => `<code>${esc(s)}</code>`).join(" ")
-      : ""
+<h2>In KeyVex but NOT in the current source (${r.extraInKeyvexCount.toLocaleString()})</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup.${
+    opts?.urlForId
+      ? ""
+      : " (No per-id link builder for this dataset — ids shown bare; full list in the companion <code>-extras.csv</code>.)"
   }</p>
+${
+  r.extraInKeyvexCount === 0
+    ? "<p>None — KeyVex holds nothing the source doesn’t.</p>"
+    : opts?.urlForId
+      ? `<p class="muted">Showing first ${Math.min(r.extraInKeyvex.length, HTML_ROW_CAP).toLocaleString()} of ${r.extraInKeyvexCount.toLocaleString()} — complete list in the companion <code>-extras.csv</code>.</p>
+<table><thead><tr><th>id</th><th>verify link</th></tr></thead><tbody>
+${r.extraInKeyvex
+  .slice(0, HTML_ROW_CAP)
+  .map(
+    (id) =>
+      `<tr><td>${esc(id)}</td><td><a href="${esc(opts.urlForId!(id))}" target="_blank" rel="noopener">check source ↗</a></td></tr>`,
+  )
+  .join("\n")}
+</tbody></table>`
+      : `<p class="muted">Sample: ${r.extraInKeyvexSample.map((s) => `<code>${esc(s)}</code>`).join(" ")}</p>`
+}
 
 </body></html>`;
 }
@@ -212,6 +234,24 @@ export function renderCsv(r: ReconResult): string {
       classOf(m),
       m.url,
     ].map((c) => {
+      const s = String(c);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    });
+    return cells.join(",");
+  });
+  return [head, ...rows].join("\n") + "\n";
+}
+
+// ─── Extras CSV (complete stale/extra list, with verify links) ─────────────────
+
+export function renderExtrasCsv(
+  r: ReconResult,
+  urlForId?: (id: string) => string,
+): string {
+  const head = "id,verify_url";
+  const rows = r.extraInKeyvex.map((id) => {
+    const url = urlForId ? urlForId(id) : "";
+    const cells = [id, url].map((c) => {
       const s = String(c);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     });
@@ -276,5 +316,12 @@ export function renderMarkdown(r: ReconResult): string {
     lines.push("");
   }
   lines.push(`## Missing filings: ${r.missing.length.toLocaleString()} (full list in the .csv; links in the .html)`);
+  lines.push("");
+  lines.push(
+    `## In KeyVex but NOT in current source: ${r.extraInKeyvexCount.toLocaleString()}`,
+  );
+  lines.push(
+    "For a current-snapshot dataset (sanctions/exclusions/screening) these are STALE records the source removed but KeyVex kept. Full list + verify links in the companion `-extras.csv`.",
+  );
   return lines.join("\n") + "\n";
 }
