@@ -16,7 +16,11 @@ import {
 import type { ReconContext, SourceAdapter, SourceItem } from "../types.js";
 
 const FORMS = ["NPORT-P", "NPORT-P/A"];
-const COVERAGE_START = 2024;
+// Rolling 2-year window (Greg, 2026-06-08): N-PORT is recent-snapshot data, so
+// 2 years is all customers want — not worth a multi-hour backfill for deep
+// history. (Briefly considered 3yr "for margin" but the extra year was ~77K
+// filings for low-value depth; kept at 2.)
+const COVERAGE_START = new Date().getUTCFullYear() - 2;
 
 function defaultYears(): number[] {
   const end = new Date().getUTCFullYear();

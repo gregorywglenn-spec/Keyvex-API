@@ -2,26 +2,26 @@
  * SEC Form N-PORT scraper — registered investment company monthly portfolio
  * reports (mutual funds, ETFs, closed-end funds).
  *
- * v1A is metadata-only via EDGAR full-text search. Each FTS hit carries
- * enough to populate the NportFiling record: filer name + CIK, period
- * ending (the month-end the filing covers), file number, file date,
- * accession, and the URL to the primary_doc.xml. Agents follow the URL
- * for the full per-holding portfolio detail (v1.1 polish to extract).
+ * Enumeration uses EDGAR's COMPLETE daily index (master.{YYYYMMDD}.idx),
+ * NOT full-text search. FTS silently under-reported N-PORT (~5% leak) due to
+ * its result caps and an incomplete mirror; the daily index is the
+ * authoritative, uncapped file list. Each filing's metadata (filer, period
+ * ending, file number, state) is read from its own primary_doc.xml header.
+ * Agents follow primary_document_url for the full per-holding portfolio detail.
  *
- * Cadence: daily 6:40 AM ET, 2-day lookback. Volume is ~20-50 filings/day
+ * Cadence: daily 6:40 AM ET, 2-day lookback. Volume is ~140 filings/day
  * across all registered investment companies — comfortable in 9 min.
  */
 
 import { XMLParser } from "fast-xml-parser";
 import type { NportFiling, NportHolding } from "../types.js";
+import { fetchEdgarDailyIndex } from "../reconcile/sec-edgar-index.js";
 
 const CONFIG = {
   USER_AGENT:
     process.env.SEC_USER_AGENT ?? "KeyVexMCP/0.1 contact@keyvex.com",
   EDGAR_URL: "https://www.sec.gov",
-  SEARCH_URL: "https://efts.sec.gov/LATEST/search-index",
   RATE_LIMIT_MS: 150,
-  FTS_HITS_PER_PAGE: 100,
   FORM_CODES: ["NPORT-P", "NPORT-P/A"],
 };
 
@@ -30,94 +30,90 @@ const sleep = (ms: number): Promise<void> =>
 
 const formatAccession = (a: string): string => a.replace(/-/g, "");
 
-/** Strip the xsl<schema>/ prefix from primaryDocument paths. Same gotcha
- *  as every SEC ownership form (Form 144 / 3 / D / 13D-G / NPORT-P). */
-function rawXmlPath(primaryDoc: string): string {
-  return primaryDoc.replace(/^xsl[A-Z0-9_]+\//, "");
-}
-
-interface EdgarHitSource {
-  ciks?: string[];
-  display_names?: string[];
-  form?: string;
-  file_type?: string;
-  file_date?: string;
-  period_ending?: string;
-  file_num?: string[];
-  adsh?: string;
-  biz_states?: string[];
-  inc_states?: string[];
-}
-
-interface EdgarHit {
-  _id?: string;
-  _source?: EdgarHitSource;
-}
-
-interface EdgarSearchResponse {
-  hits?: {
-    total?: { value?: number };
-    hits?: EdgarHit[];
-  };
-}
-
-async function fetchJson(url: string): Promise<EdgarSearchResponse> {
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await fetch(url, {
-    headers: { "User-Agent": CONFIG.USER_AGENT, Accept: "application/json" },
-  });
-  if (!res.ok) {
-    throw new Error(`EDGAR FTS ${res.status} ${res.statusText} — ${url}`);
-  }
-  return (await res.json()) as EdgarSearchResponse;
-}
-
-/** Display name format from EDGAR FTS:
- *   "WisdomTree Trust  (CIK 0001350487)"
- * Extract the plain fund name (drop the CIK suffix). */
-function parseFilerName(displayName: string): string {
-  return displayName.replace(/\s*\(CIK\s+\d+\)\s*$/i, "").trim();
-}
-
-function normalizeHit(hit: EdgarHit, scrapedAt: string): NportFiling | null {
-  const src = hit._source;
-  if (!src) return null;
-  const accession = src.adsh ?? "";
-  if (!accession) return null;
-  const formType = src.form ?? src.file_type ?? "";
-  // Only ingest the actual NPORT-P / NPORT-P/A filings (skip the
-  // ancillary attachments EDGAR sometimes surfaces with form=NPORT-EX).
-  if (!formType.startsWith("NPORT-P")) return null;
-
-  const ciks = src.ciks ?? [];
-  const archiveCik = (ciks[0] ?? "").replace(/^0+/, "");
-  const filerCik = (ciks[0] ?? "").padStart(10, "0");
-  const filerName = parseFilerName(src.display_names?.[0] ?? "");
-  const idParts = (hit._id ?? "").split(":");
-  const primaryDoc = rawXmlPath(idParts[1] ?? "");
-  if (!archiveCik || !primaryDoc) return null;
-
-  const accNoDash = formatAccession(accession);
-  return {
-    filing_id: accession,
-    filing_type: formType,
-    is_amendment: formType.endsWith("/A"),
-    file_date: src.file_date ?? "",
-    period_ending: src.period_ending ?? "",
-    filer_name: filerName,
-    filer_cik: filerCik,
-    sec_file_number: src.file_num?.[0] ?? "",
-    filer_state: src.biz_states?.[0] ?? "",
-    inc_state: src.inc_states?.[0] ?? "",
-    primary_document_url: `${CONFIG.EDGAR_URL}/Archives/edgar/data/${archiveCik}/${accNoDash}/${primaryDoc}`,
-    filing_url: `${CONFIG.EDGAR_URL}/Archives/edgar/data/${archiveCik}/${accNoDash}/${accession}-index.htm`,
-    scraped_at: scrapedAt,
-  };
-}
 
 export interface ScrapeNportOptions {
   lookbackDays?: number;
   maxFilingsPerForm?: number;
+}
+
+/**
+ * Reference to one N-PORT filing as listed in EDGAR's daily index
+ * (the complete, authoritative file list — no result caps).
+ */
+interface NportIndexRef {
+  cik: string;
+  accession: string;
+  formType: string;
+  fileDate: string;
+}
+
+/**
+ * Build a complete NportFiling record from the filing's own primary_doc.xml
+ * header. This replaces the old full-text-search path (which silently dropped
+ * ~5% of filings to EDGAR FTS result caps / an incomplete mirror).
+ *
+ * Field mapping verified against a live N-PORT filing (2026-06-04):
+ *   period_ending  ← genInfo.repPdDate  (matches what FTS reported exactly)
+ *   sec_file_number ← genInfo.regFileNumber
+ *   filer_state    ← genInfo.regStateConditional@regState (strip "US-")
+ *   filer_cik/name ← headerData + genInfo
+ * The one field not present in the filing XML is inc_state (state of
+ * incorporation, an EDGAR company-metadata field, not part of N-PORT). Left
+ * blank on index-recovered records — a minor field vs. recovering the whole
+ * filing, which the old path was dropping outright.
+ */
+async function fetchNportFilingMeta(
+  ref: NportIndexRef,
+  scrapedAt: string,
+): Promise<NportFiling | null> {
+  const archiveCik = ref.cik.replace(/^0+/, "");
+  const accNoDash = formatAccession(ref.accession);
+  const url = `${CONFIG.EDGAR_URL}/Archives/edgar/data/${archiveCik}/${accNoDash}/primary_doc.xml`;
+  let text: string;
+  try {
+    text = await fetchText(url);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[nport] ${ref.accession}: header fetch SKIP — ${msg}`);
+    return null;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let doc: any;
+  try {
+    doc = xml.parse(text);
+  } catch {
+    console.error(`[nport] ${ref.accession}: header parse SKIP`);
+    return null;
+  }
+  const sub = doc?.edgarSubmission;
+  const gen = sub?.formData?.genInfo ?? {};
+  const formType =
+    readScalar(sub?.headerData?.submissionType) || ref.formType;
+  let filerCik =
+    readScalar(sub?.headerData?.filerInfo?.filer?.issuerCredentials?.cik) ||
+    readScalar(gen.regCik) ||
+    ref.cik;
+  filerCik = filerCik.padStart(10, "0");
+  const regStateNode = gen?.regStateConditional;
+  const regState =
+    (regStateNode && regStateNode["@_regState"]) || "";
+  const filerState =
+    typeof regState === "string" ? regState.replace(/^US-/, "") : "";
+  return {
+    filing_id: ref.accession,
+    filing_type: formType,
+    is_amendment: formType.endsWith("/A"),
+    file_date: ref.fileDate,
+    period_ending: readScalar(gen.repPdDate),
+    filer_name: readScalar(gen.regName),
+    filer_cik: filerCik,
+    sec_file_number: readScalar(gen.regFileNumber),
+    filer_state: filerState,
+    inc_state: "",
+    primary_document_url: url,
+    filing_url: `${CONFIG.EDGAR_URL}/Archives/edgar/data/${archiveCik}/${accNoDash}/${ref.accession}-index.htm`,
+    scraped_at: scrapedAt,
+  };
 }
 
 export async function scrapeNportLiveFeed(
@@ -125,59 +121,56 @@ export async function scrapeNportLiveFeed(
 ): Promise<NportFiling[]> {
   const scrapedAt = new Date().toISOString();
   const lookbackDays = options.lookbackDays ?? 2;
-  const maxFilingsPerForm = options.maxFilingsPerForm ?? 1000;
-  const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = (start.toISOString().split("T")[0] ?? "");
-  const endStr = (end.toISOString().split("T")[0] ?? "");
 
-  console.error(
-    `[nport] Window ${startStr} → ${endStr}, forms: ${CONFIG.FORM_CODES.join(", ")}`,
-  );
-
-  const byAccession = new Map<string, NportFiling>();
-  for (const form of CONFIG.FORM_CODES) {
-    const formEncoded = encodeURIComponent(form);
-    let from = 0;
-    let pulled = 0;
-    while (pulled < maxFilingsPerForm) {
-      // EDGAR FTS requires a non-empty q parameter; q=%22%22 (literal "")
-      // works as a no-op filter that still allows form filtering.
-      const url =
-        `${CONFIG.SEARCH_URL}?q=%22%22&forms=${formEncoded}` +
-        `&dateRange=custom&startdt=${startStr}&enddt=${endStr}` +
-        `&hits=${CONFIG.FTS_HITS_PER_PAGE}&from=${from}`;
-      let data: EdgarSearchResponse;
-      try {
-        data = await fetchJson(url);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[nport] ${form} from=${from}: SKIP — ${msg}`);
-        break;
-      }
-      const hits = data.hits?.hits ?? [];
-      const total = data.hits?.total?.value ?? hits.length;
-      if (from === 0) {
-        console.error(
-          `[nport]   ${form}: ${total} total in window, paging ${CONFIG.FTS_HITS_PER_PAGE} at a time`,
-        );
-      }
-      for (const hit of hits) {
-        const filing = normalizeHit(hit, scrapedAt);
-        if (filing) byAccession.set(filing.filing_id, filing);
-      }
-      pulled += hits.length;
-      console.error(
-        `[nport]   ${form} from=${from}: +${hits.length} (running ${byAccession.size} unique)`,
-      );
-      if (hits.length < CONFIG.FTS_HITS_PER_PAGE) break;
-      from += CONFIG.FTS_HITS_PER_PAGE;
-    }
+  // Enumerate from EDGAR's COMPLETE daily index instead of full-text search.
+  // FTS silently under-reported N-PORT (~5% leak) due to its result caps and
+  // an incomplete mirror; the daily index is the authoritative file list.
+  // Same fix already applied to Form D's daily feed.
+  const days: string[] = [];
+  for (let i = 0; i <= lookbackDays; i++) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    days.push(d.toISOString().split("T")[0] ?? "");
   }
 
-  const out = Array.from(byAccession.values());
-  console.error(`[nport] TOTAL: ${out.length} unique N-PORT filings`);
+  const seen = new Map<string, NportIndexRef>();
+  for (const day of days) {
+    if (!day) continue;
+    let filings: Awaited<ReturnType<typeof fetchEdgarDailyIndex>>;
+    try {
+      filings = await fetchEdgarDailyIndex(day, CONFIG.FORM_CODES);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[nport] daily-index ${day}: SKIP — ${msg}`);
+      continue;
+    }
+    for (const f of filings) {
+      if (!f.formType.startsWith("NPORT-P")) continue;
+      seen.set(f.accession, {
+        cik: f.cik,
+        accession: f.accession,
+        formType: f.formType,
+        fileDate: f.dateFiled,
+      });
+    }
+    console.error(
+      `[nport] daily-index ${day}: ${filings.length} filings (running ${seen.size} unique)`,
+    );
+  }
+
+  const out: NportFiling[] = [];
+  let done = 0;
+  for (const ref of seen.values()) {
+    const rec = await fetchNportFilingMeta(ref, scrapedAt);
+    if (rec) out.push(rec);
+    done++;
+    if (done % 50 === 0) {
+      console.error(`[nport] header fetch ${done}/${seen.size}`);
+    }
+  }
+  console.error(
+    `[nport] TOTAL: ${out.length} N-PORT filings (of ${seen.size} in complete index)`,
+  );
   return out;
 }
 

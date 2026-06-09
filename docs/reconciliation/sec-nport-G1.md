@@ -1,6 +1,6 @@
 # KeyVex Reconciliation — SEC Form N-PORT — fund portfolio reports (EDGAR full-index, 2024+) — G1
 
-- generated: 2026-06-09T18:20:35.542Z
+- generated: 2026-06-09T18:41:05.483Z
 - collection: `nport_filings`
 
 ## G1 coverage: 79.89%  (102,009 / 127,692 filings; 25,683 missing)
