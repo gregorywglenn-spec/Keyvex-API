@@ -8,6 +8,7 @@ import { congressSenateAdapter } from "./congress-senate.js";
 import { secTenderOffersAdapter } from "./sec-tender-offers.js";
 import { secRegistrationStatementsAdapter } from "./sec-registration-statements.js";
 import { secFormDAdapter } from "./sec-form-d.js";
+import { federalRegisterAdapter } from "./federal-register.js";
 
 export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressHouseAdapter.name]: congressHouseAdapter,
@@ -15,7 +16,8 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [secTenderOffersAdapter.name]: secTenderOffersAdapter,
   [secRegistrationStatementsAdapter.name]: secRegistrationStatementsAdapter,
   [secFormDAdapter.name]: secFormDAdapter,
-  // Future: sec-form-144, sec-13dg, … (reuse fetchEdgarFilingsByForm)
+  [federalRegisterAdapter.name]: federalRegisterAdapter,
+  // Future: sec-form-144, sec-13dg, lobbying, fec-* …
 };
 
 export function getAdapter(name: string): SourceAdapter | undefined {
