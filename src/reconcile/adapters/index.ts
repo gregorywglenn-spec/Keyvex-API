@@ -14,6 +14,8 @@ import { ofacSdnAdapter } from "./ofac-sdn.js";
 import { oigExclusionsAdapter } from "./oig-exclusions.js";
 import { cslAdapter } from "./csl.js";
 import { congressBillsAdapter } from "./congress-bills.js";
+import { fecCandidatesAdapter } from "./fec-candidates.js";
+import { fecCommitteesAdapter } from "./fec-committees.js";
 
 export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressHouseAdapter.name]: congressHouseAdapter,
@@ -27,7 +29,9 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [oigExclusionsAdapter.name]: oigExclusionsAdapter,
   [cslAdapter.name]: cslAdapter,
   [congressBillsAdapter.name]: congressBillsAdapter,
-  // Future: sec-form-144, sec-13dg, lobbying, fec-* …
+  [fecCandidatesAdapter.name]: fecCandidatesAdapter,
+  [fecCommitteesAdapter.name]: fecCommitteesAdapter,
+  // Future: sec-form-144, sec-13dg, lobbying …
 };
 
 export function getAdapter(name: string): SourceAdapter | undefined {

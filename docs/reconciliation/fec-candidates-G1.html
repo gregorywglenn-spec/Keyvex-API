@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — FEC Candidates (api.open.fec.gov, all-status, cycles 2020–2026) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — FEC Candidates (api.open.fec.gov, all-status, cycles 2020–2026)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>fec_candidates</code> · generated 2026-06-09T22:02:08.957Z</p>
+
+<div class="banner ok">
+  <div class="big">99.95% coverage</div>
+  25,594 of 25,608 source filings present in KeyVex
+  · <b>14 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 25,616 records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>H</td><td class="num">17,017</td><td>✓ present</td></tr>
+<tr><td>S</td><td class="num">3,579</td><td>✓ present</td></tr>
+<tr><td>P</td><td class="num">5,020</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr class="hasgap"><td>—</td><td class="num">25,608</td><td class="num">25,594</td><td class="num">14</td><td class="num">99.95%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (14)</h2>
+
+<table><thead><tr><th>ptr_id</th><th>year</th><th>member</th><th>source link</th></tr></thead><tbody>
+<tr><td>H6FL22248</td><td></td><td>ASKAR, CASEY (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL22248/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL11340</td><td></td><td>BAKER, CAREY (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL11340/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL22255</td><td></td><td>BAXTER, SARA (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL22255/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6WY01181</td><td></td><td>DODSON, RICHARD (H-WY)</td><td><a href="https://www.fec.gov/data/candidate/H6WY01181/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL24095</td><td></td><td>GILBERT, OLIVER G. III (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL24095/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL09294</td><td></td><td>GREEN, DAN (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL09294/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6MD04381</td><td></td><td>HEDGEPETH, SHAVONNE (H-MD)</td><td><a href="https://www.fec.gov/data/candidate/H6MD04381/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL24087</td><td></td><td>JONES, SHEVRIN (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL24087/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6SC02159</td><td></td><td>KHALIFA, ZYON DESHON (H-SC)</td><td><a href="https://www.fec.gov/data/candidate/H6SC02159/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6SC02167</td><td></td><td>KHALIFA, ZYON DESHON (H-SC)</td><td><a href="https://www.fec.gov/data/candidate/H6SC02167/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL04246</td><td></td><td>SELL, MIKE (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL04246/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6CO01349</td><td></td><td>SMITH, AUSTIN JOSEPH HARVEY (H-CO)</td><td><a href="https://www.fec.gov/data/candidate/H6CO01349/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6FL11332</td><td></td><td>STRADA, JOE (H-FL)</td><td><a href="https://www.fec.gov/data/candidate/H6FL11332/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>H6MO04273</td><td></td><td>VERA, SCOTT VINCENT (H-MO)</td><td><a href="https://www.fec.gov/data/candidate/H6MO04273/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+</tbody></table>
+
+<h2>In KeyVex but NOT in the current source (22)</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup.</p>
+<p class="muted">Showing first 22 of 22 — complete list in the companion <code>-extras.csv</code>.</p>
+<table><thead><tr><th>id</th><th>verify link</th></tr></thead><tbody>
+<tr><td>H0CA42209</td><td><a href="https://www.fec.gov/data/candidate/H0CA42209/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H0NY28114</td><td><a href="https://www.fec.gov/data/candidate/H0NY28114/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H2IL02156</td><td><a href="https://www.fec.gov/data/candidate/H2IL02156/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H4DC01041</td><td><a href="https://www.fec.gov/data/candidate/H4DC01041/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6CA14197</td><td><a href="https://www.fec.gov/data/candidate/H6CA14197/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6CA41364</td><td><a href="https://www.fec.gov/data/candidate/H6CA41364/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6CA50274</td><td><a href="https://www.fec.gov/data/candidate/H6CA50274/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6NY03304</td><td><a href="https://www.fec.gov/data/candidate/H6NY03304/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6NY15183</td><td><a href="https://www.fec.gov/data/candidate/H6NY15183/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6NY24201</td><td><a href="https://www.fec.gov/data/candidate/H6NY24201/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6TN08169</td><td><a href="https://www.fec.gov/data/candidate/H6TN08169/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H6TX22143</td><td><a href="https://www.fec.gov/data/candidate/H6TX22143/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H8CA14193</td><td><a href="https://www.fec.gov/data/candidate/H8CA14193/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H8IL09232</td><td><a href="https://www.fec.gov/data/candidate/H8IL09232/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H8IL12160</td><td><a href="https://www.fec.gov/data/candidate/H8IL12160/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>H8MI13292</td><td><a href="https://www.fec.gov/data/candidate/H8MI13292/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>P00008839</td><td><a href="https://www.fec.gov/data/candidate/P00008839/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>P40003840</td><td><a href="https://www.fec.gov/data/candidate/P40003840/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>P40012841</td><td><a href="https://www.fec.gov/data/candidate/P40012841/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>P60005881</td><td><a href="https://www.fec.gov/data/candidate/P60005881/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>P60012135</td><td><a href="https://www.fec.gov/data/candidate/P60012135/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>P60012465</td><td><a href="https://www.fec.gov/data/candidate/P60012465/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+</tbody></table>
+
+</body></html>

@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — FEC Committees (api.open.fec.gov, cycles 2022/2024/2026) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — FEC Committees (api.open.fec.gov, cycles 2022/2024/2026)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>fec_committees</code> · generated 2026-06-09T22:57:04.693Z</p>
+
+<div class="banner ok">
+  <div class="big">99.96% coverage</div>
+  31,515 of 31,528 source filings present in KeyVex
+  · <b>13 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 48,646 records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>(none) <span class="muted">(unexpected)</span></td><td class="num">31</td><td>✓ present</td></tr>
+<tr><td>C <span class="muted">(unexpected)</span></td><td class="num">570</td><td>✓ present</td></tr>
+<tr><td>D <span class="muted">(unexpected)</span></td><td class="num">9</td><td>✓ present</td></tr>
+<tr><td>E <span class="muted">(unexpected)</span></td><td class="num">345</td><td>✓ present</td></tr>
+<tr><td>H <span class="muted">(unexpected)</span></td><td class="num">15,688</td><td>✓ present</td></tr>
+<tr><td>I <span class="muted">(unexpected)</span></td><td class="num">1,776</td><td>✓ present</td></tr>
+<tr><td>N <span class="muted">(unexpected)</span></td><td class="num">8,840</td><td>✓ present</td></tr>
+<tr><td>O <span class="muted">(unexpected)</span></td><td class="num">7,563</td><td>✓ present</td></tr>
+<tr><td>P <span class="muted">(unexpected)</span></td><td class="num">3,137</td><td>✓ present</td></tr>
+<tr><td>Q <span class="muted">(unexpected)</span></td><td class="num">4,202</td><td>✓ present</td></tr>
+<tr><td>S <span class="muted">(unexpected)</span></td><td class="num">3,157</td><td>✓ present</td></tr>
+<tr><td>U <span class="muted">(unexpected)</span></td><td class="num">435</td><td>✓ present</td></tr>
+<tr><td>V <span class="muted">(unexpected)</span></td><td class="num">1,491</td><td>✓ present</td></tr>
+<tr><td>W <span class="muted">(unexpected)</span></td><td class="num">184</td><td>✓ present</td></tr>
+<tr><td>X <span class="muted">(unexpected)</span></td><td class="num">934</td><td>✓ present</td></tr>
+<tr><td>Y <span class="muted">(unexpected)</span></td><td class="num">284</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr class="hasgap"><td>—</td><td class="num">31,528</td><td class="num">31,515</td><td class="num">13</td><td class="num">99.96%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (13)</h2>
+
+<table><thead><tr><th>ptr_id</th><th>year</th><th>member</th><th>source link</th></tr></thead><tbody>
+<tr><td>C00952812</td><td></td><td>AFFORDABLE FLORIDA (O)</td><td><a href="https://www.fec.gov/data/committee/C00952812/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952796</td><td></td><td>AUSTIN JOSEPH HARVEY SMITH (X)</td><td><a href="https://www.fec.gov/data/committee/C00952796/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952911</td><td></td><td>BLUE ATHLETICS / SHABAZZ-BLUE AND COMPANY COMMITTEE (U)</td><td><a href="https://www.fec.gov/data/committee/C00952911/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952804</td><td></td><td>CONSTITUTIONAL CONSERVATIVE PAC (O)</td><td><a href="https://www.fec.gov/data/committee/C00952804/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952853</td><td></td><td>DSCC VICTORY FUND (N)</td><td><a href="https://www.fec.gov/data/committee/C00952853/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952820</td><td></td><td>FAITH IN POLICY SUPER PAC (O)</td><td><a href="https://www.fec.gov/data/committee/C00952820/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952887</td><td></td><td>FMG SWVA (N)</td><td><a href="https://www.fec.gov/data/committee/C00952887/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952838</td><td></td><td>FRIENDS OF THE COLONEL (O)</td><td><a href="https://www.fec.gov/data/committee/C00952838/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952861</td><td></td><td>JILLIAN FOR FLORIDA (H)</td><td><a href="https://www.fec.gov/data/committee/C00952861/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952895</td><td></td><td>MY BIRTHDATE JUNE 19TH HUSSLE COMMITTEE (X)</td><td><a href="https://www.fec.gov/data/committee/C00952895/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952903</td><td></td><td>NONE (U)</td><td><a href="https://www.fec.gov/data/committee/C00952903/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952846</td><td></td><td>SARA BAXTER FOR CONGRESS (H)</td><td><a href="https://www.fec.gov/data/committee/C00952846/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>C00952879</td><td></td><td>VIRGINAI CLINTON KELLY DEMOCRATIC WOMEN (N)</td><td><a href="https://www.fec.gov/data/committee/C00952879/" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+</tbody></table>
+
+<h2>In KeyVex but NOT in the current source (17,131)</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup.</p>
+<p class="muted">Showing first 250 of 17,131 — complete list in the companion <code>-extras.csv</code>.</p>
+<table><thead><tr><th>id</th><th>verify link</th></tr></thead><tbody>
+<tr><td>C00000018</td><td><a href="https://www.fec.gov/data/committee/C00000018/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00000638</td><td><a href="https://www.fec.gov/data/committee/C00000638/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00001347</td><td><a href="https://www.fec.gov/data/committee/C00001347/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00001768</td><td><a href="https://www.fec.gov/data/committee/C00001768/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00001776</td><td><a href="https://www.fec.gov/data/committee/C00001776/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00002600</td><td><a href="https://www.fec.gov/data/committee/C00002600/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00003327</td><td><a href="https://www.fec.gov/data/committee/C00003327/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00003897</td><td><a href="https://www.fec.gov/data/committee/C00003897/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00005041</td><td><a href="https://www.fec.gov/data/committee/C00005041/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00005488</td><td><a href="https://www.fec.gov/data/committee/C00005488/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00005751</td><td><a href="https://www.fec.gov/data/committee/C00005751/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00007666</td><td><a href="https://www.fec.gov/data/committee/C00007666/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00008110</td><td><a href="https://www.fec.gov/data/committee/C00008110/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00009456</td><td><a href="https://www.fec.gov/data/committee/C00009456/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00009795</td><td><a href="https://www.fec.gov/data/committee/C00009795/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00011189</td><td><a href="https://www.fec.gov/data/committee/C00011189/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00011239</td><td><a href="https://www.fec.gov/data/committee/C00011239/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00012518</td><td><a href="https://www.fec.gov/data/committee/C00012518/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00016444</td><td><a href="https://www.fec.gov/data/committee/C00016444/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00017830</td><td><a href="https://www.fec.gov/data/committee/C00017830/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00020974</td><td><a href="https://www.fec.gov/data/committee/C00020974/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00026757</td><td><a href="https://www.fec.gov/data/committee/C00026757/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00033092</td><td><a href="https://www.fec.gov/data/committee/C00033092/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00034934</td><td><a href="https://www.fec.gov/data/committee/C00034934/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00035683</td><td><a href="https://www.fec.gov/data/committee/C00035683/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00037606</td><td><a href="https://www.fec.gov/data/committee/C00037606/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00038612</td><td><a href="https://www.fec.gov/data/committee/C00038612/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00038927</td><td><a href="https://www.fec.gov/data/committee/C00038927/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00038968</td><td><a href="https://www.fec.gov/data/committee/C00038968/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00039164</td><td><a href="https://www.fec.gov/data/committee/C00039164/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00039248</td><td><a href="https://www.fec.gov/data/committee/C00039248/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00040428</td><td><a href="https://www.fec.gov/data/committee/C00040428/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00041947</td><td><a href="https://www.fec.gov/data/committee/C00041947/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00042069</td><td><a href="https://www.fec.gov/data/committee/C00042069/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00043265</td><td><a href="https://www.fec.gov/data/committee/C00043265/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00043992</td><td><a href="https://www.fec.gov/data/committee/C00043992/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00047415</td><td><a href="https://www.fec.gov/data/committee/C00047415/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00048371</td><td><a href="https://www.fec.gov/data/committee/C00048371/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00065987</td><td><a href="https://www.fec.gov/data/committee/C00065987/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00075291</td><td><a href="https://www.fec.gov/data/committee/C00075291/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00077354</td><td><a href="https://www.fec.gov/data/committee/C00077354/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00078261</td><td><a href="https://www.fec.gov/data/committee/C00078261/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00081356</td><td><a href="https://www.fec.gov/data/committee/C00081356/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00082677</td><td><a href="https://www.fec.gov/data/committee/C00082677/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00084145</td><td><a href="https://www.fec.gov/data/committee/C00084145/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00084582</td><td><a href="https://www.fec.gov/data/committee/C00084582/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00086256</td><td><a href="https://www.fec.gov/data/committee/C00086256/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00086348</td><td><a href="https://www.fec.gov/data/committee/C00086348/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00088120</td><td><a href="https://www.fec.gov/data/committee/C00088120/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00088484</td><td><a href="https://www.fec.gov/data/committee/C00088484/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00089540</td><td><a href="https://www.fec.gov/data/committee/C00089540/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00089839</td><td><a href="https://www.fec.gov/data/committee/C00089839/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00091892</td><td><a href="https://www.fec.gov/data/committee/C00091892/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00093195</td><td><a href="https://www.fec.gov/data/committee/C00093195/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00093898</td><td><a href="https://www.fec.gov/data/committee/C00093898/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00094318</td><td><a href="https://www.fec.gov/data/committee/C00094318/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00097238</td><td><a href="https://www.fec.gov/data/committee/C00097238/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00097758</td><td><a href="https://www.fec.gov/data/committee/C00097758/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00099465</td><td><a href="https://www.fec.gov/data/committee/C00099465/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00101410</td><td><a href="https://www.fec.gov/data/committee/C00101410/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00102517</td><td><a href="https://www.fec.gov/data/committee/C00102517/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00103143</td><td><a href="https://www.fec.gov/data/committee/C00103143/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00103572</td><td><a href="https://www.fec.gov/data/committee/C00103572/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00104174</td><td><a href="https://www.fec.gov/data/committee/C00104174/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00104752</td><td><a href="https://www.fec.gov/data/committee/C00104752/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00104885</td><td><a href="https://www.fec.gov/data/committee/C00104885/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00107003</td><td><a href="https://www.fec.gov/data/committee/C00107003/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00108282</td><td><a href="https://www.fec.gov/data/committee/C00108282/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00109116</td><td><a href="https://www.fec.gov/data/committee/C00109116/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00109140</td><td><a href="https://www.fec.gov/data/committee/C00109140/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00109363</td><td><a href="https://www.fec.gov/data/committee/C00109363/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00110197</td><td><a href="https://www.fec.gov/data/committee/C00110197/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00110759</td><td><a href="https://www.fec.gov/data/committee/C00110759/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00111567</td><td><a href="https://www.fec.gov/data/committee/C00111567/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00112599</td><td><a href="https://www.fec.gov/data/committee/C00112599/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00112722</td><td><a href="https://www.fec.gov/data/committee/C00112722/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00112888</td><td><a href="https://www.fec.gov/data/committee/C00112888/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00115667</td><td><a href="https://www.fec.gov/data/committee/C00115667/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00115972</td><td><a href="https://www.fec.gov/data/committee/C00115972/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00117721</td><td><a href="https://www.fec.gov/data/committee/C00117721/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00119040</td><td><a href="https://www.fec.gov/data/committee/C00119040/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00119701</td><td><a href="https://www.fec.gov/data/committee/C00119701/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00120519</td><td><a href="https://www.fec.gov/data/committee/C00120519/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00120683</td><td><a href="https://www.fec.gov/data/committee/C00120683/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00121673</td><td><a href="https://www.fec.gov/data/committee/C00121673/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00122937</td><td><a href="https://www.fec.gov/data/committee/C00122937/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00123513</td><td><a href="https://www.fec.gov/data/committee/C00123513/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00127910</td><td><a href="https://www.fec.gov/data/committee/C00127910/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00128686</td><td><a href="https://www.fec.gov/data/committee/C00128686/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00131615</td><td><a href="https://www.fec.gov/data/committee/C00131615/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00131706</td><td><a href="https://www.fec.gov/data/committee/C00131706/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00135376</td><td><a href="https://www.fec.gov/data/committee/C00135376/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00136531</td><td><a href="https://www.fec.gov/data/committee/C00136531/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00137828</td><td><a href="https://www.fec.gov/data/committee/C00137828/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00138552</td><td><a href="https://www.fec.gov/data/committee/C00138552/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00138701</td><td><a href="https://www.fec.gov/data/committee/C00138701/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00139089</td><td><a href="https://www.fec.gov/data/committee/C00139089/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00139253</td><td><a href="https://www.fec.gov/data/committee/C00139253/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00139741</td><td><a href="https://www.fec.gov/data/committee/C00139741/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00141002</td><td><a href="https://www.fec.gov/data/committee/C00141002/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00141945</td><td><a href="https://www.fec.gov/data/committee/C00141945/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00142000</td><td><a href="https://www.fec.gov/data/committee/C00142000/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00142216</td><td><a href="https://www.fec.gov/data/committee/C00142216/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00142307</td><td><a href="https://www.fec.gov/data/committee/C00142307/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00143305</td><td><a href="https://www.fec.gov/data/committee/C00143305/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00144576</td><td><a href="https://www.fec.gov/data/committee/C00144576/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00144709</td><td><a href="https://www.fec.gov/data/committee/C00144709/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00144824</td><td><a href="https://www.fec.gov/data/committee/C00144824/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00146472</td><td><a href="https://www.fec.gov/data/committee/C00146472/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00146886</td><td><a href="https://www.fec.gov/data/committee/C00146886/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00146969</td><td><a href="https://www.fec.gov/data/committee/C00146969/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00147686</td><td><a href="https://www.fec.gov/data/committee/C00147686/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00147918</td><td><a href="https://www.fec.gov/data/committee/C00147918/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00148155</td><td><a href="https://www.fec.gov/data/committee/C00148155/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00148684</td><td><a href="https://www.fec.gov/data/committee/C00148684/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00148783</td><td><a href="https://www.fec.gov/data/committee/C00148783/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00149732</td><td><a href="https://www.fec.gov/data/committee/C00149732/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00149773</td><td><a href="https://www.fec.gov/data/committee/C00149773/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00150995</td><td><a href="https://www.fec.gov/data/committee/C00150995/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00151282</td><td><a href="https://www.fec.gov/data/committee/C00151282/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00151837</td><td><a href="https://www.fec.gov/data/committee/C00151837/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00152223</td><td><a href="https://www.fec.gov/data/committee/C00152223/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00152843</td><td><a href="https://www.fec.gov/data/committee/C00152843/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00155713</td><td><a href="https://www.fec.gov/data/committee/C00155713/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00155796</td><td><a href="https://www.fec.gov/data/committee/C00155796/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00160473</td><td><a href="https://www.fec.gov/data/committee/C00160473/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00160812</td><td><a href="https://www.fec.gov/data/committee/C00160812/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00160978</td><td><a href="https://www.fec.gov/data/committee/C00160978/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00162198</td><td><a href="https://www.fec.gov/data/committee/C00162198/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00163535</td><td><a href="https://www.fec.gov/data/committee/C00163535/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00164152</td><td><a href="https://www.fec.gov/data/committee/C00164152/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00164228</td><td><a href="https://www.fec.gov/data/committee/C00164228/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00165241</td><td><a href="https://www.fec.gov/data/committee/C00165241/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00165316</td><td><a href="https://www.fec.gov/data/committee/C00165316/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00165514</td><td><a href="https://www.fec.gov/data/committee/C00165514/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00165621</td><td><a href="https://www.fec.gov/data/committee/C00165621/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00165803</td><td><a href="https://www.fec.gov/data/committee/C00165803/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00165852</td><td><a href="https://www.fec.gov/data/committee/C00165852/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00166017</td><td><a href="https://www.fec.gov/data/committee/C00166017/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00166082</td><td><a href="https://www.fec.gov/data/committee/C00166082/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00170944</td><td><a href="https://www.fec.gov/data/committee/C00170944/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00171538</td><td><a href="https://www.fec.gov/data/committee/C00171538/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00172387</td><td><a href="https://www.fec.gov/data/committee/C00172387/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00172601</td><td><a href="https://www.fec.gov/data/committee/C00172601/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00173161</td><td><a href="https://www.fec.gov/data/committee/C00173161/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00173344</td><td><a href="https://www.fec.gov/data/committee/C00173344/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00173369</td><td><a href="https://www.fec.gov/data/committee/C00173369/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00173419</td><td><a href="https://www.fec.gov/data/committee/C00173419/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00181206</td><td><a href="https://www.fec.gov/data/committee/C00181206/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00181826</td><td><a href="https://www.fec.gov/data/committee/C00181826/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00183434</td><td><a href="https://www.fec.gov/data/committee/C00183434/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00184143</td><td><a href="https://www.fec.gov/data/committee/C00184143/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00188888</td><td><a href="https://www.fec.gov/data/committee/C00188888/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00190652</td><td><a href="https://www.fec.gov/data/committee/C00190652/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00191213</td><td><a href="https://www.fec.gov/data/committee/C00191213/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00191387</td><td><a href="https://www.fec.gov/data/committee/C00191387/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00191478</td><td><a href="https://www.fec.gov/data/committee/C00191478/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00192302</td><td><a href="https://www.fec.gov/data/committee/C00192302/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00193680</td><td><a href="https://www.fec.gov/data/committee/C00193680/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00194191</td><td><a href="https://www.fec.gov/data/committee/C00194191/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00194225</td><td><a href="https://www.fec.gov/data/committee/C00194225/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00195065</td><td><a href="https://www.fec.gov/data/committee/C00195065/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00195263</td><td><a href="https://www.fec.gov/data/committee/C00195263/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00195586</td><td><a href="https://www.fec.gov/data/committee/C00195586/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00195701</td><td><a href="https://www.fec.gov/data/committee/C00195701/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00196824</td><td><a href="https://www.fec.gov/data/committee/C00196824/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00197152</td><td><a href="https://www.fec.gov/data/committee/C00197152/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00197244</td><td><a href="https://www.fec.gov/data/committee/C00197244/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00199273</td><td><a href="https://www.fec.gov/data/committee/C00199273/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00199471</td><td><a href="https://www.fec.gov/data/committee/C00199471/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00199950</td><td><a href="https://www.fec.gov/data/committee/C00199950/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00200642</td><td><a href="https://www.fec.gov/data/committee/C00200642/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00200907</td><td><a href="https://www.fec.gov/data/committee/C00200907/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00201293</td><td><a href="https://www.fec.gov/data/committee/C00201293/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00202861</td><td><a href="https://www.fec.gov/data/committee/C00202861/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00203521</td><td><a href="https://www.fec.gov/data/committee/C00203521/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00210559</td><td><a href="https://www.fec.gov/data/committee/C00210559/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00212035</td><td><a href="https://www.fec.gov/data/committee/C00212035/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00212308</td><td><a href="https://www.fec.gov/data/committee/C00212308/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00213611</td><td><a href="https://www.fec.gov/data/committee/C00213611/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00214635</td><td><a href="https://www.fec.gov/data/committee/C00214635/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00214965</td><td><a href="https://www.fec.gov/data/committee/C00214965/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00215236</td><td><a href="https://www.fec.gov/data/committee/C00215236/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00216341</td><td><a href="https://www.fec.gov/data/committee/C00216341/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00218172</td><td><a href="https://www.fec.gov/data/committee/C00218172/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00219717</td><td><a href="https://www.fec.gov/data/committee/C00219717/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00223230</td><td><a href="https://www.fec.gov/data/committee/C00223230/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00224808</td><td><a href="https://www.fec.gov/data/committee/C00224808/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00225045</td><td><a href="https://www.fec.gov/data/committee/C00225045/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00225623</td><td><a href="https://www.fec.gov/data/committee/C00225623/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00226712</td><td><a href="https://www.fec.gov/data/committee/C00226712/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00228122</td><td><a href="https://www.fec.gov/data/committee/C00228122/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00228247</td><td><a href="https://www.fec.gov/data/committee/C00228247/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00229203</td><td><a href="https://www.fec.gov/data/committee/C00229203/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00229534</td><td><a href="https://www.fec.gov/data/committee/C00229534/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00230789</td><td><a href="https://www.fec.gov/data/committee/C00230789/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00231092</td><td><a href="https://www.fec.gov/data/committee/C00231092/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00231233</td><td><a href="https://www.fec.gov/data/committee/C00231233/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00231951</td><td><a href="https://www.fec.gov/data/committee/C00231951/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00232611</td><td><a href="https://www.fec.gov/data/committee/C00232611/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00234245</td><td><a href="https://www.fec.gov/data/committee/C00234245/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00234641</td><td><a href="https://www.fec.gov/data/committee/C00234641/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00235309</td><td><a href="https://www.fec.gov/data/committee/C00235309/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00235861</td><td><a href="https://www.fec.gov/data/committee/C00235861/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00236596</td><td><a href="https://www.fec.gov/data/committee/C00236596/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00237198</td><td><a href="https://www.fec.gov/data/committee/C00237198/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00239285</td><td><a href="https://www.fec.gov/data/committee/C00239285/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00239939</td><td><a href="https://www.fec.gov/data/committee/C00239939/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00240069</td><td><a href="https://www.fec.gov/data/committee/C00240069/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00240226</td><td><a href="https://www.fec.gov/data/committee/C00240226/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00241398</td><td><a href="https://www.fec.gov/data/committee/C00241398/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00242271</td><td><a href="https://www.fec.gov/data/committee/C00242271/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00242370</td><td><a href="https://www.fec.gov/data/committee/C00242370/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00243444</td><td><a href="https://www.fec.gov/data/committee/C00243444/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00244657</td><td><a href="https://www.fec.gov/data/committee/C00244657/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00245720</td><td><a href="https://www.fec.gov/data/committee/C00245720/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00245837</td><td><a href="https://www.fec.gov/data/committee/C00245837/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00246348</td><td><a href="https://www.fec.gov/data/committee/C00246348/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00246827</td><td><a href="https://www.fec.gov/data/committee/C00246827/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00247494</td><td><a href="https://www.fec.gov/data/committee/C00247494/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00247890</td><td><a href="https://www.fec.gov/data/committee/C00247890/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00248195</td><td><a href="https://www.fec.gov/data/committee/C00248195/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00249250</td><td><a href="https://www.fec.gov/data/committee/C00249250/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00249896</td><td><a href="https://www.fec.gov/data/committee/C00249896/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00250209</td><td><a href="https://www.fec.gov/data/committee/C00250209/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00250555</td><td><a href="https://www.fec.gov/data/committee/C00250555/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00250589</td><td><a href="https://www.fec.gov/data/committee/C00250589/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00250720</td><td><a href="https://www.fec.gov/data/committee/C00250720/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00251348</td><td><a href="https://www.fec.gov/data/committee/C00251348/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00251843</td><td><a href="https://www.fec.gov/data/committee/C00251843/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00252791</td><td><a href="https://www.fec.gov/data/committee/C00252791/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00253906</td><td><a href="https://www.fec.gov/data/committee/C00253906/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00254441</td><td><a href="https://www.fec.gov/data/committee/C00254441/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00254581</td><td><a href="https://www.fec.gov/data/committee/C00254581/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00255190</td><td><a href="https://www.fec.gov/data/committee/C00255190/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00255224</td><td><a href="https://www.fec.gov/data/committee/C00255224/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00255257</td><td><a href="https://www.fec.gov/data/committee/C00255257/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00255406</td><td><a href="https://www.fec.gov/data/committee/C00255406/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00255950</td><td><a href="https://www.fec.gov/data/committee/C00255950/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00256313</td><td><a href="https://www.fec.gov/data/committee/C00256313/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00256354</td><td><a href="https://www.fec.gov/data/committee/C00256354/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00257915</td><td><a href="https://www.fec.gov/data/committee/C00257915/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00258525</td><td><a href="https://www.fec.gov/data/committee/C00258525/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00259374</td><td><a href="https://www.fec.gov/data/committee/C00259374/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00260141</td><td><a href="https://www.fec.gov/data/committee/C00260141/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00260547</td><td><a href="https://www.fec.gov/data/committee/C00260547/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00260604</td><td><a href="https://www.fec.gov/data/committee/C00260604/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00260893</td><td><a href="https://www.fec.gov/data/committee/C00260893/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00263723</td><td><a href="https://www.fec.gov/data/committee/C00263723/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>C00264382</td><td><a href="https://www.fec.gov/data/committee/C00264382/" target="_blank" rel="noopener">check source ↗</a></td></tr>
+</tbody></table>
+
+</body></html>
