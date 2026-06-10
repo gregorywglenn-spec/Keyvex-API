@@ -55,6 +55,11 @@ explicitly: sample, NOT volume-safe, follow cfpb_source_url for true counts.
 
 ## Status — RESOLVED 2026-06-10 (Greg's call: live passthrough + cron continues)
 
+**Standing posture (Greg, 2026-06-10):** pass-through is the architecture of
+record. The bulk-CSV ingestion (option A below) is the CONTINGENCY, triggered
+only if subscribers complain about the live path (latency, CFPB outages, or
+API changes). Don't build it preemptively.
+
 Greg chose the passthrough approach (a hybrid: live API serves queries, the
 cron keeps feeding the fallback cache). Implementation discovered a 2026-06-06
 session had already built live-first-with-cache-fallback (`liveFirst` in
