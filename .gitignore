@@ -47,3 +47,10 @@ coverage/
 
 # Firebase CLI deploy cache (auto-generated, rewrites on every hosting deploy)
 .firebase/
+
+# Reconcile scraper progress/state file (rewrites itself each run — not source)
+scripts/backfill-queue.json
+
+# Recent-window reconcile "extras" — for those adapters the extras column is
+# all older records by design (pure noise), and it regenerates each run.
+docs/reconciliation/*-recent-G1-extras.csv
