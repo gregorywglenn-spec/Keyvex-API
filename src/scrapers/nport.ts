@@ -271,9 +271,21 @@ export async function parseNportHoldings(
   filing: NportFiling,
   scrapedAt: string,
 ): Promise<NportHolding[]> {
+  // Some filer agents list the human-readable NPORT-EX exhibit (.htm) as the
+  // primary document, so primary_document_url isn't always the structured
+  // XML (caught 2026-06-10: 100 consecutive catch-up filings parsed to 0
+  // rows because we were parsing exhibit HTML). The archive directory
+  // ALWAYS contains primary_doc.xml for NPORT-P — derive it from the
+  // accession when the stored URL isn't an .xml.
+  let xmlUrl = filing.primary_document_url;
+  if (!/\.xml($|\?)/i.test(xmlUrl)) {
+    const cikNum = String(parseInt(filing.filer_cik, 10));
+    const accNoDash = filing.filing_id.replace(/-/g, "");
+    xmlUrl = `https://www.sec.gov/Archives/edgar/data/${cikNum}/${accNoDash}/primary_doc.xml`;
+  }
   let xmlText: string;
   try {
-    xmlText = await fetchText(filing.primary_document_url);
+    xmlText = await fetchText(xmlUrl);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[nport-holdings] ${filing.filing_id} fetch SKIP — ${msg}`);
