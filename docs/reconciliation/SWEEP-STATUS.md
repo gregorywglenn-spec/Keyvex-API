@@ -18,12 +18,24 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (21 of ~38 datasets)
+## ✅ Done / verified (23 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
-DEF 14A proxies, **8-K, Form 144, Form 3, 13D/G**.
+DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
+roll-call votes**.
+
+### 2026-06-10 session — quick catalogs, both 100%
+- **legislators** (snapshot dataset): 536/536 current members, 0 missing,
+  0 stale extras (436 House + 100 Senate). `legislators-G1.html`.
+- **roll-call-votes** (113th–119th, both chambers): 9,924/9,924, 0 missing,
+  0 extras (4,981 House + 4,943 Senate). Denominator reuses the scraper's list
+  endpoints, so the House side was ALSO independently cross-checked against the
+  House Clerk's own records (clerk.house.gov `roll517.xml` exists / `roll518.xml`
+  404s → 2024 really ended at 517, matching). Senate side is canonical
+  senate.gov vote-menu XML. `roll-call-votes-G1.html`. Note: `--years` on this
+  adapter means CONGRESS numbers (113–119), not calendar years.
 
 ### Biggest finding — RESOLVED: the FTS enumeration leak (5 SEC feeds)
 Five feeds enumerated via EDGAR full-text search, which silently caps/under-reports.
@@ -47,8 +59,8 @@ Recent-window coverage before → after the fix (switch to complete daily index 
 3. **Dead branch:** do NOT merge `claude/fec-indexes-2026-05-22` (would delete ~250
    live indexes). See `PARKED-BRANCHES.md`.
 
-## ⏭️ Remaining to reconcile (~17) — roughly by effort
-- **Quick catalogs:** member profiles (legislators), roll-call votes, Form 278.
+## ⏭️ Remaining to reconcile (~15) — roughly by effort
+- **Quick catalogs:** Form 278.
 - **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
   government publications (GovInfo), enforcement actions (5-6 regulators), treasury
   auctions, CFTC COT, consumer complaints (CFPB), FARA, product recalls (FDA/CPSC),

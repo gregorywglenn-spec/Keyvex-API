@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — Member profiles — current legislators (unitedstates catalog) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — Member profiles — current legislators (unitedstates catalog)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>legislators</code> · generated 2026-06-10T16:41:45.072Z</p>
+
+<div class="banner ok">
+  <div class="big">100.00% coverage</div>
+  536 of 536 source filings present in KeyVex
+  · <b>0 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 536 records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>house</td><td class="num">436</td><td>✓ present</td></tr>
+<tr><td>senate</td><td class="num">100</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr><td>2021</td><td class="num">31</td><td class="num">31</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2023</td><td class="num">32</td><td class="num">32</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2024</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2025</td><td class="num">468</td><td class="num">468</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2026</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (0)</h2>
+
+<p>None — every source filing in the scanned window is present in KeyVex.</p>
+
+<h2>In KeyVex but NOT in the current source (0)</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup.</p>
+<p>None — KeyVex holds nothing the source doesn’t.</p>
+
+</body></html>

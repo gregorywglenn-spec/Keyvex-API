@@ -16,6 +16,8 @@ import { cslAdapter } from "./csl.js";
 import { congressBillsAdapter } from "./congress-bills.js";
 import { fecCandidatesAdapter } from "./fec-candidates.js";
 import { fecCommitteesAdapter } from "./fec-committees.js";
+import { legislatorsAdapter } from "./legislators.js";
+import { rollCallVotesAdapter } from "./roll-call-votes.js";
 import { makeEdgarRecentWindowAdapter } from "./edgar-recent-window.js";
 
 // Recent-window completeness checks for accumulating SEC-form feeds (does the
@@ -80,6 +82,8 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [congressBillsAdapter.name]: congressBillsAdapter,
   [fecCandidatesAdapter.name]: fecCandidatesAdapter,
   [fecCommitteesAdapter.name]: fecCommitteesAdapter,
+  [legislatorsAdapter.name]: legislatorsAdapter,
+  [rollCallVotesAdapter.name]: rollCallVotesAdapter,
   [sec8kRecentAdapter.name]: sec8kRecentAdapter,
   [sec144RecentAdapter.name]: sec144RecentAdapter,
   [secForm3RecentAdapter.name]: secForm3RecentAdapter,
