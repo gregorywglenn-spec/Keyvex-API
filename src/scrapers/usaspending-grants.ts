@@ -86,10 +86,21 @@ interface SearchResponse {
 }
 
 interface SearchFilters {
-  time_period?: Array<{ start_date: string; end_date: string }>;
+  time_period?: Array<{
+    start_date: string;
+    end_date: string;
+    /** "last_modified_date" verified working 2026-06-10. */
+    date_type?: string;
+  }>;
   award_type_codes?: readonly string[];
   recipient_search_text?: string[];
   agencies?: Array<{ type: string; tier: string; name: string }>;
+  /** Verified server-side 2026-06-10. */
+  award_amounts?: Array<{ lower_bound?: number; upper_bound?: number }>;
+  /** CFDA filter — matches the award's full Assistance LISTINGS array, not
+   *  just the primary CFDA (an award can carry several; verified 2026-06-10
+   *  by inspecting Assistance Listings on matched rows). */
+  program_numbers?: string[];
 }
 
 async function postSearch(
@@ -254,4 +265,98 @@ export async function scrapeGrantsByRecipient(
     `[usaspending grants] TOTAL: ${all.length} grants for "${recipientName}"`,
   );
   return all;
+}
+
+// ─── Live-search path (MCP passthrough) ────────────────────────────────────
+
+export interface GrantsLiveQuery {
+  /** Pushed server-side as recipient_search_text (name keyword match). */
+  recipientName?: string;
+  /** Pushed server-side as program_numbers — matches the award's full
+   *  assistance-listings array (an award can carry several CFDAs). */
+  cfdaNumber?: string;
+  minAmount?: number;
+  /** last_modified_date bounds — pushed via time_period date_type. */
+  lastModifiedSince?: string;
+  lastModifiedUntil?: string;
+  /** API sort field name. */
+  sort: string;
+  order: "asc" | "desc";
+  maxPages: number;
+  /** Also POST spending_by_award_count for the authoritative total. */
+  wantTotal: boolean;
+}
+
+export interface GrantsLiveResult {
+  grants: FederalGrant[];
+  /** spending_by_award_count "grants" bucket — authoritative volume over the
+   *  full USAspending dataset for exactly these filters. Undefined when not
+   *  requested or the count call failed (best-effort). */
+  totalCount?: number;
+}
+
+/** One live query for the MCP passthrough. Count fetched IN PARALLEL with
+ *  the page loop (serializing blew the liveFirst budget on unbounded
+ *  queries). Throws on a failed search — the caller's liveFirst wrapper
+ *  handles cache fallback. */
+export async function searchGrantsLive(
+  q: GrantsLiveQuery,
+): Promise<GrantsLiveResult> {
+  const filters: SearchFilters = {
+    award_type_codes: CONFIG.GRANT_AWARD_TYPES,
+  };
+  if (q.recipientName) filters.recipient_search_text = [q.recipientName];
+  if (q.cfdaNumber) filters.program_numbers = [q.cfdaNumber];
+  if (q.minAmount !== undefined) {
+    filters.award_amounts = [{ lower_bound: q.minAmount }];
+  }
+  if (q.lastModifiedSince || q.lastModifiedUntil) {
+    filters.time_period = [
+      {
+        start_date: q.lastModifiedSince ?? "2007-10-01",
+        end_date: q.lastModifiedUntil ?? new Date().toISOString().slice(0, 10),
+        date_type: "last_modified_date",
+      },
+    ];
+  }
+
+  const countPromise: Promise<number | undefined> = q.wantTotal
+    ? (async (): Promise<number | undefined> => {
+        try {
+          const res = await fetch(
+            `${CONFIG.BASE_URL}/api/v2/search/spending_by_award_count/`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "User-Agent": CONFIG.USER_AGENT,
+              },
+              body: JSON.stringify({ filters }),
+            },
+          );
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = (await res.json()) as {
+            results?: Record<string, number | undefined>;
+          };
+          return json.results?.grants ?? 0;
+        } catch (err) {
+          console.error(
+            `[usaspending grants live] count failed (${(err as Error).message}) — omitting total`,
+          );
+          return undefined;
+        }
+      })()
+    : Promise.resolve(undefined);
+
+  const grants: FederalGrant[] = [];
+  for (let page = 1; page <= q.maxPages; page++) {
+    const resp = await postSearch(filters, page, q.sort, q.order);
+    const rows = (resp.results ?? [])
+      .map(normalizeGrant)
+      .filter((r): r is FederalGrant => r !== null);
+    grants.push(...rows);
+    if (!resp.page_metadata?.hasNext) break;
+  }
+
+  return { grants, totalCount: await countPromise };
 }

@@ -103,14 +103,8 @@ import { liveFirst } from "./passthrough.js";
 // Live-source scrapers used by the live-first passthrough query functions.
 // These modules import only from ./types.js (no firebase-admin), so pulling
 // them in here adds no Firestore SDK cold-start cost.
-import {
-  scrapeContractsByRecipient,
-  scrapeContractsLiveFeed,
-} from "./scrapers/usaspending.js";
-import {
-  scrapeGrantsByRecipient,
-  scrapeGrantsLiveFeed,
-} from "./scrapers/usaspending-grants.js";
+import { searchContractsLive } from "./scrapers/usaspending.js";
+import { searchGrantsLive } from "./scrapers/usaspending-grants.js";
 import { searchCfpbLive } from "./scrapers/cfpb-complaints.js";
 import {
   scrapeFecScheduleA,
@@ -2324,11 +2318,12 @@ export async function queryFederalContractAwardsCache(
  * (full current universe), falling back to the cached Firestore subset on any
  * error or an 8s timeout. Read-through only — never writes to Firestore.
  *
- * The live scrapers (scrapeContractsByRecipient / scrapeContractsLiveFeed)
- * apply recipient + date-window filters server-side at USAspending; remaining
- * filters (recipient_uei, awarding_agency, naics/psc, min_amount) + sort +
- * limit are applied here so the live path returns the same envelope shape the
- * cache path produces.
+ * The live path (searchContractsLive) pushes recipient name, NAICS, PSC,
+ * min-amount, last_modified_date bounds, and sort server-side (all verified
+ * 2026-06-10) and captures spending_by_award_count as the authoritative
+ * total_count. Residual client-side filters: recipient_uei, awarding_agency,
+ * and dates keyed to a non-last_modified sort field — total_count is omitted
+ * when any of those are active (it would no longer be exact).
  */
 export async function queryFederalContractAwards(
   query: FederalContractAwardsQuery,
@@ -2338,11 +2333,47 @@ export async function queryFederalContractAwards(
   }
 
   const userLimit = query.limit ?? 50;
+  const sortField = query.sort_by ?? "last_modified_date";
+  const sortOrder = query.sort_order ?? "desc";
 
+  // Server-side pushdown (verified against the live API 2026-06-10):
+  // recipient_search_text, naics_codes, psc_codes, award_amounts lower
+  // bound, last_modified_date time_period, and all four sort fields. The
+  // residual client-side filters are recipient_uei, awarding_agency, and
+  // since/until when they're keyed to a non-last_modified sort field (the
+  // tool's contract is "dates apply to sort_by").
+  const datesPushable =
+    sortField === "last_modified_date" || (!query.since && !query.until);
+  const hasClientFilters =
+    Boolean(query.recipient_uei) ||
+    Boolean(query.awarding_agency) ||
+    !datesPushable;
+
+  let liveTotal: number | undefined;
   const live = await liveFirst<FederalContractAward>(
-    () => fetchContractsLive(query),
+    async () => {
+      const r = await searchContractsLive({
+        recipientName: query.recipient_name,
+        naicsCode: query.naics_code,
+        pscCode: query.psc_code,
+        minAmount: query.min_amount,
+        lastModifiedSince: datesPushable ? query.since : undefined,
+        lastModifiedUntil: datesPushable ? query.until : undefined,
+        sort: CONTRACT_SORT_API[sortField] ?? "Last Modified Date",
+        order: sortOrder,
+        // Wide pull when residual client filters must run; otherwise just
+        // enough pages (of 100) to cover the requested limit.
+        maxPages: hasClientFilters ? 2 : Math.min(Math.ceil((userLimit + 1) / 100), 3),
+        // The count round-trip is only worth it when it would be exact.
+        wantTotal: !hasClientFilters,
+      });
+      liveTotal = r.totalCount;
+      return r.awards;
+    },
     async () => (await queryFederalContractAwardsCache(query)).results,
-    { label: "federal contracts (USAspending)" },
+    // USAspending is slower than CFPB — unbounded recipient searches plus
+    // the count aggregation need more than the 8s default.
+    { label: "federal contracts (USAspending)", timeoutMs: 12000 },
   );
 
   if (live.source === "cache") {
@@ -2357,7 +2388,7 @@ export async function queryFederalContractAwards(
     return { ...out, source: "cache", coverage_warning: live.coverage_warning };
   }
 
-  // Live path: apply remaining client-side filters + sort + limit.
+  // Live path: residual client-side filters only (rows arrive server-sorted).
   let docs = live.results;
   if (query.recipient_uei) {
     docs = docs.filter((c) => c.recipient_uei === query.recipient_uei);
@@ -2365,40 +2396,38 @@ export async function queryFederalContractAwards(
   if (query.awarding_agency) {
     docs = docs.filter((c) => c.awarding_agency === query.awarding_agency);
   }
-  if (query.naics_code) {
-    docs = docs.filter((c) => c.naics_code === query.naics_code);
-  }
-  if (query.psc_code) {
-    docs = docs.filter((c) => c.psc_code === query.psc_code);
-  }
-  if (query.min_amount !== undefined) {
-    docs = docs.filter((c) => c.award_amount >= query.min_amount!);
-  }
-  if (query.since) {
-    docs = docs.filter(
-      (c) => (c.last_modified_date ?? "") >= (query.since ?? ""),
-    );
-  }
-  if (query.until) {
-    docs = docs.filter(
-      (c) => (c.last_modified_date ?? "") <= (query.until ?? "9999"),
-    );
+  if (!datesPushable) {
+    if (query.since) {
+      docs = docs.filter(
+        (c) => String(contractSortValue(c, sortField)) >= query.since!,
+      );
+    }
+    if (query.until) {
+      docs = docs.filter(
+        (c) => String(contractSortValue(c, sortField)) <= query.until!,
+      );
+    }
   }
 
-  const sortField = query.sort_by ?? "last_modified_date";
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    const av = contractSortValue(a, sortField);
-    const bv = contractSortValue(b, sortField);
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
-
-  const has_more = docs.length > userLimit;
+  const has_more = hasClientFilters
+    ? docs.length > userLimit
+    : (liveTotal ?? 0) > Math.min(docs.length, userLimit);
   const results = docs.slice(0, userLimit);
-  return { results, has_more, source: "live" };
+  const out: QueryResult<FederalContractAward> = { results, has_more, source: "live" };
+  if (!hasClientFilters && liveTotal !== undefined) {
+    out.total_count = liveTotal;
+  }
+  return out;
 }
+
+/** Tool sort_by values → USAspending API sort field names (all verified
+ *  accepted 2026-06-10). */
+const CONTRACT_SORT_API: Record<string, string> = {
+  last_modified_date: "Last Modified Date",
+  start_date: "Start Date",
+  award_amount: "Award Amount",
+  total_outlays: "Total Outlays",
+};
 
 function contractSortValue(
   a: FederalContractAward,
@@ -2416,25 +2445,6 @@ function contractSortValue(
   }
 }
 
-/**
- * Translate a FederalContractAwardsQuery into a live USAspending pull.
- * Read-through only — calls the scraper's fetch+normalize and returns the
- * array WITHOUT saving.
- */
-async function fetchContractsLive(
-  query: FederalContractAwardsQuery,
-): Promise<FederalContractAward[]> {
-  const lookbackDays = lookbackFromSince(query.since);
-  // Keep page count low so the live pull comfortably fits inside the 8s
-  // timeout (each page is a ~1s round trip to USAspending). 2 pages = up to
-  // 200 records — plenty for a single tool response; on a timeout we fall
-  // back to the (larger) cached subset anyway.
-  const maxPages = 2;
-  if (query.recipient_name) {
-    return scrapeContractsByRecipient(query.recipient_name, lookbackDays, maxPages);
-  }
-  return scrapeContractsLiveFeed(lookbackDays, maxPages);
-}
 
 /**
  * Convert an optional `since` ISO date into a lookback-days window for the
@@ -2590,11 +2600,41 @@ export async function queryFederalGrants(
   }
 
   const userLimit = query.limit ?? 50;
+  const sortField = query.sort_by ?? "last_modified_date";
+  const sortOrder = query.sort_order ?? "desc";
 
+  // Same pushdown shape as contracts. CFDA IS pushable (program_numbers
+  // matches the award's full assistance-listings array — an award can carry
+  // several CFDAs; verified 2026-06-10), so live cfda matching is
+  // listing-based while the cache fallback matches the primary CFDA only.
+  const datesPushable =
+    sortField === "last_modified_date" || (!query.since && !query.until);
+  const hasClientFilters =
+    Boolean(query.recipient_uei) ||
+    Boolean(query.awarding_agency) ||
+    !datesPushable;
+
+  let liveTotal: number | undefined;
   const live = await liveFirst<FederalGrant>(
-    () => fetchGrantsLive(query),
+    async () => {
+      const r = await searchGrantsLive({
+        recipientName: query.recipient_name,
+        cfdaNumber: query.cfda_number,
+        minAmount: query.min_amount,
+        lastModifiedSince: datesPushable ? query.since : undefined,
+        lastModifiedUntil: datesPushable ? query.until : undefined,
+        sort: CONTRACT_SORT_API[sortField] ?? "Last Modified Date",
+        order: sortOrder,
+        maxPages: hasClientFilters ? 2 : Math.min(Math.ceil((userLimit + 1) / 100), 3),
+        wantTotal: !hasClientFilters,
+      });
+      liveTotal = r.totalCount;
+      return r.grants;
+    },
     async () => (await queryFederalGrantsCache(query)).results,
-    { label: "federal grants (USAspending)" },
+    // USAspending is slower than CFPB — unbounded recipient searches plus
+    // the count aggregation need more than the 8s default.
+    { label: "federal grants (USAspending)", timeoutMs: 12000 },
   );
 
   if (live.source === "cache") {
@@ -2608,6 +2648,7 @@ export async function queryFederalGrants(
     return { ...out, source: "cache", coverage_warning: live.coverage_warning };
   }
 
+  // Live path: residual client-side filters only (rows arrive server-sorted).
   let docs = live.results;
   if (query.recipient_uei) {
     docs = docs.filter((g) => g.recipient_uei === query.recipient_uei);
@@ -2615,36 +2656,28 @@ export async function queryFederalGrants(
   if (query.awarding_agency) {
     docs = docs.filter((g) => g.awarding_agency === query.awarding_agency);
   }
-  if (query.cfda_number) {
-    docs = docs.filter((g) => g.cfda_number === query.cfda_number);
-  }
-  if (query.min_amount !== undefined) {
-    docs = docs.filter((g) => g.award_amount >= (query.min_amount ?? 0));
-  }
-  if (query.since) {
-    docs = docs.filter(
-      (g) => (g.last_modified_date ?? "") >= (query.since ?? ""),
-    );
-  }
-  if (query.until) {
-    docs = docs.filter(
-      (g) => (g.last_modified_date ?? "") <= (query.until ?? "9999"),
-    );
+  if (!datesPushable) {
+    if (query.since) {
+      docs = docs.filter(
+        (g) => String(grantSortValue(g, sortField)) >= query.since!,
+      );
+    }
+    if (query.until) {
+      docs = docs.filter(
+        (g) => String(grantSortValue(g, sortField)) <= query.until!,
+      );
+    }
   }
 
-  const sortField = query.sort_by ?? "last_modified_date";
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    const av = grantSortValue(a, sortField);
-    const bv = grantSortValue(b, sortField);
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
-
-  const has_more = docs.length > userLimit;
+  const has_more = hasClientFilters
+    ? docs.length > userLimit
+    : (liveTotal ?? 0) > Math.min(docs.length, userLimit);
   const results = docs.slice(0, userLimit);
-  return { results, has_more, source: "live" };
+  const out: QueryResult<FederalGrant> = { results, has_more, source: "live" };
+  if (!hasClientFilters && liveTotal !== undefined) {
+    out.total_count = liveTotal;
+  }
+  return out;
 }
 
 function grantSortValue(a: FederalGrant, field: string): string | number {
@@ -2658,17 +2691,6 @@ function grantSortValue(a: FederalGrant, field: string): string | number {
     default:
       return a.last_modified_date ?? "";
   }
-}
-
-async function fetchGrantsLive(
-  query: FederalGrantsQuery,
-): Promise<FederalGrant[]> {
-  const lookbackDays = lookbackFromSince(query.since);
-  const maxPages = 2;
-  if (query.recipient_name) {
-    return scrapeGrantsByRecipient(query.recipient_name, lookbackDays, maxPages);
-  }
-  return scrapeGrantsLiveFeed(lookbackDays, maxPages);
 }
 
 export async function saveFederalGrants(

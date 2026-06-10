@@ -18,15 +18,38 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (29 of ~38 datasets)
+## ✅ Done / verified (31 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
 DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
 roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
-treasury auctions, FARA, GovInfo publications, CFPB complaints (audited —
-structural sample-scope finding; fix gated on Greg's A/B/C decision)**.
+treasury auctions, FARA, GovInfo publications, CFPB complaints (live
+passthrough + total_count), **federal contracts + federal grants (live
+passthrough audited + upgraded — same treatment as CFPB)**.
+
+### 2026-06-10 session (cont.) — federal contracts + grants live-path upgrade
+Greg's standing posture (per CFPB): live passthrough is the architecture;
+cron-fed cache is the fallback. The audit found the 2026-06-06 live paths
+under-pushed (only recipient+date floor server-side, 200-row page, no
+totals). Upgraded both (mirrors CFPB):
+- **total_count** from `spending_by_award_count` — authoritative volume over
+  the full USAspending dataset for the filtered query; fetched IN PARALLEL
+  with the page pull (serializing blew the 8s budget). liveFirst timeout
+  12s for these two (USAspending is slower than CFPB).
+- **Server-side pushdown, all probe-verified 2026-06-10:** recipient name,
+  NAICS, PSC, min-amount, last_modified_date bounds (time_period
+  date_type), all four sort fields, and — grants — CFDA via
+  `program_numbers`, which matches the award's FULL assistance-listings
+  array (first probe looked like wrong-CFDA rows; second probe proved
+  list-semantics, not breakage). Residual client-side: recipient_uei,
+  awarding_agency, dates on non-last_modified sorts → total omitted there.
+- Live-wire verified: contracts Lockheed total_count=681,466; grants CFDA
+  93.847 total_count=19,213. Tool descriptions updated; mcp redeployed.
+- Like CFPB, the warehouse-coverage question is moot by design — coverage =
+  USAspending's own dataset; the cron-fed cache only serves outage fallback
+  (flagged + not-volume-safe).
 
 ### 2026-06-10 session (cont.) — CFTC COT + treasury auctions + FARA + GovInfo
 - **govinfo-recent** (30d window): 78.89% → **100.00%** (1,042/1,042). Root
@@ -138,10 +161,10 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~9) — roughly by effort
-- **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
-  enforcement actions (5-6 regulators), product recalls (FDA/CPSC),
-  13F institutional holdings, N-PORT holdings.
+## ⏭️ Remaining to reconcile (~7) — roughly by effort
+- **Standard reconciles** (one adapter + run each): enforcement actions
+  (5-6 regulators), product recalls (FDA/CPSC), 13F institutional holdings,
+  N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).

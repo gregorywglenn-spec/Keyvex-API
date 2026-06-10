@@ -56,6 +56,20 @@ export const definition: Tool = {
     "filter (recipient_uei / awarding_agency / cfda_number) plus a date or",
     "amount sort. Substring on recipient_name applied client-side after a",
     "wider pre-fetch window.",
+    "",
+    "COVERAGE — live passthrough (source:'live'): each call queries",
+    "USAspending's API over the full dataset (2007-10 onward), with",
+    "recipient/CFDA/min-amount/date filters applied server-side. The",
+    "response's `total_count` is USAspending's authoritative grant count for",
+    "your filtered query — USE IT for volume answers (the `results` array is",
+    "just the requested page). `total_count` is omitted when a recipient_uei",
+    "/ awarding_agency filter (or dates keyed to a non-last_modified sort)",
+    "is active — those apply after the upstream query. Note: live",
+    "cfda_number matching is against the award's FULL assistance-listings",
+    "array (awards can carry several CFDAs); the cached fallback matches the",
+    "primary listing only. On USAspending outage the tool falls back to a",
+    "recent cached window (source:'cache' + coverage_warning) — don't infer",
+    "volume there.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -118,13 +132,15 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<FederalGrant>> {
   const query = validateAndNormalize(args);
-  const { results, has_more, coverage_warning, source } = await queryFederalGrants(query);
+  const { results, has_more, coverage_warning, source, total_count } =
+    await queryFederalGrants(query);
   return {
     results,
     count: results.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     ...(source && { source }),
+    ...(total_count !== undefined && { total_count }),
     query: query as Record<string, unknown>,
   };
 }
