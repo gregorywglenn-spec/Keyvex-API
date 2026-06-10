@@ -65,6 +65,7 @@ import {
   saveProductRecalls,
   saveGovDocuments,
   saveForeignAgents,
+  markTerminatedForeignAgents,
   saveScreeningList,
   saveOfacSdn,
   saveConsumerComplaints,
@@ -376,6 +377,15 @@ export const scrapeFaraWeekly = onSchedule(
       const r = await saveForeignAgents(agents);
       logger.info(`[fara] saved ${r.saved} to ${r.collection}`);
       docsWritten = r.saved;
+      // Keep-as-history termination flagging (Greg 2026-06-10): anything no
+      // longer on DOJ's active list gets status:"terminated" (never
+      // deleted). Has its own <50% partial-scrape safety guard.
+      const m = await markTerminatedForeignAgents(
+        new Set(agents.map((a) => a.registration_number)),
+      );
+      logger.info(
+        `[fara] termination flagging: ${m.flagged} flagged${m.skipped ? " (SKIPPED by safety guard)" : ""}`,
+      );
     }
     await writeJobMeta("faraSync", { started, docsWritten });
   },

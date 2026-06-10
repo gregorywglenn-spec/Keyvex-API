@@ -1,6 +1,6 @@
 # KeyVex Reconciliation — FARA — active registrants (efile.fara.gov, registrant-level) — G1
 
-- generated: 2026-06-10T17:56:00.670Z
+- generated: 2026-06-10T20:43:09.810Z
 - collection: `foreign_agents`
 
 ## G1 coverage: 99.64%  (554 / 556 filings; 2 missing)
@@ -9,7 +9,7 @@ meets the ≥98% floor.
 ## Per-type census (no category may silently read zero)
 | transaction_type | count | status |
 |---|--:|---|
-| (none) (unexpected) | 538 | present |
+| (none) (unexpected) | 528 | present |
 | AFGHANISTAN (unexpected) | 3 | present |
 | ALBANIA (unexpected) | 4 | present |
 | ALGERIA (unexpected) | 2 | present |
@@ -17,7 +17,7 @@ meets the ≥98% floor.
 | ARGENTINA (unexpected) | 2 | present |
 | ARMENIA (unexpected) | 2 | present |
 | ARUBA (unexpected) | 2 | present |
-| AUSTRALIA (unexpected) | 11 | present |
+| AUSTRALIA (unexpected) | 10 | present |
 | AUSTRIA (unexpected) | 2 | present |
 | AZERBAIJAN (unexpected) | 2 | present |
 | BAHAMAS (unexpected) | 9 | present |
@@ -82,7 +82,7 @@ meets the ≥98% floor.
 | ISRAEL (unexpected) | 18 | present |
 | ITALY (unexpected) | 5 | present |
 | JAMAICA (unexpected) | 2 | present |
-| JAPAN (unexpected) | 52 | present |
+| JAPAN (unexpected) | 51 | present |
 | JORDAN (unexpected) | 2 | present |
 | KAZAKHSTAN (unexpected) | 5 | present |
 | KENYA (unexpected) | 6 | present |
@@ -234,5 +234,5 @@ _Missing list unclassified — re-run with `--classify=all`._
 
 ## Missing filings: 2 (full list in the .csv; links in the .html)
 
-## In KeyVex but NOT in current source: 11
+## In KeyVex but NOT in current source: 0
 For a current-snapshot dataset (sanctions/exclusions/screening) these are STALE records the source removed but KeyVex kept. Full list + verify links in the companion `-extras.csv`.

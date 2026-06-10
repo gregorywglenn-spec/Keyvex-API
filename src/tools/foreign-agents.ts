@@ -66,6 +66,11 @@ export const definition: Tool = {
     "Identifier: registration_number is the FARA registration number.",
     "has_foreign_principal=false records are registrants with no currently-",
     "active foreign principal (still queryable as registered agents).",
+    "",
+    "History: registrations that LEAVE DOJ's active list are kept with",
+    "status:'terminated' (+ termination_observed_date) rather than deleted —",
+    "a terminated registration is still real history. Default queries return",
+    "BOTH; filter status:'active' for the current roster only.",
   ].join(" "),
   inputSchema: {
     type: "object",
@@ -93,6 +98,12 @@ export const definition: Tool = {
         type: "boolean",
         description:
           "Filter to records that carry a foreign-principal relationship (true) or registrants with no active foreign principal (false).",
+      },
+      status: {
+        type: "string",
+        enum: ["active", "terminated"],
+        description:
+          "Registration status: 'active' = currently on DOJ's list; 'terminated' = left the list since ingestion (kept as history). Omit for both.",
       },
       since: {
         type: "string",
@@ -174,6 +185,12 @@ function validateAndNormalize(raw: unknown): ForeignAgentsQuery {
       args.has_foreign_principal,
       "has_foreign_principal",
     );
+  }
+  if (args.status !== undefined) {
+    if (args.status !== "active" && args.status !== "terminated") {
+      throw new Error(`INVALID status: '${String(args.status)}'`);
+    }
+    out.status = args.status;
   }
   if (args.since !== undefined) {
     out.since = parseIsoDate(args.since, "since");

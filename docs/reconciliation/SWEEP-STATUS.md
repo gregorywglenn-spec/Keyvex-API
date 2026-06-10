@@ -109,12 +109,19 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    question. Detail: `sec-recent-window-NOTES.md`.
 3. **Dead branch:** do NOT merge `claude/fec-indexes-2026-05-22` (would delete ~250
    live indexes). See `PARKED-BRANCHES.md`.
-4. **FARA terminated-registrant policy (Greg's call)** — 11 registrants in
-   `foreign_agents` are no longer on DOJ's active list (terminated since
-   ingest; ids in `fara-G1-extras.csv`). Prune like OFAC/CSL, or keep as
-   history with a status flag? Unlike sanctions delistings, a terminated
-   registration is still real history. Decide + implement in the weekly cron.
-5. **FARA doc-id scheme uses positional fpIndex** (`fara-{reg}-{fpIndex}`) —
+4. ~~FARA terminated-registrant policy~~ **RESOLVED + IMPLEMENTED
+   2026-06-10** (Greg: keep + status flag). 12 docs across the 11 departed
+   registrants flagged status:"terminated" (+termination_observed_date);
+   `markTerminatedForeignAgents` wired into scrapeFaraWeekly with a <50%
+   partial-scrape safety guard; `status` filter added to get_foreign_agents
+   (+2 composite indexes); fara reconcile adapter scoped to active.
+   Re-verified: extras 11 → 0. Cron + mcp redeployed.
+5. **Index drift (1)** — `firebase deploy --only firestore:indexes` on
+   2026-06-10 reported 1 index in production that is NOT in
+   firestore.indexes.json. Additive deploys are safe; NEVER run with
+   --force until the file is reconciled to mirror production (capture
+   `firebase firestore:indexes`, diff, add the missing entry).
+6. **FARA doc-id scheme uses positional fpIndex** (`fara-{reg}-{fpIndex}`) —
    if the FARA API ever reorders a registrant's principal array, re-runs
    would write the same pair under a different id (drift/dupes). Sturdier id:
    hash of (reg, principal_name). Low urgency; revisit if dupes appear.

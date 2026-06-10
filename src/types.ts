@@ -3402,8 +3402,14 @@ export interface ForeignAgent {
   registrant_city: string | null;
   registrant_state: string | null;
   registrant_zip: string | null;
-  /** v1A scrapes the Active set. "active" | "terminated". */
+  /** "active" | "terminated". The weekly cron scrapes DOJ's Active set and
+   *  flags records whose registration has since LEFT that set as
+   *  "terminated" (Greg's 2026-06-10 keep-as-history call — a terminated
+   *  registration is still real history, unlike a sanctions delisting). */
   status: string;
+  /** ISO date KeyVex first observed the registration absent from DOJ's
+   *  active list. Null/absent while active. */
+  termination_observed_date?: string | null;
   /** True when this record carries a foreign-principal relationship. */
   has_foreign_principal: boolean;
   /** Foreign principal the registrant acts for. Null when none active. */
@@ -3430,6 +3436,9 @@ export interface ForeignAgentsQuery {
   foreign_principal_country?: string;
   /** Filter to records that do (true) / don't (false) carry a foreign principal. */
   has_foreign_principal?: boolean;
+  /** "active" (currently registered) | "terminated" (kept as history after
+   *  leaving DOJ's active list). Omit for both. */
+  status?: "active" | "terminated";
   /** registration_date lower bound (YYYY-MM-DD inclusive). */
   since?: string;
   /** registration_date upper bound. */

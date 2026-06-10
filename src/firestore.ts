@@ -5577,6 +5577,9 @@ export async function queryForeignAgents(
   if (query.has_foreign_principal !== undefined) {
     q = q.where("has_foreign_principal", "==", query.has_foreign_principal);
   }
+  if (query.status) {
+    q = q.where("status", "==", query.status);
+  }
 
   const sortField = query.sort_by ?? "registration_date";
   const sortOrder = query.sort_order ?? "desc";
@@ -5638,6 +5641,68 @@ export async function saveForeignAgents(
   }
 
   return { saved, collection: COLLECTION };
+}
+
+/**
+ * Flag foreign_agents docs whose registration has LEFT DOJ's active list as
+ * status:"terminated" (keep-as-history — Greg's 2026-06-10 call; we never
+ * delete). Re-registrations self-heal: the weekly scrape merge-writes those
+ * docs back to status:"active".
+ *
+ * SAFETY GUARD (the OFAC <50% rule's sibling): if the active set passed in
+ * is suspiciously small vs. the collection (a partial/failed scrape would
+ * otherwise mass-flag everything), skip and log loudly.
+ */
+export async function markTerminatedForeignAgents(
+  activeRegNumbers: Set<string>,
+): Promise<{ flagged: number; skipped: boolean }> {
+  if (isStubMode()) return { flagged: 0, skipped: true };
+  const db = await getLiveDb();
+  const collection = db.collection("foreign_agents");
+
+  const snap = await collection.select("registration_number", "status").get();
+  const activeDocsInDb = new Set<string>();
+  for (const d of snap.docs) {
+    const data = d.data();
+    if ((data.status ?? "active") !== "terminated") {
+      activeDocsInDb.add(String(data.registration_number ?? ""));
+    }
+  }
+  if (activeRegNumbers.size < activeDocsInDb.size * 0.5) {
+    console.error(
+      `[fara] SKIPPING termination flagging — active list (${activeRegNumbers.size}) ` +
+        `is <50% of the ${activeDocsInDb.size} active registrants in Firestore; ` +
+        `looks like a partial scrape, not mass terminations`,
+    );
+    return { flagged: 0, skipped: true };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  let flagged = 0;
+  let batch = db.batch();
+  let inBatch = 0;
+  for (const d of snap.docs) {
+    const data = d.data();
+    const reg = String(data.registration_number ?? "");
+    if (!reg || activeRegNumbers.has(reg)) continue;
+    if ((data.status ?? "") === "terminated") continue;
+    batch.update(d.ref, {
+      status: "terminated",
+      termination_observed_date: today,
+    });
+    flagged++;
+    inBatch++;
+    if (inBatch >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      inBatch = 0;
+    }
+  }
+  if (inBatch > 0) await batch.commit();
+  if (flagged > 0) {
+    console.error(`[fara] flagged ${flagged} doc(s) as terminated (kept as history)`);
+  }
+  return { flagged, skipped: false };
 }
 
 // ─── Consolidated Screening List (api.trade.gov) query + save ─────────────

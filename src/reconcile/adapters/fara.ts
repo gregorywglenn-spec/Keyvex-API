@@ -12,9 +12,11 @@
  *      registrant list is ONE call to the endpoint that reliably works.
  *
  * SNAPSHOT dataset (like OFAC/CSL): the source is "active registrants right
- * now" — missing = active registrant KeyVex lacks; extras = registration
- * numbers KeyVex holds that are no longer on the active list (terminated
- * since ingest — stale-or-history signal, surfaced for a pruning decision).
+ * now" — missing = active registrant KeyVex lacks. KeyVex KEEPS terminated
+ * registrations as history with status:"terminated" (Greg's 2026-06-10
+ * call), so this adapter scopes the KeyVex side to status=="active"; an
+ * extra here means a registrant left DOJ's list but wasn't flagged yet
+ * (next weekly cron flags it).
  *
  * Per-row verify link = the per-registrant ForeignPrincipals API URL (the
  * form of the endpoint that works) — clickable JSON proof.
@@ -41,6 +43,7 @@ export const faraAdapter: SourceAdapter = {
   collection: "foreign_agents",
   keyvexIdField: "registration_number",
   typeField: "foreign_principal_country",
+  keyvexFilter: { field: "status", op: "==", value: "active" },
 
   async sourceIds(ctx: ReconContext): Promise<SourceItem[]> {
     // One call, with the same retry posture the scraper uses (the host serves
