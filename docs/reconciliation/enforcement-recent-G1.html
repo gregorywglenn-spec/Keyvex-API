@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KeyVex Reconciliation — SEC Form 3 — recent-window completeness (last 30d, initial_ownership_baselines) — G1</title>
+<title>KeyVex Reconciliation — Enforcement actions — recent-window completeness (6 regulators' live feeds) — G1</title>
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
@@ -25,12 +25,12 @@
   .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
 </style></head><body>
 
-<h1>KeyVex Reconciliation — SEC Form 3 — recent-window completeness (last 30d, initial_ownership_baselines)</h1>
-<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>initial_ownership_baselines</code> · generated 2026-06-10T21:26:16.129Z</p>
+<h1>KeyVex Reconciliation — Enforcement actions — recent-window completeness (6 regulators' live feeds)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>enforcement_actions</code> · generated 2026-06-10T21:27:51.286Z</p>
 
 <div class="banner ok">
   <div class="big">100.00% coverage</div>
-  1,622 of 1,622 source filings present in KeyVex
+  243 of 243 source filings present in KeyVex
   · <b>0 missing</b>
   · meets the ≥98% floor
 </div>
@@ -45,17 +45,22 @@
 
 
 <h2>Per-type census — can any category silently read zero?</h2>
-<p class="muted">Counts are over the 7,242 records KeyVex holds.
+<p class="muted">Counts are over the 3,011 records KeyVex holds.
 Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
 
 <table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
-
+<tr><td>sec</td><td class="num">34</td><td>✓ present</td></tr>
+<tr><td>doj</td><td class="num">2,853</td><td>✓ present</td></tr>
+<tr><td>cftc</td><td class="num">56</td><td>✓ present</td></tr>
+<tr><td>occ</td><td class="num">13</td><td>✓ present</td></tr>
+<tr><td>fdic</td><td class="num">30</td><td>✓ present</td></tr>
+<tr><td>ftc</td><td class="num">25</td><td>✓ present</td></tr>
 </tbody></table>
 
 <h2>Coverage by year</h2>
 <p class="muted">A whole year with a large gap points at an un-ingested index.</p>
 <table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
-<tr><td>2026</td><td class="num">1,622</td><td class="num">1,622</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2026</td><td class="num">243</td><td class="num">243</td><td class="num">0</td><td class="num">100.00%</td></tr>
 </tbody></table>
 
 <p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
@@ -64,12 +69,12 @@ Expected types are always shown, even at zero, so a dropped category can’t hid
 
 <p>None — every source filing in the scanned window is present in KeyVex.</p>
 
-<h2>In KeyVex but NOT in the current source (1,291)</h2>
+<h2>In KeyVex but NOT in the current source (2,768)</h2>
 <p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
 For an append-only archive these are usually just other-year filings (harmless). For a
 <b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
 items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
 record won’t appear in the live source lookup. (No per-id link builder for this dataset — ids shown bare; full list in the companion <code>-extras.csv</code>.)</p>
-<p class="muted">Sample: <code>0000002488-17-000144</code> <code>0000002488-17-000222</code> <code>0000002488-19-000027</code> <code>0000002488-19-000029</code> <code>0000002488-19-000132</code> <code>0000002488-19-000188</code> <code>0000002488-22-000038</code> <code>0000002488-22-000041</code> <code>0000002488-22-000044</code> <code>0000002488-23-000009</code> <code>0000002488-23-000108</code> <code>0000002488-23-000129</code> <code>0000002488-24-000174</code> <code>0000002488-25-000028</code> <code>0000002488-25-000184</code> <code>0000002488-26-000008</code> <code>0000006955-26-000028</code> <code>0000006955-26-000032</code> <code>0000009389-26-000078</code> <code>0000014272-20-000246</code> <code>0000014272-23-000108</code> <code>0000014272-23-000148</code> <code>0000014272-23-000173</code> <code>0000014272-23-000199</code> <code>0000014272-24-000018</code></p>
+<p class="muted">Sample: <code>cftc-9194-26</code> <code>cftc-9195-26</code> <code>cftc-9196-26</code> <code>cftc-9197-26</code> <code>cftc-9198-26</code> <code>cftc-9199-26</code> <code>cftc-9200-26</code> <code>cftc-9201-26</code> <code>cftc-9202-26</code> <code>cftc-9203-26</code> <code>cftc-9204-26</code> <code>cftc-9205-26</code> <code>cftc-9206-26</code> <code>cftc-9207-26</code> <code>cftc-9208-26</code> <code>cftc-9209-26</code> <code>cftc-9210-26</code> <code>cftc-9211-26</code> <code>cftc-9212-26</code> <code>doj-0020bdb8-0f42-458f-837d-c5270b79479a</code> <code>doj-0036dd40-c2bd-40f7-a95a-17b2944a4fe9</code> <code>doj-0077fa7f-c4b6-49d0-aa7e-959ae6bd47a4</code> <code>doj-0087cdae-003f-42e9-bb09-27eecfdb708a</code> <code>doj-0095187d-4dd2-48aa-a341-02766a9e6e0e</code> <code>doj-00a55a61-7ab8-408d-918c-962c8b3fb3c1</code></p>
 
 </body></html>

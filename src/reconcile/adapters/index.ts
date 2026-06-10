@@ -24,6 +24,7 @@ import { treasuryAuctionsAdapter } from "./treasury-auctions.js";
 import { faraAdapter } from "./fara.js";
 import { govinfoRecentAdapter } from "./govinfo-recent.js";
 import { productRecallsAdapter } from "./product-recalls.js";
+import { enforcementRecentAdapter } from "./enforcement-recent.js";
 import { makeEdgarRecentWindowAdapter } from "./edgar-recent-window.js";
 
 // Recent-window completeness checks for accumulating SEC-form feeds (does the
@@ -96,6 +97,7 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [faraAdapter.name]: faraAdapter,
   [govinfoRecentAdapter.name]: govinfoRecentAdapter,
   [productRecallsAdapter.name]: productRecallsAdapter,
+  [enforcementRecentAdapter.name]: enforcementRecentAdapter,
   [sec8kRecentAdapter.name]: sec8kRecentAdapter,
   [sec144RecentAdapter.name]: sec144RecentAdapter,
   [secForm3RecentAdapter.name]: secForm3RecentAdapter,

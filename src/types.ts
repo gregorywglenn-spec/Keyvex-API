@@ -1165,6 +1165,15 @@ export interface Form3Holding {
   underlying_security_title: string | null;
   /** For derivatives: number of underlying shares the derivative represents. */
   underlying_security_shares: number | null;
+  /**
+   * True for the single marker row emitted when a Form 3 declares NO
+   * securities owned (a person who became an insider owning nothing yet —
+   * ~half of all Form 3 filings). Captures the FILER-EVENT ("did X file a
+   * Form 3?") even though there's no position; shares_owned is 0 and
+   * security_title is empty on these rows. Absent on real position rows.
+   * (Greg's 2026-06-10 capture-all call.)
+   */
+  is_nil_filing?: boolean;
   accession_number: string;
   sec_filing_url: string;
   data_source: "SEC_EDGAR_FORM3";

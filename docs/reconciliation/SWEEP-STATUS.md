@@ -18,7 +18,7 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (32 of ~38 datasets)
+## ✅ Done / verified (33 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
@@ -27,8 +27,28 @@ DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
 roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
 treasury auctions, FARA, GovInfo publications, CFPB complaints (live
 passthrough + total_count), **federal contracts + federal grants (live
-passthrough audited + upgraded — same treatment as CFPB), **product recalls
-(100.00% after the report_date window fix)**.
+passthrough audited + upgraded — same treatment as CFPB), product recalls
+(100.00% after the report_date window fix), **enforcement actions (100.00%
+recent-window after reviving two silently-dead cron legs)**.
+
+### 2026-06-10 session (cont.) — enforcement: 38.79% → 100.00%; two dead legs revived
+Recent-window adapter (the six regulators' LIVE feeds = denominator, 243
+items) found 142 missing and two production failures the per-source
+try/catch had been hiding from the health check:
+- **DOJ leg dead since ~2026-05-15** — justice.gov's WAF returns 401 to the
+  bot UA from GCP egress (local runs unaffected). Fix: browser-header retry
+  on 401/403. ⚠ VERIFY next cron run's logs — the retry is deployed but
+  unproven from GCP egress; if it still 401s, DOJ needs a non-GCP egress
+  plan. Backfilled 4,000 most-recent DOJ releases locally (covers the dead
+  window with margin).
+- **OCC leg dead since ~2026-05-22** — OCC retired the per-year index pages
+  (404). Fix: switched to OCC's RSS feed (same nr-* release URLs → same
+  action_id slugs, existing docs merge).
+Re-verified **100.00% (243/243, 0 missing)**; extras (2,768) are the
+accumulated history older than the rolling feeds — the collection's value,
+not staleness. scrapeEnforcementDaily redeployed. Note: OCC has a dedicated
+Enforcement Actions Search tool (apps.occ.gov/EASearch) — a richer future
+source than press releases; noted, not built. `enforcement-recent-G1.html`.
 
 ### 2026-06-10 session (cont.) — product recalls: 99.99% → 100.00% + cron bug fixed
 Denominator = openFDA bulk download zips (file-based full-index rule) +
@@ -118,10 +138,12 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    undercounts), a missing no-cycle index, and $9.99B sentinel amounts. Detail:
    `fec-schedule-ae-NOTES.md`. (A spawn_task chip existed; restart cleared it — this
    note is the record.)
-2. **Form 3 nil-capture design decision (Greg's call)** — should KeyVex store a
-   nil-marker for `noSecuritiesOwned` Form 3s so "did X file a Form 3?" returns yes
-   even with zero holdings? Today it stores nothing. Mirrors the congressional-nil
-   question. Detail: `sec-recent-window-NOTES.md`.
+2. ~~Form 3 nil-capture~~ **RESOLVED + IMPLEMENTED 2026-06-10** (Greg: store
+   nil-markers). parseForm3Xml emits one `is_nil_filing:true` marker row
+   (doc id `{accession}-{ticker}-NIL`) when a Form 3 carries zero holdings;
+   30-day re-walk wrote 2,724 rows; sec-form3-recent re-verified
+   **52.84% → 100.00%** (1,622/1,622). include_baseline description
+   documents nil semantics. scrapeForm3Hourly redeployed.
 3. **Dead branch:** do NOT merge `claude/fec-indexes-2026-05-22` (would delete ~250
    live indexes). See `PARKED-BRANCHES.md`.
 4. ~~FARA terminated-registrant policy~~ **RESOLVED + IMPLEMENTED
@@ -183,9 +205,9 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~6) — roughly by effort
-- **Standard reconciles** (one adapter + run each): enforcement actions
-  (5-6 regulators), 13F institutional holdings, N-PORT holdings.
+## ⏭️ Remaining to reconcile (~5) — roughly by effort
+- **Standard reconciles** (one adapter + run each): 13F institutional
+  holdings, N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).

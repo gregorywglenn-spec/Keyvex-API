@@ -28,8 +28,9 @@ const CONFIG = {
   SEC_RSS_URL: "https://www.sec.gov/news/pressreleases.rss",
   DOJ_API_URL: "https://www.justice.gov/api/v1/press_releases.json",
   CFTC_INDEX_URL: "https://www.cftc.gov/PressRoom/PressReleases",
-  OCC_INDEX_URL_TEMPLATE:
-    "https://www.occ.treas.gov/news-issuances/news-releases/{year}/index-news-releases-{year}.html",
+  /** OCC retired the per-year HTML indexes (404 since ~2026-05-22); the RSS
+   *  feed is the durable replacement (same nr-* release URLs). */
+  OCC_RSS_URL: "https://www.occ.gov/rss/occ_news.xml",
   FDIC_INDEX_URL: "https://www.fdic.gov/news/press-releases",
   FTC_RSS_URL: "https://www.ftc.gov/feeds/press-release.xml",
   /** Browser-style UA — FDIC and OCC are Drupal-fronted and reject bare bot UAs. */
@@ -255,6 +256,24 @@ export async function scrapeDojEnforcementApi(
           Accept: "application/json",
         },
       });
+      // justice.gov's WAF returns 401 to the bot UA from datacenter IPs
+      // (the cron's DOJ leg silently died ~2026-05-15 this way — caught by
+      // the enforcement reconcile; local runs were unaffected). Retry once
+      // with browser-style headers before giving up.
+      if (res.status === 401 || res.status === 403) {
+        console.error(
+          `[doj enforcement] page ${page}: HTTP ${res.status} with bot UA — retrying with browser headers`,
+        );
+        await sleep(CONFIG.RATE_LIMIT_MS);
+        res = await fetch(url, {
+          headers: {
+            "User-Agent": CONFIG.BROWSER_UA,
+            Accept: "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            Referer: "https://www.justice.gov/news",
+          },
+        });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[doj enforcement] page ${page}: SKIP — ${msg}`);
@@ -390,73 +409,78 @@ export async function scrapeCftcEnforcementHtml(): Promise<EnforcementAction[]> 
  * configured browser-style UA defined in CONFIG.BROWSER_UA.
  */
 export async function scrapeOccEnforcementHtml(
-  year = new Date().getFullYear(),
+  _year = new Date().getFullYear(),
 ): Promise<EnforcementAction[]> {
+  // 2026-06-10: OCC retired the per-year index pages (HTTP 404 since
+  // ~2026-05-22 — the cron's OCC leg silently died; caught by the
+  // enforcement reconcile). The newsroom replacement is JS-rendered, but
+  // OCC publishes a clean RSS feed at /rss/occ_news.xml with the SAME
+  // nr-occ-/nr-ia- release URLs, so action_id slugs stay identical and
+  // existing docs merge. Rolling ~recent window like the SEC/FTC RSS legs.
+  // (The `_year` param is retained for signature compatibility; RSS is not
+  // year-addressable.)
   const scrapedAt = new Date().toISOString();
-  const url = CONFIG.OCC_INDEX_URL_TEMPLATE.replace(/\{year\}/g, String(year));
-  console.error(`[occ enforcement] Fetching ${year} index HTML...`);
+  console.error("[occ enforcement] Fetching RSS feed...");
   await sleep(CONFIG.RATE_LIMIT_MS);
 
-  const res = await fetch(url, {
-    headers: { "User-Agent": CONFIG.BROWSER_UA, Accept: "text/html" },
+  const res = await fetch(CONFIG.OCC_RSS_URL, {
+    headers: { "User-Agent": CONFIG.BROWSER_UA, Accept: "application/rss+xml, application/xml, text/xml" },
     redirect: "follow",
   });
   if (!res.ok) {
-    throw new Error(`OCC HTML HTTP ${res.status} ${res.statusText} — ${url}`);
+    throw new Error(`OCC RSS HTTP ${res.status} ${res.statusText} — ${CONFIG.OCC_RSS_URL}`);
   }
-  const html = await res.text();
-  const $ = cheerio.load(html);
+  const xmlText = await res.text();
+  const parser = new XMLParser({
+    parseTagValue: false,
+    parseAttributeValue: false,
+    trimValues: true,
+    ignoreAttributes: true,
+  });
+  const parsed = parser.parse(xmlText) as {
+    rss?: { channel?: { item?: unknown } };
+  };
+  const itemRaw = parsed.rss?.channel?.item;
+  const items: { title?: string; description?: string; pubDate?: string; link?: string }[] =
+    Array.isArray(itemRaw) ? (itemRaw as never[]) : itemRaw ? [itemRaw as never] : [];
 
   const out: EnforcementAction[] = [];
-  // Each release sits inside a "usa-collection__item" <li>. The collection
-  // structure puts the date <li> as a sibling of the heading <h3>, both
-  // children of the wrapping <li>.
-  $("li.usa-collection__item, .usa-collection__item, .item-list--news-release li").each(
-    (_, el) => {
-      const $el = $(el);
-      const dateText = $el.find("li.item-date, .item-date").first().text().trim();
-      const $link = $el.find("h3.usa-collection__heading a").first();
-      if (!dateText || $link.length === 0) return;
+  for (const it of items) {
+    const href = (it.link ?? "").trim();
+    const title = (it.title ?? "").trim();
+    if (!href || !title) continue;
+    // News-release filter: keep `nr-occ-` and `nr-ia-` (interagency); the
+    // feed also carries bulletins/speeches/testimony — skip those.
+    if (
+      !href.includes("/news-releases/") ||
+      !(href.includes("/nr-occ-") || href.includes("/nr-ia-"))
+    ) {
+      continue;
+    }
+    const isoDate = toIsoDate(it.pubDate ?? "");
+    const slug = href
+      .split("/")
+      .filter(Boolean)
+      .pop()
+      ?.replace(/\.html?$/i, "") ?? "";
+    if (!isoDate || !slug) continue;
 
-      const href = $link.attr("href") ?? "";
-      const title = $link.text().trim();
-      if (!href || !title) return;
-      // News-release filter: keep `nr-occ-` and `nr-ia-` (interagency), skip bulletins.
-      if (
-        !href.includes("/news-releases/") ||
-        !(href.includes("/nr-occ-") || href.includes("/nr-ia-"))
-      ) {
-        return;
-      }
-      // Parse "May 08, 2026" → ISO. Fallback: leave empty.
-      const parsed = new Date(dateText);
-      const isoDate = Number.isNaN(parsed.getTime())
-        ? ""
-        : parsed.toISOString().split("T")[0]!;
-      const slug = href
-        .split("/")
-        .filter(Boolean)
-        .pop()
-        ?.replace(/\.html?$/i, "") ?? "";
-      if (!isoDate || !slug) return;
+    out.push({
+      action_id: `occ-${slug}`,
+      source: "occ",
+      title,
+      teaser: stripHtml(it.description ?? "").slice(0, CONFIG.BODY_MAX_CHARS),
+      description: "",
+      published_date: isoDate,
+      url: href,
+      agency_component: "",
+      release_number: slug,
+      topics: [],
+      scraped_at: scrapedAt,
+    });
+  }
 
-      out.push({
-        action_id: `occ-${slug}`,
-        source: "occ",
-        title,
-        teaser: "",
-        description: "",
-        published_date: isoDate,
-        url: href.startsWith("http") ? href : `https://www.occ.treas.gov${href}`,
-        agency_component: "",
-        release_number: slug,
-        topics: [],
-        scraped_at: scrapedAt,
-      });
-    },
-  );
-
-  console.error(`[occ enforcement] Parsed ${out.length} news releases (${year})`);
+  console.error(`[occ enforcement] Parsed ${out.length} news releases from RSS`);
   return out;
 }
 

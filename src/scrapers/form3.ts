@@ -437,6 +437,45 @@ export function parseForm3Xml(
     });
   }
 
+  // ─── Nil filing (no securities owned) — Greg's 2026-06-10 capture call ──
+  // Many Form 3s declare <noSecuritiesOwned>1</noSecuritiesOwned> with zero
+  // holding tables (a person who became an insider owning nothing yet) —
+  // ~half of all Form 3 filings in the 2026-06 reconcile's recent window.
+  // Storing nothing made "did X file a Form 3?" read as no. Emit ONE marker
+  // row so the filer-event is queryable; is_nil_filing distinguishes it
+  // from real position rows (shares_owned 0 + empty security_title).
+  if (holdings.length === 0) {
+    holdings.push({
+      id: `${meta.accession}-${sanitizeForDocId(ticker || cik)}-NIL`,
+      ticker,
+      company_name: companyName,
+      company_cik: cik,
+      filer_name: filerName,
+      filer_cik: filerCik,
+      officer_title: officerTitle,
+      is_director: isDirector,
+      is_officer: isOfficer,
+      is_ten_percent_owner: isTenPercentOwner,
+      is_other: isOther,
+      other_text: otherText,
+      filing_date: meta.filedAt,
+      security_title: "",
+      is_derivative: false,
+      shares_owned: 0,
+      direct_or_indirect: null,
+      nature_of_indirect_ownership: "",
+      conversion_or_exercise_price: null,
+      exercise_date: null,
+      expiration_date: null,
+      underlying_security_title: null,
+      underlying_security_shares: null,
+      is_nil_filing: true,
+      accession_number: meta.accession,
+      sec_filing_url: meta.url,
+      data_source: "SEC_EDGAR_FORM3",
+    });
+  }
+
   return holdings;
 }
 
