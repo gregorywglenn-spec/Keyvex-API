@@ -32,6 +32,7 @@
 
 import { XMLParser } from "fast-xml-parser";
 import type { ActivistOwnership } from "../types.js";
+import { fetchEdgarDailyIndex, fetchPrimaryDocUrl } from "../reconcile/sec-edgar-index.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -571,70 +572,66 @@ export async function scrapeActivistLiveFeed(
   const startStr = start.toISOString().split("T")[0];
   const endStr = end.toISOString().split("T")[0];
 
+  // Enumerate via EDGAR's COMPLETE daily index, NOT full-text search. FTS
+  // silently caps/under-reports — measured recent-window coverage was only
+  // 34.5% before this fix (same leak class fixed for N-PORT / Form D / 8-K /
+  // Form 144 / Form 3). EDGAR's daily index uses a MIX of "SCHEDULE 13D/G" and
+  // legacy "SC 13D" form strings, so match both. The structured doc filename
+  // varies, so resolve each via fetchPrimaryDocUrl (index.json). Issuer/filer
+  // CIKs come from the XML itself, so the index CIK is only the archive path.
   const forms = [
-    "SCHEDULE 13D",
-    "SCHEDULE 13D/A",
-    "SCHEDULE 13G",
-    "SCHEDULE 13G/A",
+    "SCHEDULE 13D", "SCHEDULE 13D/A", "SCHEDULE 13G", "SCHEDULE 13G/A",
+    "SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A",
   ];
-
-  const allFilings: FilingMeta[] = [];
-
-  for (const form of forms) {
-    const formEncoded = encodeURIComponent(form);
-    const url = `${CONFIG.SEARCH_URL}?q=%22%22&forms=${formEncoded}&dateRange=custom&startdt=${startStr}&enddt=${endStr}`;
+  const seen = new Map<string, { accession: string; archiveCik: string; filedAt: string }>();
+  for (let dayOffset = 0; dayOffset <= lookbackDays; dayOffset++) {
+    const dt = new Date(end);
+    dt.setUTCDate(dt.getUTCDate() - dayOffset);
+    const dayISO = dt.toISOString().split("T")[0] ?? "";
+    if (!dayISO) continue;
+    let idx: Awaited<ReturnType<typeof fetchEdgarDailyIndex>>;
     try {
-      const data = (await fetchJson(url)) as {
-        hits?: { hits?: EdgarSearchHit[]; total?: { value?: number } };
-      };
-      const hits = data.hits?.hits ?? [];
-      console.error(
-        `[13d-g live] ${form}: ${data.hits?.total?.value ?? hits.length} total, ${Math.min(hits.length, maxFilingsPerForm)} pulled`,
-      );
-
-      for (const hit of hits.slice(0, maxFilingsPerForm)) {
-        const src = hit._source;
-        if (!src) continue;
-        // For 13D/13G, the issuer CIK is at ciks[0] (subject company),
-        // filer CIK at ciks[1]. Either works for the archive URL — both
-        // resolve to the same filing. We use ciks[0] (issuer) for parity
-        // with the by-ticker fetcher.
-        const archiveCik = (src.ciks?.[0] ?? "").replace(/^0+/, "");
-        const accession = src.adsh ?? "";
-        const filedAt = src.file_date ?? "";
-        const filename = rawXmlPath((hit._id ?? "").split(":")[1] ?? "");
-        if (!accession || !archiveCik || !filename) continue;
-        allFilings.push({
-          accession,
-          archiveCik,
-          filedAt,
-          url: `${CONFIG.EDGAR_URL}/Archives/edgar/data/${archiveCik}/${formatAccession(accession)}/${filename}`,
-        });
-      }
+      idx = await fetchEdgarDailyIndex(dayISO, forms);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[13d-g live] ${form}: SEARCH FAILED — ${msg}`);
+      console.error(`[13d-g live] daily-index ${dayISO}: SKIP — ${msg}`);
+      continue;
+    }
+    for (const f of idx) {
+      if (!forms.includes(f.formType)) continue;
+      if (seen.has(f.accession)) continue;
+      seen.set(f.accession, {
+        accession: f.accession,
+        archiveCik: f.cik.replace(/^0+/, ""),
+        filedAt: f.dateFiled,
+      });
     }
   }
 
   console.error(
-    `[13d-g live] ${allFilings.length} total filings across all 13D/13G forms in last ${lookbackDays}d`,
+    `[13d-g live] ${seen.size} total 13D/13G filings in last ${lookbackDays}d (daily-index)`,
   );
 
   const allRows: ActivistOwnership[] = [];
-  for (const filing of allFilings) {
+  for (const ref of seen.values()) {
     try {
+      const url = await fetchPrimaryDocUrl(ref.archiveCik, ref.accession);
+      if (!url) {
+        console.error(`[13d-g live]   ${ref.accession}: SKIP — no primary XML`);
+        continue;
+      }
+      const filing: FilingMeta = { ...ref, url };
       const xmlText = await fetchText(filing.url);
       const rows = await parseActivistXml(xmlText, filing);
       allRows.push(...rows);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[13d-g live]   ${filing.accession}: SKIP — ${msg}`);
+      console.error(`[13d-g live]   ${ref.accession}: SKIP — ${msg}`);
     }
   }
 
   console.error(
-    `[13d-g live] TOTAL: ${allRows.length} ownership rows from ${allFilings.length} filings`,
+    `[13d-g live] TOTAL: ${allRows.length} ownership rows from ${seen.size} filings`,
   );
   return allRows;
 }

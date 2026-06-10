@@ -49,8 +49,12 @@ const sec13dgRecentAdapter = makeEdgarRecentWindowAdapter({
   title: "SEC 13D/13G — recent-window completeness (last 30d, activist_ownership)",
   collection: "activist_ownership",
   keyvexIdField: "accession_number",
-  // Daily index uses SHORT form codes (NOT the FTS "SCHEDULE 13D" form).
-  forms: ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"],
+  // EDGAR's daily index uses a MIX of "SCHEDULE 13D/G" and legacy "SC 13D"
+  // strings for these forms (verified 2026-06-10), so cover both styles.
+  forms: [
+    "SCHEDULE 13D", "SCHEDULE 13D/A", "SCHEDULE 13G", "SCHEDULE 13G/A",
+    "SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A",
+  ],
   days: 30,
 });
 const secProxyRecentAdapter = makeEdgarRecentWindowAdapter({
