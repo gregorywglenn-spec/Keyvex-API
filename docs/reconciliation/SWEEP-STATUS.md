@@ -18,7 +18,7 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (31 of ~38 datasets)
+## ✅ Done / verified (32 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
@@ -27,7 +27,22 @@ DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
 roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
 treasury auctions, FARA, GovInfo publications, CFPB complaints (live
 passthrough + total_count), **federal contracts + federal grants (live
-passthrough audited + upgraded — same treatment as CFPB)**.
+passthrough audited + upgraded — same treatment as CFPB), **product recalls
+(100.00% after the report_date window fix)**.
+
+### 2026-06-10 session (cont.) — product recalls: 99.99% → 100.00% + cron bug fixed
+Denominator = openFDA bulk download zips (file-based full-index rule) +
+CPSC's single full JSON: 95,579. Baseline 99.99% with 5 missing — all fresh
+2026 publications, which exposed a REAL cron bug: the daily FDA scraper
+windowed on `recall_initiation_date`, but FDA classifies recalls months to
+YEARS after initiation (one 2026-published device recall carries a 2011
+initiation date), so anything published after its initiation aged out of
+the lookback was permanently missed (the 2026-06-05 bulk backfill masked
+it). Fixed: window on `report_date` (publication time); 14-day re-scrape;
+re-verified **100.00% (95,579/95,579, 0 extras)**; scrapeFdaRecallsDaily
+redeployed. Note: per-feed manifest counts run exactly 1 higher — each feed
+has one blank-recall_number record, skipped identically by scraper and
+adapter. `product-recalls-G1.html`.
 
 ### 2026-06-10 session (cont.) — federal contracts + grants live-path upgrade
 Greg's standing posture (per CFPB): live passthrough is the architecture;
@@ -168,10 +183,9 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~7) — roughly by effort
+## ⏭️ Remaining to reconcile (~6) — roughly by effort
 - **Standard reconciles** (one adapter + run each): enforcement actions
-  (5-6 regulators), product recalls (FDA/CPSC), 13F institutional holdings,
-  N-PORT holdings.
+  (5-6 regulators), 13F institutional holdings, N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).

@@ -159,7 +159,16 @@ export async function scrapeFdaRecalls(
     // encodeURIComponent turns the spaces into %20, which openFDA parses
     // correctly. Using a literal `+` here would encode to %2B (literal
     // plus char) and openFDA returns HTTP 500 on the malformed query.
-    const searchExpr = `recall_initiation_date:[${startStr} TO ${endStr}]`;
+    //
+    // Window on REPORT_DATE (publication into the weekly enforcement
+    // report), NOT recall_initiation_date: FDA classifies recalls months
+    // (sometimes YEARS — a 2026-published device recall carries a 2011
+    // initiation date) after initiation, so an initiation-date window
+    // permanently misses anything whose initiation aged out of the
+    // lookback before publication. Found by the 2026-06-10 reconcile
+    // (5 fresh recalls present in the bulk file were invisible to a
+    // 14-day initiation-date window).
+    const searchExpr = `report_date:[${startStr} TO ${endStr}]`;
     const url =
       `${CONFIG.BASE_URL}${path}` +
       `?search=${encodeURIComponent(searchExpr)}` +

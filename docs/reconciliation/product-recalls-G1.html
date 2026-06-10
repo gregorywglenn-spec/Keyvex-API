@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — Product recalls — openFDA drug/device/food (bulk zips) + CPSC (full JSON) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — Product recalls — openFDA drug/device/food (bulk zips) + CPSC (full JSON)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>product_recalls</code> · generated 2026-06-10T20:52:53.061Z</p>
+
+<div class="banner ok">
+  <div class="big">100.00% coverage</div>
+  95,579 of 95,579 source filings present in KeyVex
+  · <b>0 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+<div class="warnbox"><b>Warnings (surfaced, not silent):</b><ul><li>fda_drug: collected 17682 of manifest-reported 17683</li><li>fda_device: collected 39095 of manifest-reported 39096</li><li>fda_food: collected 28965 of manifest-reported 28966</li></ul></div>
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 95,579 records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>fda_drug</td><td class="num">17,682</td><td>✓ present</td></tr>
+<tr><td>fda_device</td><td class="num">39,095</td><td>✓ present</td></tr>
+<tr><td>fda_food</td><td class="num">28,965</td><td>✓ present</td></tr>
+<tr><td>cpsc</td><td class="num">9,837</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr><td>1973</td><td class="num">8</td><td class="num">8</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1974</td><td class="num">14</td><td class="num">14</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1975</td><td class="num">13</td><td class="num">13</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1976</td><td class="num">27</td><td class="num">27</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1977</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1978</td><td class="num">43</td><td class="num">43</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1979</td><td class="num">33</td><td class="num">33</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1980</td><td class="num">22</td><td class="num">22</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1981</td><td class="num">12</td><td class="num">12</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1982</td><td class="num">23</td><td class="num">23</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1983</td><td class="num">23</td><td class="num">23</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1984</td><td class="num">44</td><td class="num">44</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1985</td><td class="num">30</td><td class="num">30</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1986</td><td class="num">46</td><td class="num">46</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1987</td><td class="num">49</td><td class="num">49</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1988</td><td class="num">75</td><td class="num">75</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1989</td><td class="num">80</td><td class="num">80</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1990</td><td class="num">78</td><td class="num">78</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1991</td><td class="num">84</td><td class="num">84</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1992</td><td class="num">82</td><td class="num">82</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1993</td><td class="num">75</td><td class="num">75</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1994</td><td class="num">109</td><td class="num">109</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1995</td><td class="num">128</td><td class="num">128</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1996</td><td class="num">138</td><td class="num">138</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1997</td><td class="num">151</td><td class="num">151</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1998</td><td class="num">133</td><td class="num">133</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1999</td><td class="num">156</td><td class="num">156</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2000</td><td class="num">193</td><td class="num">193</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2001</td><td class="num">245</td><td class="num">245</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2002</td><td class="num">256</td><td class="num">256</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2003</td><td class="num">216</td><td class="num">216</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2004</td><td class="num">278</td><td class="num">278</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2005</td><td class="num">323</td><td class="num">323</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2006</td><td class="num">319</td><td class="num">319</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2007</td><td class="num">452</td><td class="num">452</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2008</td><td class="num">392</td><td class="num">392</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2009</td><td class="num">383</td><td class="num">383</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2010</td><td class="num">362</td><td class="num">362</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2011</td><td class="num">313</td><td class="num">313</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2012</td><td class="num">3,971</td><td class="num">3,971</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2013</td><td class="num">6,027</td><td class="num">6,027</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2014</td><td class="num">7,176</td><td class="num">7,176</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2015</td><td class="num">7,654</td><td class="num">7,654</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2016</td><td class="num">7,841</td><td class="num">7,841</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2017</td><td class="num">7,171</td><td class="num">7,171</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2018</td><td class="num">7,399</td><td class="num">7,399</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2019</td><td class="num">7,057</td><td class="num">7,057</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2020</td><td class="num">5,633</td><td class="num">5,633</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2021</td><td class="num">4,719</td><td class="num">4,719</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2022</td><td class="num">5,486</td><td class="num">5,486</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2023</td><td class="num">6,208</td><td class="num">6,208</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2024</td><td class="num">5,764</td><td class="num">5,764</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2025</td><td class="num">5,710</td><td class="num">5,710</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2026</td><td class="num">2,319</td><td class="num">2,319</td><td class="num">0</td><td class="num">100.00%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (0)</h2>
+
+<p>None — every source filing in the scanned window is present in KeyVex.</p>
+
+<h2>In KeyVex but NOT in the current source (0)</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup. (No per-id link builder for this dataset — ids shown bare; full list in the companion <code>-extras.csv</code>.)</p>
+<p>None — KeyVex holds nothing the source doesn’t.</p>
+
+</body></html>

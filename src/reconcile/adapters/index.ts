@@ -23,6 +23,7 @@ import { cftcCotAdapter } from "./cftc-cot.js";
 import { treasuryAuctionsAdapter } from "./treasury-auctions.js";
 import { faraAdapter } from "./fara.js";
 import { govinfoRecentAdapter } from "./govinfo-recent.js";
+import { productRecallsAdapter } from "./product-recalls.js";
 import { makeEdgarRecentWindowAdapter } from "./edgar-recent-window.js";
 
 // Recent-window completeness checks for accumulating SEC-form feeds (does the
@@ -94,6 +95,7 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [treasuryAuctionsAdapter.name]: treasuryAuctionsAdapter,
   [faraAdapter.name]: faraAdapter,
   [govinfoRecentAdapter.name]: govinfoRecentAdapter,
+  [productRecallsAdapter.name]: productRecallsAdapter,
   [sec8kRecentAdapter.name]: sec8kRecentAdapter,
   [sec144RecentAdapter.name]: sec144RecentAdapter,
   [secForm3RecentAdapter.name]: secForm3RecentAdapter,
