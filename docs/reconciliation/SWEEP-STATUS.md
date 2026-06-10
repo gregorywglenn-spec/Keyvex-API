@@ -18,16 +18,25 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (27 of ~38 datasets)
+## ✅ Done / verified (28 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
 DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
 roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
-treasury auctions, FARA**.
+treasury auctions, FARA, GovInfo publications**.
 
-### 2026-06-10 session (cont.) — CFTC COT + treasury auctions + FARA
+### 2026-06-10 session (cont.) — CFTC COT + treasury auctions + FARA + GovInfo
+- **govinfo-recent** (30d window): 78.89% → **100.00%** (1,042/1,042). Root
+  cause: the scraper's `maxPerCollection` default (500) silently truncated
+  GovInfo bulk-reprocessing days — the hidden-cap pattern. Fixed (default
+  5000 + LOUD truncation log per no-silent-caps), 1,279-package backfill,
+  `scrapeGovInfoDaily` redeployed. GAOREPORTS legitimately 0 in window
+  (dormant archive — verified 200-with-zero, not an error). NOTE for local
+  runs: `GOVINFO_API_KEY` was missing from `secrets/.env` (DEMO_KEY fallback
+  = 30 req/hr 429s); now copied in from Secret Manager. 291 extras =
+  older-than-window accumulation, normal. `govinfo-recent-G1.html`.
 - **fara** (registrant-level, snapshot): 99.64% (554/556), 0 unexplained — the
   2 missing are the two NEWEST registration numbers (7734/7736, registered
   after Sunday's weekly cron; self-heals). 11 extras = registrants terminated
@@ -120,11 +129,10 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~11) — roughly by effort
+## ⏭️ Remaining to reconcile (~10) — roughly by effort
 - **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
-  government publications (GovInfo), enforcement actions (5-6 regulators),
-  consumer complaints (CFPB), product recalls (FDA/CPSC),
-  13F institutional holdings, N-PORT holdings.
+  enforcement actions (5-6 regulators), consumer complaints (CFPB),
+  product recalls (FDA/CPSC), 13F institutional holdings, N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).

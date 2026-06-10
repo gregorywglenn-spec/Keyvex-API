@@ -99,7 +99,11 @@ export interface ScrapeGovInfoOptions {
    * refreshes when one source matters. Default: all four.
    */
   collection?: GovDocument["collection"];
-  /** Max packages per collection. Default 500. */
+  /** Max packages per collection — a runaway-loop safety valve, NOT a
+   *  pull-size tuner. Default 5000. The old default (500) silently truncated
+   *  GovInfo bulk-reprocessing days (mass lastModified touches blow past 500
+   *  in a 7-day window) — found by the 2026-06-10 reconcile as 220 missing
+   *  packages in a 30-day window. Truncation now logs loudly. */
   maxPerCollection?: number;
 }
 
@@ -182,6 +186,14 @@ export async function scrapeGovInfoCollection(
     console.error(
       `[govinfo] ${collection} page=${pageNumber}: +${added} (running ${out.length})`,
     );
+    if (out.length >= maxPackages && data.nextPage) {
+      // NO SILENT CAPS: the safety valve fired with more pages upstream.
+      console.error(
+        `[govinfo] ${collection} TRUNCATED at maxPackages=${maxPackages} — ` +
+          `upstream reports ${data.count ?? "?"} in window; raise maxPerCollection`,
+      );
+      break;
+    }
     if (packages.length < CONFIG.PAGE_SIZE) break;
     if (!data.nextPage) break;
     // Extract the next offsetMark from the nextPage URL's query string.
@@ -198,7 +210,7 @@ export async function scrapeGovInfo(
   options: ScrapeGovInfoOptions = {},
 ): Promise<GovDocument[]> {
   const lookbackDays = options.lookbackDays ?? 30;
-  const maxPerCollection = options.maxPerCollection ?? 500;
+  const maxPerCollection = options.maxPerCollection ?? 5000;
   const scrapedAt = new Date().toISOString();
 
   const collections: GovDocument["collection"][] = options.collection
