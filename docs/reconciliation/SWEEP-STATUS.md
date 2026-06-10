@@ -18,14 +18,15 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (28 of ~38 datasets)
+## ✅ Done / verified (29 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
 DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
 roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
-treasury auctions, FARA, GovInfo publications**.
+treasury auctions, FARA, GovInfo publications, CFPB complaints (audited —
+structural sample-scope finding; fix gated on Greg's A/B/C decision)**.
 
 ### 2026-06-10 session (cont.) — CFTC COT + treasury auctions + FARA + GovInfo
 - **govinfo-recent** (30d window): 78.89% → **100.00%** (1,042/1,042). Root
@@ -94,6 +95,12 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    if the FARA API ever reorders a registrant's principal array, re-runs
    would write the same pair under a different id (drift/dupes). Sturdier id:
    hash of (reg, principal_name). Low urgency; revisit if dupes appear.
+6. **CFPB scope decision (Greg's call — A/B/C in `cfpb-NOTES.md`)** — the
+   collection is a ~8-13% sample of recent days and 0% history (cron: 2-day
+   window, 2,000/run cap, vs ~15-27K complaints/day + weeks of publication
+   lag). Recommended fix: bulk-CSV ingestion (~5M rows, own session, cost
+   sign-off). Tool description honesty-patched + mcp redeployed 2026-06-10
+   as the interim state — agents are now told it's a sample, not volume.
 
 ### 2026-06-10 session — Form 278: 12.12% → 99.99%+ (root-caused, fixed, backfilled, deployed)
 Baseline reconcile found **12.12%** (2,221 / 18,327). Three root causes, all fixed
@@ -129,10 +136,10 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~10) — roughly by effort
+## ⏭️ Remaining to reconcile (~9) — roughly by effort
 - **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
-  enforcement actions (5-6 regulators), consumer complaints (CFPB),
-  product recalls (FDA/CPSC), 13F institutional holdings, N-PORT holdings.
+  enforcement actions (5-6 regulators), product recalls (FDA/CPSC),
+  13F institutional holdings, N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).
