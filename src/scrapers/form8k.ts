@@ -29,6 +29,7 @@
  */
 
 import type { MaterialEvent } from "../types.js";
+import { fetchEdgarDailyIndex } from "../reconcile/sec-edgar-index.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -302,102 +303,89 @@ interface FtsHit {
  */
 export async function scrape8kLiveFeed(
   lookbackDays = 1,
-  maxFilings = 200,
+  maxFilings = 100000,
 ): Promise<MaterialEvent[]> {
   const end = new Date();
-  const start = new Date();
-  start.setDate(start.getDate() - lookbackDays);
-  const startStr = start.toISOString().split("T")[0];
-  const endStr = end.toISOString().split("T")[0];
 
-  // forms=8-K matches both 8-K and 8-K/A on EDGAR FTS.
-  const url = `${CONFIG.SEARCH_URL}?q=&forms=8-K&dateRange=custom&startdt=${startStr}&enddt=${endStr}`;
-  const data = (await fetchJson(url)) as { hits?: { hits?: FtsHit[] } };
-  const hits = data.hits?.hits ?? [];
+  // Enumerate via EDGAR's COMPLETE daily index, NOT full-text search. FTS
+  // silently caps/under-reports — measured at only ~60% recent-window coverage
+  // before this fix (the worst of the SEC feeds; same leak class fixed for
+  // N-PORT and Form D). The daily index gives (cik, accession); the item codes,
+  // period-of-report and primary document all come from the per-CIK submissions
+  // API (cached), so there's no per-filing fetch — one submissions call per
+  // unique filer covers all its 8-Ks in the window.
+  const refs = new Map<
+    string,
+    { accession: string; cikPadded: string; filedAt: string; isAmendment: boolean }
+  >();
+  for (let dayOffset = 0; dayOffset <= lookbackDays; dayOffset++) {
+    const dt = new Date(end);
+    dt.setUTCDate(dt.getUTCDate() - dayOffset);
+    const dayISO = dt.toISOString().split("T")[0] ?? "";
+    if (!dayISO) continue;
+    let idx: Awaited<ReturnType<typeof fetchEdgarDailyIndex>>;
+    try {
+      idx = await fetchEdgarDailyIndex(dayISO, ["8-K", "8-K/A"]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[8k live] daily-index ${dayISO}: SKIP — ${msg}`);
+      continue;
+    }
+    for (const f of idx) {
+      if (f.formType !== "8-K" && f.formType !== "8-K/A") continue;
+      if (refs.has(f.accession)) continue;
+      if (refs.size >= maxFilings) break;
+      refs.set(f.accession, {
+        accession: f.accession,
+        cikPadded: f.cik.padStart(10, "0"),
+        filedAt: f.dateFiled,
+        isAmendment: f.formType === "8-K/A",
+      });
+    }
+  }
 
-  console.error(`[8k live] FTS returned ${hits.length} 8-K hits in last ${lookbackDays}d`);
+  console.error(
+    `[8k live] ${refs.size} 8-K filings in last ${lookbackDays}d (daily-index)`,
+  );
 
-  // Dedup by accession — FTS sometimes returns multiple rows per filing
-  // (one per attached document). The 8-K we care about is one row per
-  // accession_number; collapsing is required so we don't double-count.
-  const seenAccessions = new Set<string>();
   const out: MaterialEvent[] = [];
-
-  for (const hit of hits) {
-    if (out.length >= maxFilings) break;
-    const src = hit._source;
-    if (!src) continue;
-
-    const accession = src.adsh ?? "";
-    if (!accession || seenAccessions.has(accession)) continue;
-
-    // Filter to primary form documents only — skip exhibits / images.
-    // A filename suffix of .htm/.html/.txt on the primary doc is the most
-    // reliable filter; FTS hits on attachments will have different patterns.
-    const filename = (hit._id ?? "").split(":")[1] ?? "";
-    if (!filename) continue;
-
-    // FTS includes both 8-K and 8-K/A under forms=8-K filter. file_type
-    // distinguishes them when present; fall back to inferring from filename.
-    const fileType = (src.file_type ?? "").toUpperCase();
-    const isAmendment = fileType === "8-K/A";
-
-    const cikPaddedFromHit = (src.ciks?.[0] ?? "").padStart(10, "0");
-    if (!cikPaddedFromHit) continue;
-    const cikRaw = cikPaddedFromHit.replace(/^0+/, "");
-
-    const filedAt = src.file_date ?? "";
-    // FTS uses `period_ending` (not `period_of_report`). Fall back to
-    // the legacy name too — defensive against future API normalization.
-    let periodOfReport = src.period_ending ?? src.period_of_report ?? "";
-    let itemCodes = parseItemCodes(src.items);
-
-    // Resolve ticker + name via the bidirectional cache.
-    const ticker = await getTickerFromCik(cikPaddedFromHit);
-    const companyName =
-      (await getNameFromCik(cikPaddedFromHit)) ??
-      src.display_names?.[0]?.split(" (")[0] ??
-      null;
-
-    // Fallback path: if FTS didn't carry items OR period_of_report,
-    // fetch the submissions API and look up the matching accession.
-    // Cached per CIK. Greg's 2026-05-23 finding caused this to fire on
-    // period_of_report too (older code only fired when items were
-    // missing, leaving 51% of feed-path rows with empty
-    // period_of_report).
-    if (itemCodes.length === 0 || !periodOfReport) {
-      try {
-        const subs = await getSubmissions(cikPaddedFromHit);
-        const recent = subs.filings?.recent;
-        if (recent) {
-          const idx = recent.accessionNumber.findIndex((a) => a === accession);
-          if (idx >= 0) {
-            if (itemCodes.length === 0) {
-              itemCodes = parseItemCodes(recent.items?.[idx]);
-            }
-            if (!periodOfReport && recent.reportDate?.[idx]) {
-              periodOfReport = recent.reportDate[idx];
-            }
-          }
+  for (const ref of refs.values()) {
+    let periodOfReport = "";
+    let primaryDocument = "";
+    let itemCodes: string[] = [];
+    let filedAt = ref.filedAt;
+    try {
+      const subs = await getSubmissions(ref.cikPadded);
+      const recent = subs.filings?.recent;
+      if (recent) {
+        const i = recent.accessionNumber.findIndex((a) => a === ref.accession);
+        if (i >= 0) {
+          periodOfReport = recent.reportDate?.[i] ?? "";
+          primaryDocument = recent.primaryDocument?.[i] ?? "";
+          itemCodes = parseItemCodes(recent.items?.[i]);
+          if (recent.filingDate?.[i]) filedAt = recent.filingDate[i]!;
         }
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[8k live]   ${accession}: items/period fallback SKIP — ${msg}`);
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[8k live]   ${ref.accession}: submissions SKIP — ${msg}`);
+      // Still record the filing with what we have from the index (don't drop it).
     }
 
-    seenAccessions.add(accession);
+    const cikRaw = ref.cikPadded.replace(/^0+/, "");
+    const ticker = await getTickerFromCik(ref.cikPadded);
+    const companyName = await getNameFromCik(ref.cikPadded);
     out.push(
       buildMaterialEvent({
-        accession,
-        cikPadded: cikPaddedFromHit,
+        accession: ref.accession,
+        cikPadded: ref.cikPadded,
         cikRaw,
         ticker,
         companyName,
         filingDate: filedAt,
         periodOfReport,
-        primaryDocument: filename,
-        isAmendment,
+        primaryDocument,
+        isAmendment: ref.isAmendment,
         itemCodes,
       }),
     );
