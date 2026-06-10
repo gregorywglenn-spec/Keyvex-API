@@ -50,6 +50,14 @@ export interface ResultEnvelope<T> {
    * contributions); absent on pure-Firestore tools.
    */
   source?: "live" | "cache";
+  /**
+   * CFPB live path (2026-06-10): the upstream API's authoritative hits.total
+   * for the server-side-filtered query — TRUE volume over the full upstream
+   * database (15.7M+ rows for CFPB), independent of page size. Present only
+   * when every active filter was applied server-side; omitted when a
+   * client-side filter (issue / sub_product) made it inexact.
+   */
+  total_count?: number;
   query: Record<string, unknown>;
 }
 

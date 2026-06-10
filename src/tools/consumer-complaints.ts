@@ -30,18 +30,22 @@ export const definition: Tool = {
     "with company response status, timeliness flag, and (when consented)",
     "consumer narrative.",
     "",
-    "Use this when the user asks about: recent complaint EXAMPLES against a",
-    "specific company, top issues at a credit reporting agency, untimely",
-    "responses by a financial institution, or as a qualitative leading",
+    "Use this when the user asks about: complaint volume against a specific",
+    "company, top issues at a credit reporting agency, regional complaint",
+    "patterns, untimely responses by a financial institution, or as a leading",
     "indicator of upcoming CFPB/OCC/FDIC enforcement action.",
     "",
-    "⚠ COVERAGE — this collection is a SAMPLE, not the full CFPB database",
-    "(verified 2026-06-10): the daily cron captures ~2,000 of the ~15-27K",
-    "complaints CFPB receives per day, recent days only, with no history",
-    "before the rolling window. Do NOT present record counts from this tool",
-    "as complaint VOLUME — they undercount ~8-13x and miss older periods",
-    "entirely. For true volume/counts, follow `cfpb_source_url` to CFPB's own",
-    "search (its hits.total is authoritative over the full 5M+ row dataset).",
+    "COVERAGE — live passthrough (source:'live'): each call queries CFPB's",
+    "own search API over the FULL 15.7M+ complaint database, full history,",
+    "current as of CFPB's publication. The response's `total_count` is CFPB's",
+    "authoritative count for your filtered query — USE IT for volume answers",
+    "(the `results` array is just the requested page). `total_count` is",
+    "omitted when an `issue` or `sub_product` filter is active (those apply",
+    "after the upstream query, so the upstream total wouldn't match). If CFPB",
+    "is unreachable the tool falls back to a small cached sample",
+    "(source:'cache' + coverage_warning) — do NOT infer volume in that mode.",
+    "Note: `company` matching is word-based against the company name",
+    "('experian', 'wells fargo'), not arbitrary-substring.",
     "",
     "Product taxonomy (the top categories):",
     "  - 'Credit reporting or other personal consumer reports' — Equifax,",
@@ -136,13 +140,15 @@ export async function handler(
   args: unknown,
 ): Promise<ResultEnvelope<ConsumerComplaint>> {
   const query = validateAndNormalize(args);
-  const { results, has_more, coverage_warning, source } = await queryConsumerComplaints(query);
+  const { results, has_more, coverage_warning, source, total_count } =
+    await queryConsumerComplaints(query);
   return {
     results,
     count: results.length,
     has_more,
     ...(coverage_warning && { coverage_warning }),
     ...(source && { source }),
+    ...(total_count !== undefined && { total_count }),
     query: query as Record<string, unknown>,
   };
 }

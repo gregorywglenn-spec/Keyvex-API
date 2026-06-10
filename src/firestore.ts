@@ -111,7 +111,7 @@ import {
   scrapeGrantsByRecipient,
   scrapeGrantsLiveFeed,
 } from "./scrapers/usaspending-grants.js";
-import { scrapeCfpbComplaints } from "./scrapers/cfpb-complaints.js";
+import { searchCfpbLive } from "./scrapers/cfpb-complaints.js";
 import {
   scrapeFecScheduleA,
   type ScrapeFecScheduleAOptions,
@@ -277,6 +277,15 @@ export interface QueryResult<T> {
    * ("cache"). Absent on pure-Firestore queries.
    */
   source?: "live" | "cache";
+  /**
+   * CFPB live path (2026-06-10): the upstream API's authoritative total
+   * (hits.total) for the server-side-filtered query — the TRUE volume number
+   * over the full upstream database, independent of how many rows were
+   * returned. Present only when every active filter was applied server-side
+   * (so the number exactly describes the filtered universe); omitted when a
+   * client-side filter (issue / sub_product) made it inexact.
+   */
+  total_count?: number;
 }
 
 /**
@@ -3841,9 +3850,42 @@ export async function queryConsumerComplaints(
   }
 
   const userLimit = query.limit ?? 50;
+  const sortField = query.sort_by ?? "date_received";
 
+  // Filters CFPB can't (or won't) apply server-side: issue is a substring
+  // contract; sub_product's upstream param is silently IGNORED (verified
+  // 2026-06-10 — it returns the full unfiltered dataset); and since/until
+  // are defined against sort_by, so when sorting by date_sent_to_company
+  // the date bounds can't be pushed as date_received bounds.
+  const hasClientFilters =
+    Boolean(query.issue) ||
+    Boolean(query.sub_product) ||
+    sortField === "date_sent_to_company";
+
+  // Everything else (company word-match via search_term+field, product,
+  // state, submitted_via, timely, date_received bounds, sort, size) is
+  // pushed server-side over CFPB's FULL 15.7M-row database — and the
+  // response's hits.total is the authoritative volume for the filtered
+  // query (verified 2026-06-10).
+  let liveTotal: number | undefined;
   const live = await liveFirst<ConsumerComplaint>(
-    () => fetchComplaintsLive(query),
+    async () => {
+      const r = await searchCfpbLive({
+        company: query.company,
+        product: query.product,
+        state: query.state,
+        submitted_via: query.submitted_via,
+        timely_response: query.timely_response,
+        dateReceivedMin: sortField === "date_received" ? query.since : undefined,
+        dateReceivedMax: sortField === "date_received" ? query.until : undefined,
+        sortOrder: query.sort_order ?? "desc",
+        // Wide page when residual client-side filters must run; otherwise
+        // just the page the caller asked for.
+        fetchSize: hasClientFilters ? 500 : Math.min(userLimit + 1, 500),
+      });
+      liveTotal = r.totalCount;
+      return r.complaints;
+    },
     async () => (await queryConsumerComplaintsCache(query)).results,
     { label: "CFPB consumer complaints" },
   );
@@ -3859,92 +3901,44 @@ export async function queryConsumerComplaints(
     return { ...out, source: "cache", coverage_warning: live.coverage_warning };
   }
 
-  // Live path: apply all client-side filters (CFPB only filters by date).
+  // Live path: only the residual client-side filters (the rest were applied
+  // upstream).
   let docs = live.results;
-  if (query.company) {
-    const needle = query.company.toLowerCase();
-    docs = docs.filter((c) => matchesSubstringSafe(c.company, needle));
-  }
-  if (query.product) {
-    docs = docs.filter((c) => c.product === query.product);
-  }
-  if (query.sub_product) {
-    docs = docs.filter((c) => c.sub_product === query.sub_product);
-  }
   if (query.issue) {
     const needle = query.issue.toLowerCase();
     docs = docs.filter((c) => matchesSubstringSafe(c.issue, needle));
   }
-  if (query.state) {
-    docs = docs.filter((c) => c.state === query.state!.toUpperCase());
+  if (query.sub_product) {
+    docs = docs.filter((c) => c.sub_product === query.sub_product);
   }
-  if (query.submitted_via) {
-    docs = docs.filter((c) => c.submitted_via === query.submitted_via);
-  }
-  if (query.timely_response !== undefined) {
-    docs = docs.filter((c) => c.timely_response === query.timely_response);
-  }
-  const sortField = query.sort_by ?? "date_received";
-  if (query.since) {
-    docs = docs.filter(
-      (c) =>
-        ((sortField === "date_sent_to_company"
-          ? c.date_sent_to_company
-          : c.date_received) ?? "") >= (query.since ?? ""),
-    );
-  }
-  if (query.until) {
-    docs = docs.filter(
-      (c) =>
-        ((sortField === "date_sent_to_company"
-          ? c.date_sent_to_company
-          : c.date_received) ?? "") <= (query.until ?? "9999"),
-    );
+  if (sortField === "date_sent_to_company") {
+    if (query.since) {
+      docs = docs.filter((c) => (c.date_sent_to_company ?? "") >= query.since!);
+    }
+    if (query.until) {
+      docs = docs.filter((c) => (c.date_sent_to_company ?? "") <= query.until!);
+    }
+    const sortOrder = query.sort_order ?? "desc";
+    docs.sort((a, b) => {
+      const av = a.date_sent_to_company;
+      const bv = b.date_sent_to_company;
+      if (av === bv) return 0;
+      const cmp = av < bv ? -1 : 1;
+      return sortOrder === "desc" ? -cmp : cmp;
+    });
   }
 
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    const av =
-      sortField === "date_sent_to_company"
-        ? a.date_sent_to_company
-        : a.date_received;
-    const bv =
-      sortField === "date_sent_to_company"
-        ? b.date_sent_to_company
-        : b.date_received;
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
-
-  const has_more = docs.length > userLimit;
+  const has_more = hasClientFilters
+    ? docs.length > userLimit
+    : (liveTotal ?? 0) > userLimit;
   const results = docs.slice(0, userLimit);
-  return { results, has_more, source: "live" };
-}
-
-async function fetchComplaintsLive(
-  query: ConsumerComplaintsQuery,
-): Promise<ConsumerComplaint[]> {
-  // Push the company filter to CFPB as a full-text search_term so the API
-  // returns that company's complaints server-side, recent-first (e.g.
-  // "Wells Fargo" → WELLS FARGO & COMPANY). Without this, a company filter was
-  // applied client-side over a ~2-day window and missed everything.
-  const opts: {
-    dateReceivedMin?: string;
-    maxRecords?: number;
-    searchTerm?: string;
-  } = { maxRecords: 200 };
-  if (query.company) {
-    opts.searchTerm = query.company;
-    // Company searches want depth — default to a 2-year window (recent-first)
-    // when the caller didn't bound the date themselves.
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 2);
-    opts.dateReceivedMin = query.since ?? d.toISOString().split("T")[0]!;
-  } else if (query.since) {
-    opts.dateReceivedMin = query.since;
+  const out: QueryResult<ConsumerComplaint> = { results, has_more, source: "live" };
+  // total_count only when it EXACTLY describes the filtered result —
+  // i.e. no residual client-side filter narrowed the rows after the fact.
+  if (!hasClientFilters && liveTotal !== undefined) {
+    out.total_count = liveTotal;
   }
-  return scrapeCfpbComplaints(opts);
+  return out;
 }
 
 export async function saveConsumerComplaints(

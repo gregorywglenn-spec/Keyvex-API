@@ -53,7 +53,30 @@ explicitly: sample, NOT volume-safe, follow cfpb_source_url for true counts.
 - **C (status quo, now honest): keep the sample; tool description rewritten
   to forbid volume conclusions.** Done 2026-06-10 as the interim state.
 
-## Status
+## Status — RESOLVED 2026-06-10 (Greg's call: live passthrough + cron continues)
 
-- Audited 2026-06-10; finding documented; tool description honesty-patched
-  (+ mcp redeploy); fix gated on Greg's A/B/C decision.
+Greg chose the passthrough approach (a hybrid: live API serves queries, the
+cron keeps feeding the fallback cache). Implementation discovered a 2026-06-06
+session had already built live-first-with-cache-fallback (`liveFirst` in
+`src/passthrough.ts`); this session UPGRADED it:
+
+1. **`total_count` added** (the missing volume answer): the live path now
+   captures CFPB's `hits.total` — authoritative over the full **15.7M-row**
+   database (the "5M" figure was stale) — and surfaces it on the envelope.
+   Attached only when every active filter ran server-side; omitted when
+   issue/sub_product client-filters make it inexact.
+2. **Server-side filter pushdown**: company (search_term + field=company,
+   word-match), product, state, submitted_via, timely, date_received bounds,
+   sort — all verified against the live API and pushed upstream (was: only
+   search_term + date floor over a 200-row page).
+3. **`sub_product` upstream param is silently IGNORED by CFPB** (verified —
+   returns the full unfiltered dataset) — kept client-side.
+4. Tool description rewritten: volume questions are back IN scope via
+   `total_count`; cache-fallback mode explicitly flagged as not-volume-safe.
+
+Verified end-to-end: local handler smoke (6 scenarios incl. an organic
+timeout→cache-fallback) + live wire — `get_consumer_complaints(company:
+"wells fargo")` through mcp.keyvex.com returns `total_count: 168,909`,
+matching CFPB's API directly. The daily cron is unchanged and keeps the
+fallback cache fresh. The warehouse-coverage reconcile question is moot by
+design: coverage = CFPB's own database.

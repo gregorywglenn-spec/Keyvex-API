@@ -95,12 +95,14 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    if the FARA API ever reorders a registrant's principal array, re-runs
    would write the same pair under a different id (drift/dupes). Sturdier id:
    hash of (reg, principal_name). Low urgency; revisit if dupes appear.
-6. **CFPB scope decision (Greg's call — A/B/C in `cfpb-NOTES.md`)** — the
-   collection is a ~8-13% sample of recent days and 0% history (cron: 2-day
-   window, 2,000/run cap, vs ~15-27K complaints/day + weeks of publication
-   lag). Recommended fix: bulk-CSV ingestion (~5M rows, own session, cost
-   sign-off). Tool description honesty-patched + mcp redeployed 2026-06-10
-   as the interim state — agents are now told it's a sample, not volume.
+6. ~~CFPB scope decision~~ **RESOLVED 2026-06-10**: Greg chose live
+   passthrough + cron-fed fallback cache. Implemented: `total_count`
+   (CFPB's authoritative hits.total over the full 15.7M-row DB) + full
+   server-side filter pushdown on the live path; verified on the wire
+   (wells fargo → total_count 168,909). Cron unchanged. Detail:
+   `cfpb-NOTES.md`. Two decisions still open from this batch: FARA
+   keep-with-status-flag (approved — implementation pending) and Form 3
+   nil-markers (approved — implementation pending).
 
 ### 2026-06-10 session — Form 278: 12.12% → 99.99%+ (root-caused, fixed, backfilled, deployed)
 Baseline reconcile found **12.12%** (2,221 / 18,327). Three root causes, all fixed

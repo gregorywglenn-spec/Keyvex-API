@@ -167,3 +167,77 @@ export async function scrapeCfpbComplaints(
   console.error(`[cfpb] TOTAL: ${out.length} complaints (since ${dateMin})`);
   return out;
 }
+
+// ─── Live-search path (MCP passthrough) ────────────────────────────────────
+
+export interface CfpbLiveQuery {
+  /** Pushed server-side as search_term + field=company (token/word match
+   *  against the company name over the FULL 15.7M-row CFPB database). */
+  company?: string;
+  /** Exact product — pushed server-side. */
+  product?: string;
+  /** Two-letter state — pushed server-side. */
+  state?: string;
+  /** Channel — pushed server-side. */
+  submitted_via?: string;
+  /** Pushed server-side as timely=Yes/No. */
+  timely_response?: boolean;
+  /** date_received bounds — pushed server-side. */
+  dateReceivedMin?: string;
+  dateReceivedMax?: string;
+  sortOrder?: "asc" | "desc";
+  /** Rows to fetch (one page; CFPB respects size up to ~1000s with the ES
+   *  envelope). */
+  fetchSize: number;
+}
+
+export interface CfpbLiveResult {
+  complaints: ConsumerComplaint[];
+  /** hits.total.value — CFPB's authoritative count over its FULL database
+   *  for exactly the server-side filters above. THE number for volume
+   *  questions (verified 2026-06-10 against the live API).
+   *  CAUTION for callers: if you apply any further client-side filter
+   *  (issue substring, sub_product — the upstream sub_product param is
+   *  silently IGNORED, verified 2026-06-10), this total no longer describes
+   *  your filtered result — omit it rather than mislabel it. */
+  totalCount: number;
+}
+
+/** One live query against the CFPB search API. Throws on non-OK / bad shape —
+ *  the caller's liveFirst wrapper handles fallback. */
+export async function searchCfpbLive(q: CfpbLiveQuery): Promise<CfpbLiveResult> {
+  const params = new URLSearchParams();
+  params.set("size", String(q.fetchSize));
+  params.set("no_aggs", "true");
+  params.set("sort", q.sortOrder === "asc" ? "created_date_asc" : "created_date_desc");
+  if (q.company) {
+    params.set("search_term", q.company);
+    params.set("field", "company");
+  }
+  if (q.product) params.set("product", q.product);
+  if (q.state) params.set("state", q.state.toUpperCase());
+  if (q.submitted_via) params.set("submitted_via", q.submitted_via);
+  if (q.timely_response !== undefined) {
+    params.set("timely", q.timely_response ? "Yes" : "No");
+  }
+  if (q.dateReceivedMin) params.set("date_received_min", q.dateReceivedMin);
+  if (q.dateReceivedMax) params.set("date_received_max", q.dateReceivedMax);
+
+  const res = await fetch(`${CONFIG.BASE_URL}?${params.toString()}`, {
+    headers: { "User-Agent": CONFIG.USER_AGENT, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`CFPB HTTP ${res.status} ${res.statusText}`);
+  const json = (await res.json()) as {
+    hits?: { total?: { value?: number } | number; hits?: RawComplaint[] };
+  };
+  const rawTotal = json.hits?.total;
+  const totalCount =
+    typeof rawTotal === "number" ? rawTotal : (rawTotal?.value ?? 0);
+  const scrapedAt = new Date().toISOString();
+  const complaints: ConsumerComplaint[] = [];
+  for (const raw of json.hits?.hits ?? []) {
+    const norm = normalize(raw, scrapedAt);
+    if (norm) complaints.push(norm);
+  }
+  return { complaints, totalCount };
+}
