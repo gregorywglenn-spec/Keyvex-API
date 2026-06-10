@@ -112,6 +112,15 @@ async function fetchForm278List(
     return `${m}/${day}/${y} 00:00:00`;
   };
 
+  // eFD's submitted_end_date is EXCLUSIVE (verified 2026-06-10: a same-day
+  // [d, d] window returns 0 rows; [d, d+1] returns d's filings). Our contract
+  // says endDate is inclusive, so send end+1day — without this, every window
+  // silently drops its final day (a weekly cron run never saw same-day
+  // filings until the NEXT run's overlap caught them, and explicit backfill
+  // windows permanently lost their last day).
+  const endExclusive = new Date(end);
+  endExclusive.setDate(endExclusive.getDate() + 1);
+
   // Page through results — Form 278 filings cluster heavily in May, so a
   // 30-day window in May/June can return more than PAGE_SIZE rows.
   const allRows: unknown[][] = [];
@@ -124,7 +133,7 @@ async function fetchForm278List(
     body.append("length", String(CONFIG.PAGE_SIZE));
     body.append("report_types", `[${CONFIG.REPORT_TYPES_ANNUAL.join(",")}]`);
     body.append("submitted_start_date", formatDate(start));
-    body.append("submitted_end_date", formatDate(end));
+    body.append("submitted_end_date", formatDate(endExclusive));
     body.append("candidate_state", "");
     body.append("senator_state", "");
     body.append("first_name", "");
@@ -914,6 +923,10 @@ export interface ScrapeOptions {
    *  contents (one extra HTTP GET per filing). Paper filings are link-out
    *  only with a coverage note. Default false (metadata-only, v1A behavior). */
   parseContent?: boolean;
+  /** HOUSE ONLY (backfill): enumerate exactly these House Clerk INDEX years
+   *  (the index is keyed by covered year, not filing year) and ingest every
+   *  report-family entry in them, ignoring the date window. */
+  indexYears?: number[];
 }
 
 /** eFD URL subtypes that ship as scanned-image (paper) filings — no
@@ -1101,8 +1114,13 @@ const HOUSE_CONFIG = {
   RATE_LIMIT_MS: 300,
 };
 
-/** House FilingType letters whose PDFs are text-parseable Form 278 reports. */
-const HOUSE_FD_FILING_TYPES = new Set(["A", "C", "H", "T"]);
+/** House FilingType letters in the Form 278 report family.
+ *  O = annual original (the flagship member annual — 372 in the 2024 index
+ *  alone; excluded until 2026-06-10, which was the House side's biggest
+ *  coverage hole). A = amendment, C = candidate, H = new filer, T =
+ *  termination. P (PTRs) and X/W/D/G/B/E (extensions, withdrawals, and other
+ *  administrative paperwork) are intentionally out of scope. */
+const HOUSE_FD_FILING_TYPES = new Set(["O", "A", "C", "H", "T"]);
 
 const HOUSE_PARSE_SKIP_COVERAGE_NOTE =
   "House annual filing whose Schedule A could not be machine-parsed " +
@@ -1174,7 +1192,7 @@ async function fetchHouseAnnualIndex(
     });
   }
   console.error(
-    `[form278] Found ${entries.length} annual-family entries (A/C/H/T) in ${year} index`,
+    `[form278] Found ${entries.length} report-family entries (O/A/C/H/T) in ${year} index`,
   );
   return entries;
 }
@@ -1194,6 +1212,7 @@ function deriveHouseReportType(
   if (/combined/.test(l)) return "Combined";
   if (/candidate/.test(l)) return "Other"; // no "Candidate" enum value
   switch (letter) {
+    case "O": return "Annual";
     case "A": return "Amendment";
     case "H": return "New Filer";
     case "T": return "Termination";
@@ -1291,13 +1310,22 @@ function houseFilingInWindow(
 export async function scrapeHouseForm278(
   options: ScrapeOptions = {},
 ): Promise<Form278Filing[]> {
-  const { start, end, label } = resolveWindow(options);
+  const { start, end, label } = options.indexYears
+    ? { start: new Date(0), end: new Date(), label: `index years ${options.indexYears.join(", ")}` }
+    : resolveWindow(options);
   console.error(`[form278] Starting House annual Form 278 feed (${label})...`);
 
-  // The yearly index is keyed by filing-date year. Fetch every calendar year
-  // the window touches (usually one; a year-boundary window touches two).
+  // The yearly index is keyed by the COVERED year, not the filing year —
+  // annual originals for CY y live in the y index but are FILED in y+1
+  // (verified 2026-06-10: a CY2024 "O" report carries FilingDate 4/29/2025 in
+  // the 2024 index). So fetch one index year BEFORE the window start too, or
+  // the May annual wave is invisible to a current-year window.
   const years: number[] = [];
-  for (let y = start.getFullYear(); y <= end.getFullYear(); y++) years.push(y);
+  if (options.indexYears) {
+    years.push(...options.indexYears);
+  } else {
+    for (let y = start.getFullYear() - 1; y <= end.getFullYear(); y++) years.push(y);
+  }
 
   const indexEntries: HouseAnnualIndexEntry[] = [];
   for (const y of years) {
@@ -1311,12 +1339,12 @@ export async function scrapeHouseForm278(
     }
   }
 
-  const inWindow = indexEntries.filter((e) =>
-    houseFilingInWindow(e.filing_date, start, end),
-  );
+  const inWindow = options.indexYears
+    ? indexEntries
+    : indexEntries.filter((e) => houseFilingInWindow(e.filing_date, start, end));
   console.error(
-    `[form278] ${inWindow.length} House annual filing(s) in window ` +
-      `(of ${indexEntries.length} A/C/H/T entries across ${years.join(", ")})`,
+    `[form278] ${inWindow.length} House annual filing(s) in scope ` +
+      `(of ${indexEntries.length} report-family entries across ${years.join(", ")})`,
   );
 
   const scrapedAt = new Date().toISOString();

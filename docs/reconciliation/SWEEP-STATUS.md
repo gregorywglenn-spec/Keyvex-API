@@ -18,13 +18,13 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (23 of ~38 datasets)
+## ✅ Done / verified (24 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
 DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
-roll-call votes**.
+roll-call votes, Form 278 (annual financial disclosures)**.
 
 ### 2026-06-10 session — quick catalogs, both 100%
 - **legislators** (snapshot dataset): 536/536 current members, 0 missing,
@@ -59,8 +59,41 @@ Recent-window coverage before → after the fix (switch to complete daily index 
 3. **Dead branch:** do NOT merge `claude/fec-indexes-2026-05-22` (would delete ~250
    live indexes). See `PARKED-BRANCHES.md`.
 
-## ⏭️ Remaining to reconcile (~15) — roughly by effort
-- **Quick catalogs:** Form 278.
+### 2026-06-10 session — Form 278: 12.12% → 99.99%+ (root-caused, fixed, backfilled, deployed)
+Baseline reconcile found **12.12%** (2,221 / 18,327). Three root causes, all fixed
+in `src/scrapers/form278.ts`:
+1. **House "O" (annual original) excluded from ingestion** — `HOUSE_FD_FILING_TYPES`
+   was {A,C,H,T}; the flagship member-annual type was never ingested. Added O
+   (+ letter→"Annual" mapping).
+2. **House index-year off-by-one** — the Clerk index is keyed by COVERED year;
+   annuals for CY y are FILED in y+1 (verified: a CY2024 "O" carries FilingDate
+   4/29/2025 in the 2024 index). The cron only fetched the window's own years, so
+   the May annual wave was invisible even where the type was in scope. Now fetches
+   [startYear−1 … endYear].
+3. **eFD `submitted_end_date` is EXCLUSIVE** (verified by probe: [d,d] → 0 rows,
+   [d,d+1] → d's rows) while `ScrapeOptions.endDate` is documented inclusive —
+   every window silently dropped its last day. Now sends end+1day.
+Plus: Senate history before 2016 had never been backfilled (467), and no House
+historical backfill had ever run (~15.6K).
+
+**Backfill:** `scripts/backfill-form278.ts` (resumable; metadata-first) — 16,739
+filings saved (Senate 2012-2015/2019/2026 + House index years 2015-2026).
+Re-verify: **99.99% (18,326/18,327, 0 extras)**; the 1 straggler (a 2013 Udall
+paper filing eFD listed inconsistently between runs) recovered on a targeted
+re-run. Report: `form278-G1.html`.
+
+**Adapter lesson (fixed in `src/reconcile/adapters/form278.ts`):** the first
+denominator bisected windows with INCLUSIVE ends — with eFD's exclusive end
+that drops every midpoint day; the tell was 172 "extras" clustering on exactly
+three mass-filing days. eFD start/length pagination IS honored for this query
+shape, so windows are now half-open + paged, no bisection.
+
+**Follow-up (tracked):** content-parse enrichment pass over the ~16.7K
+metadata-first backfill records — re-run `scripts/backfill-form278.ts` with the
+progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
+layers content onto existing docs without touching ids).
+
+## ⏭️ Remaining to reconcile (~14) — roughly by effort
 - **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
   government publications (GovInfo), enforcement actions (5-6 regulators), treasury
   auctions, CFTC COT, consumer complaints (CFPB), FARA, product recalls (FDA/CPSC),
