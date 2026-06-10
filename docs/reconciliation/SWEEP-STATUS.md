@@ -18,16 +18,21 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (26 of ~38 datasets)
+## ✅ Done / verified (27 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
 DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
 roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
-treasury auctions**.
+treasury auctions, FARA**.
 
-### 2026-06-10 session (cont.) — CFTC COT + treasury auctions, both clean
+### 2026-06-10 session (cont.) — CFTC COT + treasury auctions + FARA
+- **fara** (registrant-level, snapshot): 99.64% (554/556), 0 unexplained — the
+  2 missing are the two NEWEST registration numbers (7734/7736, registered
+  after Sunday's weekly cron; self-heals). 11 extras = registrants terminated
+  since ingest — pruning-vs-keep-as-history is a Greg call (tracked below).
+  `fara-G1.html`.
 - **cftc-cot**: 100.00% (147,670/147,670), 0 missing, 0 extras, all 13 exchange
   codes populated. Window = the 2026-06-06 backfill's 10-year floor. The
   (previously uncommitted) `scripts/backfill-cftc-cot.ts` landed with this.
@@ -71,6 +76,15 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    question. Detail: `sec-recent-window-NOTES.md`.
 3. **Dead branch:** do NOT merge `claude/fec-indexes-2026-05-22` (would delete ~250
    live indexes). See `PARKED-BRANCHES.md`.
+4. **FARA terminated-registrant policy (Greg's call)** — 11 registrants in
+   `foreign_agents` are no longer on DOJ's active list (terminated since
+   ingest; ids in `fara-G1-extras.csv`). Prune like OFAC/CSL, or keep as
+   history with a status flag? Unlike sanctions delistings, a terminated
+   registration is still real history. Decide + implement in the weekly cron.
+5. **FARA doc-id scheme uses positional fpIndex** (`fara-{reg}-{fpIndex}`) —
+   if the FARA API ever reorders a registrant's principal array, re-runs
+   would write the same pair under a different id (drift/dupes). Sturdier id:
+   hash of (reg, principal_name). Low urgency; revisit if dupes appear.
 
 ### 2026-06-10 session — Form 278: 12.12% → 99.99%+ (root-caused, fixed, backfilled, deployed)
 Baseline reconcile found **12.12%** (2,221 / 18,327). Three root causes, all fixed
@@ -106,10 +120,10 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~12) — roughly by effort
+## ⏭️ Remaining to reconcile (~11) — roughly by effort
 - **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
   government publications (GovInfo), enforcement actions (5-6 regulators),
-  consumer complaints (CFPB), FARA, product recalls (FDA/CPSC),
+  consumer complaints (CFPB), product recalls (FDA/CPSC),
   13F institutional holdings, N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).

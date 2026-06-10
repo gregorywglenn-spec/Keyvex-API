@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — FARA — active registrants (efile.fara.gov, registrant-level) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — FARA — active registrants (efile.fara.gov, registrant-level)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>foreign_agents</code> · generated 2026-06-10T17:56:00.670Z</p>
+
+<div class="banner ok">
+  <div class="big">99.64% coverage</div>
+  554 of 556 source filings present in KeyVex
+  · <b>2 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 1,314 records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>(none) <span class="muted">(unexpected)</span></td><td class="num">538</td><td>✓ present</td></tr>
+<tr><td>AFGHANISTAN <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>ALBANIA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>ALGERIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>ANGOLA <span class="muted">(unexpected)</span></td><td class="num">8</td><td>✓ present</td></tr>
+<tr><td>ARGENTINA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>ARMENIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>ARUBA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>AUSTRALIA <span class="muted">(unexpected)</span></td><td class="num">11</td><td>✓ present</td></tr>
+<tr><td>AUSTRIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>AZERBAIJAN <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>BAHAMAS <span class="muted">(unexpected)</span></td><td class="num">9</td><td>✓ present</td></tr>
+<tr><td>BAHRAIN <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>BANGLADESH <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>BARBADOS <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>BELGIUM <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>BENIN <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>BERMUDA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>BOSNIA &amp; HERZEGOVINA <span class="muted">(unexpected)</span></td><td class="num">15</td><td>✓ present</td></tr>
+<tr><td>BOTSWANA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>BRAZIL <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>BRITISH VIRGIN ISLANDS <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>BULGARIA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>BURKINA FASO <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>BURMA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>BURUNDI <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>CAMBODIA <span class="muted">(unexpected)</span></td><td class="num">7</td><td>✓ present</td></tr>
+<tr><td>CAMEROON <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>CANADA <span class="muted">(unexpected)</span></td><td class="num">23</td><td>✓ present</td></tr>
+<tr><td>CAYMAN ISLANDS <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>CHINA <span class="muted">(unexpected)</span></td><td class="num">19</td><td>✓ present</td></tr>
+<tr><td>COLOMBIA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>CONGO DEMOCRATIC REPUBLIC OF THE <span class="muted">(unexpected)</span></td><td class="num">11</td><td>✓ present</td></tr>
+<tr><td>CONGO REPUBLIC OF THE <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>COSTA RICA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>COTE D'IVOIRE (IVORY COAST) <span class="muted">(unexpected)</span></td><td class="num">8</td><td>✓ present</td></tr>
+<tr><td>CROATIA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>CYPRUS <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>CZECHIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>DENMARK <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>DOMINICA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>DOMINICAN REPUBLIC <span class="muted">(unexpected)</span></td><td class="num">12</td><td>✓ present</td></tr>
+<tr><td>ECUADOR <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>EGYPT <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>EL SALVADOR <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>EQUATORIAL GUINEA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>ERITREA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>ETHIOPIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>FINLAND <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>FRANCE <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>FRENCH POLYNESIA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>GERMANY <span class="muted">(unexpected)</span></td><td class="num">9</td><td>✓ present</td></tr>
+<tr><td>GHANA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>GIBRALTAR <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>GREAT BRITAIN <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>GREECE <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>GRENADA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>GUATEMALA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>GUINEA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>GUYANA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>HAITI <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>HONG KONG <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>HUNGARY <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>ICELAND <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>INDIA <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>INDONESIA <span class="muted">(unexpected)</span></td><td class="num">7</td><td>✓ present</td></tr>
+<tr><td>INTERNATIONAL <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>IRAN <span class="muted">(unexpected)</span></td><td class="num">7</td><td>✓ present</td></tr>
+<tr><td>IRAQ <span class="muted">(unexpected)</span></td><td class="num">19</td><td>✓ present</td></tr>
+<tr><td>IRELAND <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>ISRAEL <span class="muted">(unexpected)</span></td><td class="num">18</td><td>✓ present</td></tr>
+<tr><td>ITALY <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>JAMAICA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>JAPAN <span class="muted">(unexpected)</span></td><td class="num">52</td><td>✓ present</td></tr>
+<tr><td>JORDAN <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>KAZAKHSTAN <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>KENYA <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>KOREA SOUTH <span class="muted">(unexpected)</span></td><td class="num">17</td><td>✓ present</td></tr>
+<tr><td>KUWAIT <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>KYRGYZSTAN <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>LEBANON <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>LIBERIA <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>LIBYA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>LIECHTENSTEIN <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>LUXEMBOURG <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>MALAWI <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>MALAYSIA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>MALI <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>MARSHALL ISLANDS <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>MEXICO <span class="muted">(unexpected)</span></td><td class="num">8</td><td>✓ present</td></tr>
+<tr><td>MICRONESIA <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>MONACO <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>MONGOLIA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>MOROCCO <span class="muted">(unexpected)</span></td><td class="num">13</td><td>✓ present</td></tr>
+<tr><td>MOZAMBIQUE <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>MYANMAR (BURMA) <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>NETHERLANDS <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>NEW ZEALAND <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>NIGER <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>NIGERIA <span class="muted">(unexpected)</span></td><td class="num">11</td><td>✓ present</td></tr>
+<tr><td>NORTH MACEDONIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>NORTHERN IRELAND <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>NORWAY <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>PAKISTAN <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>PALAU <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>PALESTINE <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>PANAMA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>PAPUA NEW GUINEA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>PARAGUAY <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>POLAND <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>PORTUGAL <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>QATAR <span class="muted">(unexpected)</span></td><td class="num">31</td><td>✓ present</td></tr>
+<tr><td>ROMANIA <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>RUSSIA <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>RWANDA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>SAHARAWI ARAB DEMOCRATIC REPUBLIC <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>SAINT LUCIA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>SAUDI ARABIA <span class="muted">(unexpected)</span></td><td class="num">33</td><td>✓ present</td></tr>
+<tr><td>SCOTLAND <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>SERBIA <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>SINGAPORE <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>SOMALIA <span class="muted">(unexpected)</span></td><td class="num">5</td><td>✓ present</td></tr>
+<tr><td>SOMALILAND <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>SOUTH AFRICA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>SOUTH SUDAN <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>SPAIN <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>SRI LANKA <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>ST. BARTHELEMY <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>ST. KITTS AND NEVIS <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>SUDAN <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>SWEDEN <span class="muted">(unexpected)</span></td><td class="num">3</td><td>✓ present</td></tr>
+<tr><td>SWITZERLAND <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>SYRIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>TAIWAN <span class="muted">(unexpected)</span></td><td class="num">19</td><td>✓ present</td></tr>
+<tr><td>TANZANIA <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>THAILAND <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>TIBET <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>TOGO <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>TURKEY <span class="muted">(unexpected)</span></td><td class="num">16</td><td>✓ present</td></tr>
+<tr><td>TURKMENISTAN <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+<tr><td>UGANDA <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>UKRAINE <span class="muted">(unexpected)</span></td><td class="num">14</td><td>✓ present</td></tr>
+<tr><td>UNITED ARAB EMIRATES <span class="muted">(unexpected)</span></td><td class="num">29</td><td>✓ present</td></tr>
+<tr><td>UNITED KINGDOM <span class="muted">(unexpected)</span></td><td class="num">9</td><td>✓ present</td></tr>
+<tr><td>UZBEKISTAN <span class="muted">(unexpected)</span></td><td class="num">4</td><td>✓ present</td></tr>
+<tr><td>VANUATU <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>VENEZUELA <span class="muted">(unexpected)</span></td><td class="num">18</td><td>✓ present</td></tr>
+<tr><td>VIETNAM <span class="muted">(unexpected)</span></td><td class="num">2</td><td>✓ present</td></tr>
+<tr><td>YEMEN <span class="muted">(unexpected)</span></td><td class="num">6</td><td>✓ present</td></tr>
+<tr><td>ZIMBABWE <span class="muted">(unexpected)</span></td><td class="num">1</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr><td>1943</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1947</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1948</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1949</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1950</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1953</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1955</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1956</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1957</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1963</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1964</td><td class="num">7</td><td class="num">7</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1965</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1967</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1968</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1969</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1970</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1971</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1972</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1973</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1974</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1975</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1976</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1978</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1979</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1981</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1982</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1983</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1984</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1985</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1987</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1989</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1990</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1991</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1992</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1993</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1994</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1995</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1996</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1998</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>1999</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2001</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2002</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2003</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2004</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2005</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2006</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2007</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2008</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2009</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2010</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2011</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2012</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2013</td><td class="num">11</td><td class="num">11</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2014</td><td class="num">4</td><td class="num">4</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2015</td><td class="num">8</td><td class="num">8</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2016</td><td class="num">12</td><td class="num">12</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2017</td><td class="num">10</td><td class="num">10</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2018</td><td class="num">18</td><td class="num">18</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2019</td><td class="num">20</td><td class="num">20</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2020</td><td class="num">28</td><td class="num">28</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2021</td><td class="num">26</td><td class="num">26</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2022</td><td class="num">35</td><td class="num">35</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2023</td><td class="num">43</td><td class="num">43</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2024</td><td class="num">70</td><td class="num">70</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2025</td><td class="num">121</td><td class="num">121</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr class="hasgap"><td>2026</td><td class="num">39</td><td class="num">37</td><td class="num">2</td><td class="num">94.87%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (2)</h2>
+
+<table><thead><tr><th>ptr_id</th><th>year</th><th>member</th><th>source link</th></tr></thead><tbody>
+<tr><td>7736</td><td>2026</td><td>London Global Strategies</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7736" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>7734</td><td>2026</td><td>AO Development Company LLC</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7734" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+</tbody></table>
+
+<h2>In KeyVex but NOT in the current source (11)</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup.</p>
+<p class="muted">Showing first 11 of 11 — complete list in the companion <code>-extras.csv</code>.</p>
+<table><thead><tr><th>id</th><th>verify link</th></tr></thead><tbody>
+<tr><td>6750</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/6750" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>6962</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/6962" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7053</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7053" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7374</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7374" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7419</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7419" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7439</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7439" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7441</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7441" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7477</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7477" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7481</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7481" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7549</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7549" target="_blank" rel="noopener">check source ↗</a></td></tr>
+<tr><td>7669</td><td><a href="https://efile.fara.gov/api/v1/ForeignPrincipals/json/Active/7669" target="_blank" rel="noopener">check source ↗</a></td></tr>
+</tbody></table>
+
+</body></html>
