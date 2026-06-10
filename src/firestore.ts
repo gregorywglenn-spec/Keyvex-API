@@ -5079,6 +5079,49 @@ export async function queryNportFilings(
   return await withCoverageWarning({ results, has_more }, query, "nport_filings");
 }
 
+/**
+ * N-PORT holdings backlog finder — filings (file_date >= floor) that have NO
+ * rows in nport_holdings yet. Powers the daily cron's self-healing pass:
+ * heavy filing days (May 28: 1,970 filings) blow the 30-min function budget
+ * mid-extraction, and the old 2-day window then slid past them forever
+ * (caught by the 2026-06-10 reconcile: 79/1,970 coverage on that day).
+ *
+ * `periodFloorISO` bounds the holdings-side scan (period_ending lags
+ * file_date by ~1-2 months; pass ~120 days before the file-date floor).
+ * Returns up to `cap` filings, OLDEST first, so the backlog drains in order.
+ */
+export async function findNportHoldingsBacklog(
+  fileDateFloorISO: string,
+  periodFloorISO: string,
+  cap: number,
+): Promise<{ backlog: NportFiling[]; backlogTotal: number }> {
+  if (isStubMode()) return { backlog: [], backlogTotal: 0 };
+  const db = await getLiveDb();
+
+  const have = new Set<string>();
+  const hs = await db
+    .collection("nport_holdings")
+    .where("period_ending", ">=", periodFloorISO)
+    .select("filing_id")
+    .get();
+  for (const d of hs.docs) {
+    const id = d.data().filing_id;
+    if (id) have.add(String(id));
+  }
+
+  const fs = await db
+    .collection("nport_filings")
+    .where("file_date", ">=", fileDateFloorISO)
+    .orderBy("file_date", "asc")
+    .get();
+  const missing: NportFiling[] = [];
+  for (const d of fs.docs) {
+    const f = d.data() as NportFiling;
+    if (!have.has(f.filing_id)) missing.push(f);
+  }
+  return { backlog: missing.slice(0, cap), backlogTotal: missing.length };
+}
+
 export async function saveNportFilings(
   filings: NportFiling[],
 ): Promise<{ saved: number; collection: string }> {

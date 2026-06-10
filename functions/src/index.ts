@@ -62,6 +62,7 @@ import {
   saveFederalRegisterDocuments,
   saveNportFilings,
   saveNportHoldings,
+  findNportHoldingsBacklog,
   saveProductRecalls,
   saveGovDocuments,
   saveForeignAgents,
@@ -1541,11 +1542,33 @@ export const scrapeNportDaily = onSchedule(
     // when the phase genuinely throws, so the monitor still flags real breaks.
     try {
       let holdingsWritten = 0;
-      if (filings.length > 0) {
-        logger.info(
-          `[nport-holdings] starting holdings parse for ${filings.length} filings`,
+      // Self-healing backlog pass (2026-06-10): instead of extracting only
+      // the fresh window's filings — which permanently lost any day the
+      // 30-min budget couldn't finish (May 28: 79/1,970) — diff the last 21
+      // days of filings against existing holdings rows and process the
+      // OLDEST 600 gaps per run. Fresh filings are in that diff too (they
+      // have no rows yet), so this one pass covers both window and healing.
+      const floor = new Date();
+      floor.setDate(floor.getDate() - 21);
+      const periodFloor = new Date();
+      periodFloor.setDate(periodFloor.getDate() - 141);
+      const { backlog, backlogTotal } = await findNportHoldingsBacklog(
+        floor.toISOString().slice(0, 10),
+        periodFloor.toISOString().slice(0, 10),
+        600,
+      );
+      if (backlogTotal > backlog.length) {
+        // NO SILENT CAPS: surface what this run won't reach.
+        logger.warn(
+          `[nport-holdings] backlog ${backlogTotal} exceeds per-run cap 600 — ` +
+            `${backlogTotal - backlog.length} filings deferred to later runs`,
         );
-        const holdings = await scrapeNportHoldings(filings);
+      }
+      if (backlog.length > 0) {
+        logger.info(
+          `[nport-holdings] processing ${backlog.length} backlog filings (of ${backlogTotal})`,
+        );
+        const holdings = await scrapeNportHoldings(backlog);
         if (holdings.length > 0) {
           const h = await saveNportHoldings(holdings);
           logger.info(

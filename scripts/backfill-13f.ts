@@ -19,7 +19,9 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { parse13FXml, resolveFund, listTrackedFunds } from "../src/scrapers/13f.js";
 import { saveInstitutionalHoldings, getLiveDb } from "../src/firestore.js";
 
-const START_YEAR = 2016;
+// 2014 matches the collection's earliest data + the sec-13f-tracked
+// reconcile floor (was 2016).
+const START_YEAR = 2014;
 const DRY = process.argv.includes("--dry");
 const ONLY = process.argv.find((a) => a.startsWith("--fund="))?.split("=")[1];
 const UA = "KeyVexMCP/0.1 contact@keyvex.com";
@@ -61,17 +63,31 @@ async function backfillFund(alias: string, cache: Map<string, string>) {
   const fund: any = resolveFund(alias);
   if (!fund) { console.error(`[13f-bf] unknown fund ${alias}`); return; }
   const subs: any = await fetchRetry(`${SEC}/submissions/CIK${fund.cik}.json`, true);
-  const r = subs.filings?.recent;
-  if (!r) { console.error(`[13f-bf] no filings ${alias}`); return; }
   const targets: Array<{ acc: string; fd: string; period: string }> = [];
-  for (let i = 0; i < r.form.length; i++) {
-    if (r.form[i] === "13F-HR" || r.form[i] === "13F-HR/A") {
-      const fd = r.filingDate[i];
-      if (parseInt(String(fd).slice(0, 4), 10) >= START_YEAR) {
-        targets.push({ acc: r.accessionNumber[i], fd, period: r.reportDate[i] });
+  const collectBlock = (r: any) => {
+    if (!r?.form) return;
+    for (let i = 0; i < r.form.length; i++) {
+      if (r.form[i] === "13F-HR" || r.form[i] === "13F-HR/A") {
+        const fd = r.filingDate[i];
+        if (parseInt(String(fd).slice(0, 4), 10) >= START_YEAR) {
+          targets.push({ acc: r.accessionNumber[i], fd, period: r.reportDate[i] });
+        }
       }
     }
+  };
+  collectBlock(subs.filings?.recent);
+  // Heavy filers (BlackRock, Vanguard) overflow the recent-1000 block — their
+  // older 13F-HRs live in paginated chunk files. Skipping these was why the
+  // 2026-06-04 run found "3 filings" for BlackRock (caught by the
+  // sec-13f-tracked reconcile 2026-06-10).
+  for (const f of subs.filings?.files ?? []) {
+    if (!f?.name) continue;
+    const to = parseInt(String(f.filingTo ?? "9999").slice(0, 4), 10);
+    if (Number.isFinite(to) && to < START_YEAR) continue;
+    const older: any = await fetchRetry(`${SEC}/submissions/${f.name}`, true);
+    collectBlock(older);
   }
+  if (targets.length === 0) { console.error(`[13f-bf] no filings ${alias}`); return; }
   console.error(`[13f-bf] ===== ${alias}: ${targets.length} 13F-HR filings ${START_YEAR}+ =====`);
   let savedF = 0, doneF = 0;
   for (const t of targets) {
@@ -90,9 +106,18 @@ async function backfillFund(alias: string, cache: Map<string, string>) {
       const { holdings } = parse13FXml(xml, meta as any);
       let resolved = 0;
       for (const h of holdings) { if (!h.ticker && h.cusip) { const tk = cache.get(h.cusip); if (tk) { h.ticker = tk; resolved++; } } }
-      if (!DRY) { const res = await saveInstitutionalHoldings(holdings); savedF += res.saved; }
-      else console.error(`[13f-bf] DRY ${alias} ${t.period}: ${holdings.length} holdings, ${resolved} tickers from cache, sample=[${holdings.slice(0, 4).map((h) => h.ticker || h.cusip).join(", ")}]`);
-      done[key] = true; doneF++; writeFileSync(PROG, JSON.stringify(done));
+      if (!DRY) {
+        const res = await saveInstitutionalHoldings(holdings);
+        savedF += res.saved;
+        // Checkpoint ONLY on real saves. A --dry run used to checkpoint too —
+        // which made the subsequent REAL run skip everything it had
+        // "previewed" (Berkshire: 45/45 skipped, saved 0; caught by the
+        // 2026-06-10 sec-13f-tracked reconcile).
+        done[key] = true; writeFileSync(PROG, JSON.stringify(done));
+      } else {
+        console.error(`[13f-bf] DRY ${alias} ${t.period}: ${holdings.length} holdings, ${resolved} tickers from cache, sample=[${holdings.slice(0, 4).map((h) => h.ticker || h.cusip).join(", ")}]`);
+      }
+      doneF++;
     } catch (e) { console.error(`[13f-bf] FAIL ${alias} ${t.acc}: ${String(e)}`); }
   }
   console.error(`[13f-bf] ${alias} complete: ${doneF}/${targets.length} filings, saved ${savedF} holdings`);

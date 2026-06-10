@@ -70,6 +70,12 @@ export const definition: Tool = {
     "Counterparty, strike, expiration, leg-level terms, and other deep",
     "derivative sub-block fields are NOT extracted in v1A — agents follow",
     "the parent filing's primary_document_url for that level of detail.",
+    "",
+    "COVERAGE: holdings rows exist for N-PORT filings FILED 2026-05-12",
+    "onward (when row-level extraction shipped). Earlier filings are",
+    "metadata-only in get_nport_filings — follow primary_document_url for",
+    "their holdings. An empty result for an older filing means",
+    "not-extracted, not an empty fund.",
   ].join(" "),
   inputSchema: {
     type: "object",
