@@ -21,7 +21,7 @@ caps/under-reports. Measured recent-window coverage BEFORE the fix:
 | Form 144 | planned_insider_sales | 38.17% | **86.63%** |
 | Form 3 | initial_ownership_baselines | 35.12% | 52.84% (see nil note) |
 | DEF 14A | proxy_filings | 99.74% | n/a — already clean |
-| 13D/G | activist_ownership | 0/9 — measurement bug, see below | pending |
+| 13D/G | activist_ownership | 34.54% | **98.59%** ✅ |
 
 **Fix:** switched 8-K / Form 144 / Form 3 enumeration from FTS to the complete
 EDGAR daily index (`fetchEdgarDailyIndex`), plus a new `fetchPrimaryDocUrl`
@@ -51,11 +51,20 @@ no row). Storing a marker would make the filer-event visible and lift the
 reconcile % to ~100, at the cost of rows that carry no position data. Mirrors the
 congressional-nil question; Greg's call.
 
-## 13D/G measurement still to fix
+## 13D/G — FIXED (2026-06-10)
 
-The recent-window check for 13D/G (activist_ownership) enumerated only 9 filings
-in 30 days — far too low. The daily-index form codes used (["SC 13D","SC 13D/A",
-"SC 13G","SC 13G/A"]) likely don't match EDGAR's daily-index strings for these
-forms. Needs: probe a recent daily index for the actual 13D/G form-type strings,
-correct the adapter's `forms`, then re-measure (and, if it leaks like the others,
-apply the same daily-index fix to activist.ts). Quick follow-up.
+The initial 0/9 was a measurement bug: EDGAR's daily index uses a MIX of
+"SCHEDULE 13D/G" and legacy "SC 13D" form strings; the adapter only listed the
+"SC" variants. Corrected to match both → real measurement showed 34.54%, i.e.
+the activist feed leaked ~65% on FTS just like the others. Applied the same
+daily-index + fetchPrimaryDocUrl fix to activist.ts (commit eb88b24), backfilled
+(activist_ownership 8,790 → 16,361), deployed scrapeActivistHourly. Re-measured:
+**98.59%** (3,839/3,894); the 55 "missing" are pre-2024 paper filings with no
+structured XML (the mandate is Feb/Sept 2024) — genuinely unparseable, not loss.
+
+## All five FTS-leaking SEC feeds now fixed + deployed
+
+8-K (100%), Form 144 (87%, residual=timing), Form 3 (high w/ holdings; residual=
+nils), DEF 14A (already clean), 13D/G (98.59%). Every cron switched FTS →
+complete daily index and redeployed; production no longer leaks at the
+enumeration level on any SEC feed.

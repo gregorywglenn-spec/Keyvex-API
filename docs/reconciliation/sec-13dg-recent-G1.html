@@ -26,13 +26,13 @@
 </style></head><body>
 
 <h1>KeyVex Reconciliation — SEC 13D/13G — recent-window completeness (last 30d, activist_ownership)</h1>
-<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>activist_ownership</code> · generated 2026-06-09T23:28:50.027Z</p>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>activist_ownership</code> · generated 2026-06-10T16:23:31.347Z</p>
 
-<div class="banner bad">
-  <div class="big">0.00% coverage</div>
-  0 of 9 source filings present in KeyVex
-  · <b>9 missing</b>
-  · below the ≥98% floor
+<div class="banner ok">
+  <div class="big">98.59% coverage</div>
+  3,839 of 3,894 source filings present in KeyVex
+  · <b>55 missing</b>
+  · meets the ≥98% floor
 </div>
 
 <div class="verify">
@@ -45,7 +45,7 @@
 
 
 <h2>Per-type census — can any category silently read zero?</h2>
-<p class="muted">Counts are over the 8,790 records KeyVex holds.
+<p class="muted">Counts are over the 16,361 records KeyVex holds.
 Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
 
 <table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
@@ -55,31 +55,77 @@ Expected types are always shown, even at zero, so a dropped category can’t hid
 <h2>Coverage by year</h2>
 <p class="muted">A whole year with a large gap points at an un-ingested index.</p>
 <table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
-<tr class="hasgap"><td>2026</td><td class="num">9</td><td class="num">0</td><td class="num">9</td><td class="num">0.00%</td></tr>
+<tr class="hasgap"><td>2026</td><td class="num">3,894</td><td class="num">3,839</td><td class="num">55</td><td class="num">98.59%</td></tr>
 </tbody></table>
 
 <p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
 
-<h2>Missing filings (9)</h2>
+<h2>Missing filings (55)</h2>
 
 <table><thead><tr><th>ptr_id</th><th>year</th><th>member</th><th>source link</th></tr></thead><tbody>
+<tr><td>0001104659-26-071859</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926071859/0001104659-26-071859-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-071337</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926071337/0001104659-26-071337-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000052388-26-000140</td><td>2026</td><td>MARINEMAX INC (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1057060/000005238826000140/0000052388-26-000140-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000052388-26-000138</td><td>2026</td><td>EDGEWELL PERSONAL CARE Co (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1096752/000005238826000138/0000052388-26-000138-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-070577</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926070577/0001104659-26-070577-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001915673-26-000031</td><td>2026</td><td>Star Equity Fund, LP (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1915673/000191567326000031/0001915673-26-000031-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-069466</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926069466/0001104659-26-069466-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001548312-26-000025</td><td>2026</td><td>Star Equity Holdings, Inc. (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1210708/000154831226000025/0001548312-26-000025-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-068463</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926068463/0001104659-26-068463-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-039476</td><td>2026</td><td>Crimson Wine Group, Ltd (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1562151/000162828026039476/0001628280-26-039476-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-039502</td><td>2026</td><td>Crimson Wine Group, Ltd (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1562151/000162828026039502/0001628280-26-039502-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001273303-26-000004</td><td>2026</td><td>HLA INVESTMENTS LLC (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1273303/000127330326000004/0001273303-26-000004-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001297602-26-000032</td><td>2026</td><td>Garg Vishal (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1297602/000129760226000032/0001297602-26-000032-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001915673-26-000024</td><td>2026</td><td>AIR INDUSTRIES GROUP (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1009891/000191567326000024/0001915673-26-000024-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-067657</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926067657/0001104659-26-067657-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001891865-26-000010</td><td>2026</td><td>BuzzFeed, Inc. (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1828972/000189186526000010/0001891865-26-000010-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001221359-26-000025</td><td>2026</td><td>RADY ERNEST S (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1221359/000122135926000025/0001221359-26-000025-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-066737</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926066737/0001104659-26-066737-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000924781-26-000005</td><td>2026</td><td>DIXIE GROUP INC (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/29332/000092478126000005/0000924781-26-000005-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000949130-26-000014</td><td>2026</td><td>DIXIE GROUP INC (SCHEDULE 13D)</td><td><a href="https://www.sec.gov/Archives/edgar/data/29332/000094913026000014/0000949130-26-000014-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-063960</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926063960/0001104659-26-063960-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-063246</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926063246/0001104659-26-063246-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001819848-26-000334</td><td>2026</td><td>Sciarra Paul Cahill (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1782533/000181984826000334/0001819848-26-000334-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001897612-26-000468</td><td>2026</td><td>YUM BRANDS INC (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1041061/000189761226000468/0001897612-26-000468-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001048268-26-000104</td><td>2026</td><td>IES Holdings, Inc. (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1048268/000104826826000104/0001048268-26-000104-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-035579</td><td>2026</td><td>Graham Holdings Co (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/104889/000162828026035579/0001628280-26-035579-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001237860-26-000010</td><td>2026</td><td>ROSENBLATT DAVID S (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1237860/000123786026000010/0001237860-26-000010-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001321655-26-000030</td><td>2026</td><td>Palantir Technologies Inc. (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1321655/000132165526000030/0001321655-26-000030-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001172661-26-002160</td><td>2026</td><td>ARMISTICE CAPITAL, LLC (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1601086/000117266126002160/0001172661-26-002160-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001767803-26-000045</td><td>2026</td><td>Investar Holding Corp (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1602658/000176780326000045/0001767803-26-000045-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001666120-26-000032</td><td>2026</td><td>Atlassian Corp (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1650372/000166612026000032/0001666120-26-000032-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001666121-26-000032</td><td>2026</td><td>Atlassian Corp (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1650372/000166612126000032/0001666121-26-000032-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0002123975-26-000006</td><td>2026</td><td>BioNTech SE (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1776985/000212397526000006/0002123975-26-000006-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-035475</td><td>2026</td><td>Public Policy Holding Company, Inc. (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1903508/000162828026035475/0001628280-26-035475-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-035477</td><td>2026</td><td>Public Policy Holding Company, Inc. (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1903508/000162828026035477/0001628280-26-035477-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001905106-26-000062</td><td>2026</td><td>METEORA CAPITAL, LLC (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1905106/000190510626000062/0001905106-26-000062-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001613801-26-000036</td><td>2026</td><td>IRADIMED CORP (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1325618/000161380126000036/0001613801-26-000036-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001878366-26-000024</td><td>2026</td><td>Xos, Inc. (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1819493/000187836626000024/0001878366-26-000024-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001828791-26-000039</td><td>2026</td><td>Viant Technology Inc. (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1828791/000182879126000039/0001828791-26-000039-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001828791-26-000040</td><td>2026</td><td>Viant Technology Inc. (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1828791/000182879126000040/0001828791-26-000040-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001891865-26-000006</td><td>2026</td><td>BuzzFeed, Inc. (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1828972/000189186526000006/0001891865-26-000006-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001280467-26-000006</td><td>2026</td><td>AWILHELMSEN AS (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1280467/000128046726000006/0001280467-26-000006-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 <tr><td>0001104659-26-059376</td><td>2026</td><td>GENCO SHIPPING &amp; TRADING LTD (SC 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1326200/000110465926059376/0001104659-26-059376-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001704720-26-000112</td><td>2026</td><td>Cannae Holdings, Inc. (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1704720/000170472026000112/0001704720-26-000112-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000078003-26-000067</td><td>2026</td><td>Oric Pharmaceuticals, Inc. (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1796280/000007800326000067/0000078003-26-000067-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-034138</td><td>2026</td><td>Spear Catherine Eva (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1820448/000162828026034138/0001628280-26-034138-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001628280-26-034137</td><td>2026</td><td>Hasson Heather L. (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1843821/000162828026034137/0001628280-26-034137-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001620052-26-000003</td><td>2026</td><td>Wayfair Inc. (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1616707/000162005226000003/0001620052-26-000003-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0001620093-26-000003</td><td>2026</td><td>Wayfair Inc. (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1616707/000162009326000003/0001620093-26-000003-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000937797-26-000007</td><td>2026</td><td>Liberty Latin America Ltd. (SCHEDULE 13D/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/1712184/000093779726000007/0000937797-26-000007-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000019617-26-000166</td><td>2026</td><td>JPMORGAN CHASE &amp; CO (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/19617/000001961726000166/0000019617-26-000166-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000019617-26-000182</td><td>2026</td><td>JPMORGAN CHASE &amp; CO (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/19617/000001961726000182/0000019617-26-000182-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000019617-26-000184</td><td>2026</td><td>JPMORGAN CHASE &amp; CO (SCHEDULE 13G)</td><td><a href="https://www.sec.gov/Archives/edgar/data/19617/000001961726000184/0000019617-26-000184-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000869178-26-000036</td><td>2026</td><td>VanEck CLO Opportunities Fund (SCHEDULE 13D)</td><td><a href="https://www.sec.gov/Archives/edgar/data/2095816/000086917826000036/0000869178-26-000036-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
+<tr><td>0000895421-26-000134</td><td>2026</td><td>MORGAN STANLEY (SCHEDULE 13G/A)</td><td><a href="https://www.sec.gov/Archives/edgar/data/895421/000089542126000134/0000895421-26-000134-index.htm" target="_blank" rel="noopener">open filing ↗</a></td></tr>
 </tbody></table>
 
-<h2>In KeyVex but NOT in the current source (3,408)</h2>
+<h2>In KeyVex but NOT in the current source (2,488)</h2>
 <p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
 For an append-only archive these are usually just other-year filings (harmless). For a
 <b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
 items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
 record won’t appear in the live source lookup. (No per-id link builder for this dataset — ids shown bare; full list in the companion <code>-extras.csv</code>.)</p>
-<p class="muted">Sample: <code>0000009631-26-000017</code> <code>0000010742-24-000016</code> <code>0000010742-24-000019</code> <code>0000019617-25-000116</code> <code>0000019617-25-000133</code> <code>0000019617-25-000146</code> <code>0000019617-25-000148</code> <code>0000019617-25-000151</code> <code>0000019617-25-000152</code> <code>0000019617-25-000177</code> <code>0000019617-25-000179</code> <code>0000019617-25-000180</code> <code>0000019617-25-000182</code> <code>0000019617-25-000183</code> <code>0000019617-25-000191</code> <code>0000019617-25-000199</code> <code>0000019617-25-000201</code> <code>0000019617-25-000202</code> <code>0000019617-25-000209</code> <code>0000019617-25-000210</code> <code>0000019617-25-000211</code> <code>0000019617-25-000212</code> <code>0000019617-25-000260</code> <code>0000019617-25-000261</code> <code>0000019617-25-000262</code></p>
+<p class="muted">Sample: <code>0000010742-24-000016</code> <code>0000010742-24-000019</code> <code>0000019617-25-000116</code> <code>0000019617-25-000133</code> <code>0000019617-25-000146</code> <code>0000019617-25-000148</code> <code>0000019617-25-000151</code> <code>0000019617-25-000152</code> <code>0000019617-25-000177</code> <code>0000019617-25-000179</code> <code>0000019617-25-000180</code> <code>0000019617-25-000182</code> <code>0000019617-25-000183</code> <code>0000019617-25-000191</code> <code>0000019617-25-000199</code> <code>0000019617-25-000201</code> <code>0000019617-25-000202</code> <code>0000019617-25-000209</code> <code>0000019617-25-000210</code> <code>0000019617-25-000211</code> <code>0000019617-25-000212</code> <code>0000019617-25-000260</code> <code>0000019617-25-000261</code> <code>0000019617-25-000262</code> <code>0000019617-25-000263</code></p>
 
 </body></html>
