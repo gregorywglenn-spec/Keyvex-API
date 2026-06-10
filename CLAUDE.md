@@ -20,6 +20,40 @@ The cost of verifying: ~30 seconds. The cost of not verifying: documented at 14 
 
 ---
 
+## ⭐ THE RECONCILIATION / AUDIT STANDARD — hold this bar (imperative)
+
+For ANY audit, reconcile, or "is the data complete/correct?" task. KeyVex had
+several prior data audits/overhauls whose results were **underwhelming because
+they asserted coverage numbers and produced to-do lists, but never verified
+against the source or deployed the fixes — so the same problems survived audit
+after audit.** The 2026-06 reconciliation sweep broke that cycle, and Greg made
+it **imperative that every future session holds the same bar.** Do not regress to
+"document the problem and move on."
+
+The non-negotiables (full text + proof in memory `feedback_reconciliation_audit_standard.md`):
+
+1. **The builder is never the grader.** Never state a coverage/quality % as fact.
+   Produce a reproducible artifact with CLICKABLE source links; Greg verifies.
+   Say "the diff found X," never "X is true."
+2. **Verify every load-bearing claim against the actual upstream source.** When a
+   number looks wrong, fetch the real file. When coverage looks LOW, SAMPLE the
+   "missing" and CLASSIFY each (nil / timing / real gap) BEFORE concluding — a
+   low % is NOT automatically data loss (Form 3's "53%" was ~all legitimate nils).
+3. **Root-cause → fix → backfill → DEPLOY → re-verify live. Not just document.**
+   An audit finding isn't done until committed + pushed + merged-to-main +
+   the fixed cron/code deployed + coverage re-measured live and shown to jump.
+4. **One reproducible reconcile per dataset** (`scripts/reconcile.ts <x>`), not
+   one-off hand-waved numbers.
+5. **No silent exclusions / no silent truncation.** Exchanges are trades; nils are
+   characterized not hidden; hidden API caps surfaced via the "source < holdings"
+   shape. Capture-all posture.
+6. **Trust git + live state, not narrative** — re-derive after any restart/compaction.
+
+Start-here when resuming: **`docs/reconciliation/SWEEP-STATUS.md`** (scoreboard,
+how-to-run, remaining datasets, tracked follow-ups, working rules).
+
+---
+
 **Brand:** the public-facing name is **KeyVex** (decided 2026-05-04). Domain `keyvex.com` registered. Earlier doc references to "Capital Edge MCP" or "capital-edge-mcp" as the product's name are pre-rebrand history — the product is now KeyVex everywhere customer-facing.
 
 **Infra-side names that look like the old brand are NOT the brand and stay unchanged forever:**
