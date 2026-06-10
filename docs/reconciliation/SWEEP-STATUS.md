@@ -18,13 +18,26 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (24 of ~38 datasets)
+## ✅ Done / verified (26 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
 FEC candidates, FEC committees, FEC contributions, FEC independent expenditures,
 DEF 14A proxies, 8-K, Form 144, Form 3, 13D/G, **member profiles (legislators),
-roll-call votes, Form 278 (annual financial disclosures)**.
+roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
+treasury auctions**.
+
+### 2026-06-10 session (cont.) — CFTC COT + treasury auctions, both clean
+- **cftc-cot**: 100.00% (147,670/147,670), 0 missing, 0 extras, all 13 exchange
+  codes populated. Window = the 2026-06-06 backfill's 10-year floor. The
+  (previously uncommitted) `scripts/backfill-cftc-cot.ts` landed with this.
+  `cftc-cot-G1.html`.
+- **treasury-auctions**: 99.97% (10,998/11,001) over FULL fiscaldata history
+  (1979→present), 0 extras. The 3 missing are this week's bills (one auctioned
+  today, two tomorrow) — cron timing, self-heals. TIPS/FRN are FLAGS upstream,
+  not security_type values (source vocabulary is Bill/Note/Bond only) — flag
+  capture cross-counted exactly: TIPS 265/265, FRN 151/151.
+  `treasury-auctions-G1.html`.
 
 ### 2026-06-10 session — quick catalogs, both 100%
 - **legislators** (snapshot dataset): 536/536 current members, 0 missing,
@@ -93,10 +106,10 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~14) — roughly by effort
+## ⏭️ Remaining to reconcile (~12) — roughly by effort
 - **Standard reconciles** (one adapter + run each): federal contracts, federal grants,
-  government publications (GovInfo), enforcement actions (5-6 regulators), treasury
-  auctions, CFTC COT, consumer complaints (CFPB), FARA, product recalls (FDA/CPSC),
+  government publications (GovInfo), enforcement actions (5-6 regulators),
+  consumer complaints (CFPB), FARA, product recalls (FDA/CPSC),
   13F institutional holdings, N-PORT holdings.
 - **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
   schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).

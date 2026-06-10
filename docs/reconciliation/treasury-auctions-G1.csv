@@ -1,0 +1,4 @@
+ptr_id,year,member,class,source_url
+912797VL8-2026-06-10,2026,Bill 17-Week,,"https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query?filter=cusip:eq:912797VL8,auction_date:eq:2026-06-10"
+912797UP0-2026-06-11,2026,Bill 4-Week,,"https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query?filter=cusip:eq:912797UP0,auction_date:eq:2026-06-11"
+912797UT2-2026-06-11,2026,Bill 8-Week,,"https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query?filter=cusip:eq:912797UT2,auction_date:eq:2026-06-11"

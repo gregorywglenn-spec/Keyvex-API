@@ -20,6 +20,7 @@ import { legislatorsAdapter } from "./legislators.js";
 import { rollCallVotesAdapter } from "./roll-call-votes.js";
 import { form278Adapter } from "./form278.js";
 import { cftcCotAdapter } from "./cftc-cot.js";
+import { treasuryAuctionsAdapter } from "./treasury-auctions.js";
 import { makeEdgarRecentWindowAdapter } from "./edgar-recent-window.js";
 
 // Recent-window completeness checks for accumulating SEC-form feeds (does the
@@ -88,6 +89,7 @@ export const ADAPTERS: Record<string, SourceAdapter> = {
   [rollCallVotesAdapter.name]: rollCallVotesAdapter,
   [form278Adapter.name]: form278Adapter,
   [cftcCotAdapter.name]: cftcCotAdapter,
+  [treasuryAuctionsAdapter.name]: treasuryAuctionsAdapter,
   [sec8kRecentAdapter.name]: sec8kRecentAdapter,
   [sec144RecentAdapter.name]: sec144RecentAdapter,
   [secForm3RecentAdapter.name]: secForm3RecentAdapter,
