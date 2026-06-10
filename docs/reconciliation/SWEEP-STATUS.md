@@ -105,6 +105,10 @@ layers content onto existing docs without touching ids).
 ## Working rules that held up
 - Per dataset: commit → push → **merge to main** → (deploy if a cron/code changed) →
   verify. All sweep work is on `main`.
+- **No dirty handoff.** Never end a chunk / hand off with a dirty `git status` or
+  undocumented loose ends — the BORING housekeeping is what rots silently. Clean it
+  to zero (commit keepers / gitignore+untrack runtime files / delete *verified*-stale
+  artifacts) or record it explicitly here. Prefer eliminating over documenting.
 - Snapshot/current-state lists (sanctions/exclusions/screening): watch BOTH directions
   — missing AND stale extras; prune stale on full refresh (with a <50% safety guard).
 - Accumulating SEC feeds: the meaningful gauge is recent-window completeness (does the
