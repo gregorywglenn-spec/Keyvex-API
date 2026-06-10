@@ -18,7 +18,7 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (33 of ~38 datasets)
+## ✅ Done / verified (35 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
@@ -28,8 +28,31 @@ roll-call votes, Form 278 (annual financial disclosures), CFTC COT,
 treasury auctions, FARA, GovInfo publications, CFPB complaints (live
 passthrough + total_count), **federal contracts + federal grants (live
 passthrough audited + upgraded — same treatment as CFPB), product recalls
-(100.00% after the report_date window fix), **enforcement actions (100.00%
-recent-window after reviving two silently-dead cron legs)**.
+(100.00% after the report_date window fix), enforcement actions (100.00%
+recent-window after reviving two silently-dead cron legs), **13F tracked
+funds (100.00% supersession-aware), economic indicators (54/54 clean)**.
+
+### 2026-06-10 session (cont.) — 13F: 53.03% → 100.00% (three backfill bugs + a gauge insight)
+New `sec-13f-tracked` adapter (filing completeness for the 10 watchlist
+funds vs EDGAR submissions incl. older chunks). Baseline 53.03%; root
+causes in `scripts/backfill-13f.ts`:
+1. `--dry` runs CHECKPOINTED — the real run then skipped everything
+   previewed (Berkshire: 45/45 skipped, saved 0; the flagship fund had 87
+   rows). Checkpoints now write only on real saves.
+2. Enumeration read only EDGAR's recent-1000 block — heavy filers'
+   (BlackRock/Vanguard) older 13F-HRs live in paginated chunks. Now walked.
+3. Newest-first processing made ORIGINALS overwrite AMENDMENTS (doc ids are
+   `13f-{fund}-{cusip}-{quarter}` — same-quarter filings collide by design,
+   last writer wins). Now oldest-first so the latest filing survives.
+Re-backfilled ~617K rows (Vanguard 223K, BlackRock 187K, Berkshire 57/57
+filings). Gauge insight: superseded accessions are LEGITIMATELY absent, so
+the adapter measures "latest filing per fund-quarter present" — re-verified
+**100.00% (492/492 quarters)**. `sec-13f-tracked-G1.html`.
+
+- **economic indicators (BLS/FRED/EIA)**: curated check — 54/54 cataloged
+  series present, all current within each publisher's lag, values sane.
+  Day-10 EIA crude-production unit caveat RESOLVED as correct (13,696
+  thousand b/d ≈ 13.7M b/d daily rate). `econ-indicators-NOTES.md`.
 
 ### 2026-06-10 session (cont.) — enforcement: 38.79% → 100.00%; two dead legs revived
 Recent-window adapter (the six regulators' LIVE feeds = denominator, 243
@@ -205,11 +228,11 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~5) — roughly by effort
-- **Standard reconciles** (one adapter + run each): 13F institutional
-  holdings, N-PORT holdings.
-- **Curated-subset checks** (scope + correctness, not coverage %, like the FEC
-  schedules): XBRL fundamentals, economic indicators (BLS/FRED/EIA).
+## ⏭️ Remaining to reconcile (~3)
+- **N-PORT holdings era catch-up** — in flight 2026-06-10 (resumable
+  `scripts/backfill-nport-holdings.ts`; cron healing already deployed);
+  re-verify coverage-by-day when it drains.
+- **XBRL fundamentals** — curated check (132-ticker universe × 40 concepts).
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).
 
 ## Working rules that held up

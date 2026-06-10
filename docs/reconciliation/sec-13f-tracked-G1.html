@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KeyVex Reconciliation — SEC 13F — tracked-fund filing completeness (10 watchlist funds, EDGAR submissions) — G1</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; padding: 2rem; max-width: 1100px; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; border-bottom: 1px solid #8884; padding-bottom: .25rem; }
+  .sub { color: #888; margin: 0 0 1.5rem; }
+  .banner { padding: 1rem 1.25rem; border-radius: 10px; margin: 1rem 0; font-size: 1.1rem; }
+  .ok { background: #1f8a4c22; border: 1px solid #1f8a4c; }
+  .bad { background: #c0392b22; border: 1px solid #c0392b; }
+  .big { font-size: 2rem; font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.zero td, tr.hasgap td { background: #c0392b18; }
+  .muted { color: #888; }
+  .warn, .warnbox { color: #b9770e; }
+  .warnbox { background: #f39c1218; border: 1px solid #f39c12; padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
+  a { color: #2a7ae2; }
+  code { background: #8882; padding: .1rem .3rem; border-radius: 4px; }
+  .verify { background: #2a7ae218; border: 1px solid #2a7ae2; padding: .75rem 1rem; border-radius: 8px; margin: 1.5rem 0; }
+</style></head><body>
+
+<h1>KeyVex Reconciliation — SEC 13F — tracked-fund filing completeness (10 watchlist funds, EDGAR submissions)</h1>
+<p class="sub">Gauge <b>G1 (completeness)</b> · collection <code>institutional_holdings</code> · generated 2026-06-10T23:20:19.027Z</p>
+
+<div class="banner ok">
+  <div class="big">100.00% coverage</div>
+  492 of 492 source filings present in KeyVex
+  · <b>0 missing</b>
+  · meets the ≥98% floor
+</div>
+
+<div class="verify">
+  <b>The builder is never the grader.</b> This page reports what the diff found; it is <i>not</i>
+  a verified number. Confirm it yourself: open a handful of the “missing” links below — each should
+  be a real source record that is genuinely absent from KeyVex. If a “missing” item
+  is actually empty (a “nothing to report” page), that’s a <code>nil</code>, not a gap.
+</div>
+
+
+
+<h2>Per-type census — can any category silently read zero?</h2>
+<p class="muted">Counts are over the 1,337,148 records KeyVex holds.
+Expected types are always shown, even at zero, so a dropped category can’t hide.</p>
+
+<table><thead><tr><th>transaction_type</th><th>count</th><th>status</th></tr></thead><tbody>
+<tr><td>BERKSHIRE HATHAWAY INC <span class="muted">(unexpected)</span></td><td class="num">87</td><td>✓ present</td></tr>
+<tr><td>Berkshire Hathaway <span class="muted">(unexpected)</span></td><td class="num">2,208</td><td>✓ present</td></tr>
+<tr><td>BlackRock <span class="muted">(unexpected)</span></td><td class="num">198,170</td><td>✓ present</td></tr>
+<tr><td>Bridgewater Associates <span class="muted">(unexpected)</span></td><td class="num">26,539</td><td>✓ present</td></tr>
+<tr><td>Citadel Advisors LLC <span class="muted">(unexpected)</span></td><td class="num">240,157</td><td>✓ present</td></tr>
+<tr><td>D. E. Shaw &amp; Co., Inc. <span class="muted">(unexpected)</span></td><td class="num">142,572</td><td>✓ present</td></tr>
+<tr><td>Millennium Management LLC <span class="muted">(unexpected)</span></td><td class="num">184,809</td><td>✓ present</td></tr>
+<tr><td>Point72 Asset Management <span class="muted">(unexpected)</span></td><td class="num">47,081</td><td>✓ present</td></tr>
+<tr><td>Renaissance Technologies <span class="muted">(unexpected)</span></td><td class="num">169,970</td><td>✓ present</td></tr>
+<tr><td>Two Sigma Investments, LP <span class="muted">(unexpected)</span></td><td class="num">117,409</td><td>✓ present</td></tr>
+<tr><td>Vanguard Group <span class="muted">(unexpected)</span></td><td class="num">208,146</td><td>✓ present</td></tr>
+</tbody></table>
+
+<h2>Coverage by year</h2>
+<p class="muted">A whole year with a large gap points at an un-ingested index.</p>
+<table><thead><tr><th>year</th><th>source filings</th><th>have</th><th>missing</th><th>coverage</th></tr></thead><tbody>
+<tr><td>2014</td><td class="num">34</td><td class="num">34</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2015</td><td class="num">39</td><td class="num">39</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2016</td><td class="num">43</td><td class="num">43</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2017</td><td class="num">44</td><td class="num">44</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2018</td><td class="num">37</td><td class="num">37</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2019</td><td class="num">42</td><td class="num">42</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2020</td><td class="num">40</td><td class="num">40</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2021</td><td class="num">40</td><td class="num">40</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2022</td><td class="num">41</td><td class="num">41</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2023</td><td class="num">39</td><td class="num">39</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2024</td><td class="num">40</td><td class="num">40</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2025</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">100.00%</td></tr>
+<tr><td>2026</td><td class="num">17</td><td class="num">17</td><td class="num">0</td><td class="num">100.00%</td></tr>
+</tbody></table>
+
+<p class="muted">Missing list is <b>unclassified</b> (classification is opt-in — re-run with <code>--classify=all</code> to resolve recoverable vs nil vs gone and compute unexplained-missing).</p>
+
+<h2>Missing filings (0)</h2>
+
+<p>None — every source filing in the scanned window is present in KeyVex.</p>
+
+<h2>In KeyVex but NOT in the current source (60)</h2>
+<p class="muted">Ids KeyVex holds that the authoritative source does <b>not</b> currently list.
+For an append-only archive these are usually just other-year filings (harmless). For a
+<b>current-snapshot</b> list (sanctions, exclusions, screening) these are <b>STALE</b> records —
+items the source has since removed that KeyVex kept. Confirm by opening a few: a truly removed
+record won’t appear in the live source lookup. (No per-id link builder for this dataset — ids shown bare; full list in the companion <code>-extras.csv</code>.)</p>
+<p class="muted">Sample: <code>0000950123-15-005854</code> <code>0000950123-15-011224</code> <code>0000950123-17-007433</code> <code>0000950123-18-011769</code> <code>0001104659-23-060680</code> <code>0001104659-24-023150</code> <code>0001104659-24-023658</code> <code>0001104659-24-061895</code> <code>0001037389-18-000212</code> <code>0000950123-20-012127</code> <code>0000950123-23-010898</code> <code>0000950123-24-002518</code> <code>0000950123-25-005701</code> <code>0000950123-14-012218</code> <code>0000950123-15-009404</code> <code>0000919574-15-006206</code> <code>0000919574-14-004771</code> <code>0000919574-14-006644</code> <code>0000919574-15-002171</code> <code>0000919574-15-004444</code> <code>0001273087-19-000007</code> <code>0001273087-19-000028</code> <code>0001140361-18-023865</code> <code>0001567619-18-000074</code> <code>0001086364-15-002170</code></p>
+
+</body></html>

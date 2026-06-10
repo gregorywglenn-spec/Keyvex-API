@@ -3,10 +3,19 @@
  *
  * `institutional_holdings` is a CURATED dataset: deep history for the 10
  * TRACKED_FUNDS (src/scrapers/13f.ts) plus opportunistic live-feed pickups.
- * The honest coverage gauge is therefore FILING-level over the tracked
- * watchlist: every 13F-HR / 13F-HR/A each tracked fund filed (per EDGAR's
- * submissions API, including the older-chunk files) should have rows in
- * KeyVex under its accession_number.
+ *
+ * GAUGE — supersession-aware (2026-06-10): doc ids are
+ * `13f-{fund}-{cusip}-{quarter}` with NO accession, so same-quarter filings
+ * intentionally collide and the latest writer wins (amendments supersede
+ * originals). A superseded filing's accession is therefore LEGITIMATELY
+ * absent. The denominator is one item per (fund, quarter): the
+ * LATEST-FILED 13F-HR(/A) for that quarter — whose accession must appear
+ * in KeyVex. Missing = a quarter whose current-truth filing isn't what's
+ * stored (stale pre-amendment data or an unprocessed quarter).
+ *
+ * Caveat the diff can't see: split filings (e.g. Berkshire's
+ * confidential-treatment partial filings) store several accessions for one
+ * quarter — extras on the KeyVex side are fine and expected.
  *
  * Holdings-level row-count correctness inside each filing is a separate
  * sampled check (13F has sub-account aggregation by design, so raw row
@@ -44,6 +53,7 @@ interface RecentBlock {
   form?: string[];
   accessionNumber?: string[];
   filingDate?: string[];
+  reportDate?: string[];
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -59,16 +69,23 @@ function filingIndexUrl(cik: string, accession: string): string {
   return `https://www.sec.gov/Archives/edgar/data/${cikNum}/${accNoDash}/${accession}-index.htm`;
 }
 
+interface FilingRef {
+  acc: string;
+  form: string;
+  filingDate: string;
+  period: string;
+}
+
 function collect(
   block: RecentBlock | undefined,
-  fund: { cik: string; name: string },
   floorYear: number,
   ceilYear: number,
-  out: SourceItem[],
+  out: FilingRef[],
 ): void {
   const forms = block?.form ?? [];
   const accs = block?.accessionNumber ?? [];
   const dates = block?.filingDate ?? [];
+  const periods = block?.reportDate ?? [];
   for (let i = 0; i < forms.length; i++) {
     const form = forms[i] ?? "";
     if (form !== "13F-HR" && form !== "13F-HR/A") continue;
@@ -77,12 +94,7 @@ function collect(
     if (Number.isFinite(year) && (year < floorYear || year > ceilYear)) continue;
     const acc = accs[i] ?? "";
     if (!acc) continue;
-    out.push({
-      id: acc,
-      url: filingIndexUrl(fund.cik, acc),
-      label: `${fund.name} ${form} ${date}`,
-      meta: { type: fund.name, year: date.slice(0, 4) },
-    });
+    out.push({ acc, form, filingDate: date, period: periods[i] ?? "" });
   }
 }
 
@@ -113,8 +125,8 @@ export const sec13fTrackedAdapter: SourceAdapter = {
             files?: { name?: string; filingFrom?: string; filingTo?: string }[];
           };
         };
-        const before = items.length;
-        collect(sub.filings?.recent, fund, floorYear, ceilYear, items);
+        const refs: FilingRef[] = [];
+        collect(sub.filings?.recent, floorYear, ceilYear, refs);
         // Older chunks — fetch any whose range overlaps the floor.
         for (const f of sub.filings?.files ?? []) {
           if (!f.name) continue;
@@ -123,10 +135,32 @@ export const sec13fTrackedAdapter: SourceAdapter = {
           const older = (await fetchJson(
             `https://data.sec.gov/submissions/${f.name}`,
           )) as RecentBlock;
-          collect(older, fund, floorYear, ceilYear, items);
+          collect(older, floorYear, ceilYear, refs);
+        }
+        // Supersession: keep ONE ref per quarter — the latest-filed (ties
+        // broken by accession so the pick is deterministic).
+        const byPeriod = new Map<string, FilingRef>();
+        for (const r of refs) {
+          const key = r.period || r.acc; // missing period: stand alone
+          const prev = byPeriod.get(key);
+          if (
+            !prev ||
+            r.filingDate > prev.filingDate ||
+            (r.filingDate === prev.filingDate && r.acc > prev.acc)
+          ) {
+            byPeriod.set(key, r);
+          }
+        }
+        for (const [period, r] of byPeriod) {
+          items.push({
+            id: r.acc,
+            url: filingIndexUrl(fund.cik, r.acc),
+            label: `${fund.name} ${r.form} ${r.filingDate} (latest for ${period})`,
+            meta: { type: fund.name, year: r.filingDate.slice(0, 4) },
+          });
         }
         console.error(
-          `[13f-tracked] ${fund.name}: ${items.length - before} 13F-HR(/A) filings since ${floorYear}`,
+          `[13f-tracked] ${fund.name}: ${byPeriod.size} quarters (latest-filing gauge) from ${refs.length} filings since ${floorYear}`,
         );
       } catch (err) {
         ctx.warn(`${fund.name} (CIK ${fund.cik}): submissions fetch failed — ${(err as Error).message}`);

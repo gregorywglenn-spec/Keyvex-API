@@ -88,6 +88,14 @@ async function backfillFund(alias: string, cache: Map<string, string>) {
     collectBlock(older);
   }
   if (targets.length === 0) { console.error(`[13f-bf] no filings ${alias}`); return; }
+  // OLDEST FIRST. Doc ids are 13f-{fund}-{cusip}-{quarter} (no accession), so
+  // same-quarter filings intentionally collide and the LAST writer wins.
+  // Processing newest-first made ORIGINALS overwrite their AMENDMENTS —
+  // the collection held pre-amendment data for amended quarters (caught by
+  // the 2026-06-10 sec-13f-tracked reconcile). Ascending filing date makes
+  // the latest filing (amendment/restatement) the survivor, matching how the
+  // live cron encounters filings naturally.
+  targets.sort((a, b) => (a.fd < b.fd ? -1 : a.fd > b.fd ? 1 : 0));
   console.error(`[13f-bf] ===== ${alias}: ${targets.length} 13F-HR filings ${START_YEAR}+ =====`);
   let savedF = 0, doneF = 0;
   for (const t of targets) {
