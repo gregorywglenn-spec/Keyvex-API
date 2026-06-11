@@ -18,7 +18,16 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (36 of ~38 datasets)
+## 🏁 SWEEP COMPLETE (2026-06-11) — 37 of 38 verified; 1 on cron autopilot
+
+**insider_transactions_v2 — THE BIG ONE — closed 81/81 quarters count-exact**
+(0 mismatches, 18.4M docs vs SEC's own TSVs; `insider-v2-NOTES.md` +
+`insider-v2-81q.csv`). The only non-final item is the N-PORT holdings era
+residual (~3.3K filings), draining hands-free at 1,200/day via the
+twice-daily healing cron — **re-verify coverage-by-day when the healing log
+shows backlog 0 (~2026-06-14), then this file's job is done.**
+
+## ✅ Done / verified (37 of 38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
@@ -251,24 +260,22 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~2)
-- **N-PORT holdings era catch-up** — relaunched 2026-06-11 morning after
-  the overnight run died silently (+ two more fixes deployed: 429
-  retry-with-backoff in fetchText, cron moved 6:40→7:40 ET off the crowded
-  SEC slot that 429'd the whole healing batch). Re-verify coverage-by-day
-  when it drains.
-- **insider_transactions_v2 — now tightly scoped.** Gate-6 acceptance
-  (docs/bulk-form345-gate6-complete.md) already proved exact per-quarter
-  source-TSV count matches on 3 sampled eras + 64-doc field round-trips.
-  2026-06-11: the RECENCY boundary gap was found and fixed — a default
-  (bulk_v2) query for post-2026-03-31 filings returned ~nothing with no
-  explanation; the tool now emits a coverage_warning pointing at the
-  legacy bridge whenever the window crosses BULK_V2_LOADED_THROUGH
-  (mcp deployed). Remaining for the dedicated session: (a) extend
-  `_verify-bulk-cross-era.ts` to ALL 81 quarters (needs re-downloading the
-  SEC zips, ~2-3GB); (b) decide the QUARTERLY-LOAD process for new bulk
-  quarters (2026q2 publishes ~mid-July; advance BULK_V2_LOADED_THROUGH in
-  src/tools/insider-transactions.ts with each load).
+## ⏭️ Remaining (1, self-driving)
+- **N-PORT holdings era residual (~3.3K filings)** — the twice-daily
+  healing cron (7:40 AM + 3:40 PM ET, 600/run, GCP egress) drains it
+  hands-free by ~2026-06-14. Saga + fixes shipped 2026-06-11: NPORT-EX
+  exhibit-URL derivation, Firestore cursor projection, push-spread stack
+  overflow, 429 retry+backoff, 60s fetch abort, period-floor diff bug
+  (amendment churn), stall watchdog, cron slot move + double cadence.
+  Local draining was retired after SEC began slow-walking the residential
+  IP's sustained per-filing pulls (~2,100 filings banked locally anyway).
+  WHEN HEALED: re-run the coverage-by-day check
+  (`.tmp/nport-cov.ts` pattern) + drop the cron back to one daily tick.
+
+**insider_transactions_v2 CLOSED 2026-06-11** — see the 🏁 header. Includes
+the recency-boundary warning (meta-driven), the quarterly bulk-load cron
+(scrapeForm345BulkQuarterly, monthly-fire/no-op-until-published), and the
+81/81 count verification.
 
 ## Working rules that held up
 - Per dataset: commit → push → **merge to main** → (deploy if a cron/code changed) →
