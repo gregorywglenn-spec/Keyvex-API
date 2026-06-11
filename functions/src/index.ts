@@ -2016,3 +2016,10 @@ export const devDashboard = onRequest(
     }
   },
 );
+
+// NOTE (2026-06-11): a temporary `dojProbe` function verified that
+// justice.gov 401s ALL surfaces (API, RSS, even the homepage with full
+// browser headers) from GCP egress — an IP-range block, not header
+// fingerprinting. The DOJ enforcement leg therefore CANNOT run from Cloud
+// Functions; it needs a non-GCP runner (decision tracked in
+// docs/reconciliation/SWEEP-STATUS.md). Probe deleted after the test.

@@ -64,12 +64,21 @@ the adapter measures "latest filing per fund-quarter present" — re-verified
 Recent-window adapter (the six regulators' LIVE feeds = denominator, 243
 items) found 142 missing and two production failures the per-source
 try/catch had been hiding from the health check:
-- **DOJ leg dead since ~2026-05-15** — justice.gov's WAF returns 401 to the
-  bot UA from GCP egress (local runs unaffected). Fix: browser-header retry
-  on 401/403. ⚠ VERIFY next cron run's logs — the retry is deployed but
-  unproven from GCP egress; if it still 401s, DOJ needs a non-GCP egress
-  plan. Backfilled 4,000 most-recent DOJ releases locally (covers the dead
-  window with margin).
+- **DOJ leg dead since ~2026-05-15 — VERIFIED UNFIXABLE FROM GCP
+  (2026-06-11)**: the browser-header retry did NOT work (today's 6:35 cron:
+  0 DOJ docs; OCC's new RSS leg worked: 10 docs). A disposable `dojProbe`
+  function then proved justice.gov 401s ALL surfaces (API, RSS, homepage,
+  full browser headers) from GCP egress — an IP-range block. NO header
+  trick can fix this; DOJ needs a NON-GCP runner. **Decision for Greg**,
+  options: (a) GitHub Actions daily cron running the DOJ pull (cleanest —
+  repo already on GitHub; requires putting a scoped service-account key in
+  Actions secrets, and Azure-runner IPs are UNVERIFIED against the same
+  WAF — test first); (b) a tiny Cloudflare Worker fetch-proxy (new vendor;
+  CF egress also unverified); (c) scheduled task on Greg's machine
+  (residential egress — guaranteed but machine-dependent). INTERIM: the
+  4,000-release local backfill covers ~May 15→Jun 10; the gap regrows
+  daily until a runner is picked — a manual `npx tsx .tmp/doj-topup.ts`
+  style pull bridges it whenever run locally.
 - **OCC leg dead since ~2026-05-22** — OCC retired the per-year index pages
   (404). Fix: switched to OCC's RSS feed (same nr-* release URLs → same
   action_id slugs, existing docs merge).
