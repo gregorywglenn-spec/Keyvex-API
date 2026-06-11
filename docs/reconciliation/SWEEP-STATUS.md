@@ -64,21 +64,19 @@ the adapter measures "latest filing per fund-quarter present" — re-verified
 Recent-window adapter (the six regulators' LIVE feeds = denominator, 243
 items) found 142 missing and two production failures the per-source
 try/catch had been hiding from the health check:
-- **DOJ leg dead since ~2026-05-15 — VERIFIED UNFIXABLE FROM GCP
-  (2026-06-11)**: the browser-header retry did NOT work (today's 6:35 cron:
-  0 DOJ docs; OCC's new RSS leg worked: 10 docs). A disposable `dojProbe`
-  function then proved justice.gov 401s ALL surfaces (API, RSS, homepage,
-  full browser headers) from GCP egress — an IP-range block. NO header
-  trick can fix this; DOJ needs a NON-GCP runner. **Decision for Greg**,
-  options: (a) GitHub Actions daily cron running the DOJ pull (cleanest —
-  repo already on GitHub; requires putting a scoped service-account key in
-  Actions secrets, and Azure-runner IPs are UNVERIFIED against the same
-  WAF — test first); (b) a tiny Cloudflare Worker fetch-proxy (new vendor;
-  CF egress also unverified); (c) scheduled task on Greg's machine
-  (residential egress — guaranteed but machine-dependent). INTERIM: the
-  4,000-release local backfill covers ~May 15→Jun 10; the gap regrows
-  daily until a runner is picked — a manual `npx tsx .tmp/doj-topup.ts`
-  style pull bridges it whenever run locally.
+- **DOJ leg — RESOLVED 2026-06-11 (rehomed to GitHub Actions, Greg's
+  call)**: justice.gov IP-blocks ALL GCP egress (dojProbe verified: API,
+  RSS, homepage all 401 even with full browser headers) but accepts GitHub
+  Actions runners (probed 200 with the bot UA). New path:
+  `.github/workflows/doj-pull.yml` (daily 10:45 UTC) fetches 10 pages and
+  POSTs the raw payload to the `dojIngest` Cloud Function, which verifies
+  the workflow's GitHub OIDC token (signature + audience + repository
+  claim — ZERO stored secrets) and saves via the scraper's own
+  normalizeDojRecord. First run verified end-to-end: dojIngestSync
+  docsWritten=200. scrapeEnforcementDaily now skipDoj; dojIngestSync added
+  to the health check as its OWN job so a dead workflow can't hide behind
+  the other regulators (the exact failure mode that let DOJ sit dead
+  May 15 → Jun 10).
 - **OCC leg dead since ~2026-05-22** — OCC retired the per-year index pages
   (404). Fix: switched to OCC's RSS feed (same nr-* release URLs → same
   action_id slugs, existing docs merge).

@@ -133,7 +133,12 @@ export const JOBS: JobConfig[] = [
   { key: "nportHoldingsSync", label: "N-PORT holdings sync", metaDoc: "nportHoldingsSync", cadence: "daily", ...TIER.daily },
   { key: "fdaRecallsSync", label: "FDA recalls sync", metaDoc: "fdaRecallsSync", cadence: "daily", ...TIER.daily },
   { key: "cpscRecallsSync", label: "CPSC recalls sync", metaDoc: "cpscRecallsSync", cadence: "daily", ...TIER.daily },
-  { key: "enforcementActionsSync", label: "Enforcement actions (6 regulators) sync", metaDoc: "enforcementActionsSync", cadence: "daily", ...TIER.daily },
+  { key: "enforcementActionsSync", label: "Enforcement actions (5 GCP regulators) sync", metaDoc: "enforcementActionsSync", cadence: "daily", ...TIER.daily },
+  // DOJ runs OUTSIDE GCP (GitHub Actions cron → dojIngest; justice.gov
+  // IP-blocks GCP egress, 2026-06-11) — monitored separately so a dead
+  // workflow can't hide behind the other five regulators succeeding (the
+  // failure mode that let DOJ sit dead 2026-05-15 → 06-10).
+  { key: "dojIngestSync", label: "DOJ enforcement (GitHub Actions → dojIngest)", metaDoc: "dojIngestSync", cadence: "daily", ...TIER.daily },
   { key: "privatePlacementsSync", label: "Form D (private placements) sync", metaDoc: "privatePlacementsSync", cadence: "daily", ...TIER.daily },
 
   // ── weekly ──
