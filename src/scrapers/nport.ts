@@ -259,9 +259,26 @@ async function fetchText(url: string): Promise<string> {
   // egress, so brief 429 windows there are normal, not exceptional).
   for (let attempt = 1; ; attempt++) {
     await sleep(CONFIG.RATE_LIMIT_MS);
-    const res = await fetch(url, {
-      headers: { "User-Agent": CONFIG.USER_AGENT },
-    });
+    // Hard per-attempt timeout: without it, one dead TCP connection hangs
+    // the whole bulk run FOREVER with no error — the 2026-06-10/11 era
+    // catch-up silently stalled twice this way (log frozen mid-chunk,
+    // process never exiting). 60s is generous for a <50MB XML.
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        headers: { "User-Agent": CONFIG.USER_AGENT },
+        signal: AbortSignal.timeout(60_000),
+      });
+    } catch (err) {
+      if (attempt < 4) {
+        console.error(
+          `[nport] fetch ${(err as Error).name} on ${url.slice(-40)} — retry ${attempt}`,
+        );
+        await sleep(2000 * 2 ** (attempt - 1));
+        continue;
+      }
+      throw err;
+    }
     if (res.ok) return res.text();
     if ((res.status === 429 || res.status >= 500) && attempt < 4) {
       const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10);
