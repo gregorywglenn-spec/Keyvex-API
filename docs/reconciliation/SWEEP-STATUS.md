@@ -252,10 +252,23 @@ progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
 ## ⏭️ Remaining to reconcile (~2)
-- **N-PORT holdings era catch-up** — in flight 2026-06-10 (resumable
-  `scripts/backfill-nport-holdings.ts`; cron healing + NPORT-EX-URL fix
-  deployed); re-verify coverage-by-day when it drains.
-- **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).
+- **N-PORT holdings era catch-up** — relaunched 2026-06-11 morning after
+  the overnight run died silently (+ two more fixes deployed: 429
+  retry-with-backoff in fetchText, cron moved 6:40→7:40 ET off the crowded
+  SEC slot that 429'd the whole healing batch). Re-verify coverage-by-day
+  when it drains.
+- **insider_transactions_v2 — now tightly scoped.** Gate-6 acceptance
+  (docs/bulk-form345-gate6-complete.md) already proved exact per-quarter
+  source-TSV count matches on 3 sampled eras + 64-doc field round-trips.
+  2026-06-11: the RECENCY boundary gap was found and fixed — a default
+  (bulk_v2) query for post-2026-03-31 filings returned ~nothing with no
+  explanation; the tool now emits a coverage_warning pointing at the
+  legacy bridge whenever the window crosses BULK_V2_LOADED_THROUGH
+  (mcp deployed). Remaining for the dedicated session: (a) extend
+  `_verify-bulk-cross-era.ts` to ALL 81 quarters (needs re-downloading the
+  SEC zips, ~2-3GB); (b) decide the QUARTERLY-LOAD process for new bulk
+  quarters (2026q2 publishes ~mid-July; advance BULK_V2_LOADED_THROUGH in
+  src/tools/insider-transactions.ts with each load).
 
 ## Working rules that held up
 - Per dataset: commit → push → **merge to main** → (deploy if a cron/code changed) →

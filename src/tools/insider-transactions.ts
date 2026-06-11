@@ -101,7 +101,12 @@ export const definition: Tool = {
     "data_source SELECTS WHICH BACKING COLLECTION:",
     "  'bulk_v2' (DEFAULT as of 2026-05-24) — `insider_transactions_v2`",
     "    collection populated by SEC quarterly bulk Forms 3/4/5 TSV bundles.",
-    "    Deeper history (2006q1 → latest published quarter, ~9.9M rows),",
+    "    Deeper history (2006q1 → latest published quarter, ~9.9M rows).",
+    "    ⚠ RECENCY: the bulk dataset ends at the last PUBLISHED quarter",
+    "    (SEC releases it ~2 weeks after quarter end) — for filings since",
+    "    then, query data_source:'legacy' (the live daily feed) and merge;",
+    "    the envelope's coverage_warning tells you when your window",
+    "    crosses the boundary.",
     "    INLINED FOOTNOTES (footnote_refs[] with resolved text on every row),",
     "    aff10b5one 10b5-1 plan flag, full reporting_owners array, schema_era.",
     "    Filters: ticker, company_cik, reporting_owner_cik,",
@@ -508,17 +513,40 @@ async function handleV2(
   // source of truth.
   const annotatedResults = annotateRowsSourceMetadata(shimmedResults);
 
+  // Recency-boundary honesty (2026-06-11 reconcile finding): bulk_v2 ends
+  // at the last PUBLISHED SEC quarter. A "trades since May" query on the
+  // default source returned ~nothing with NO explanation while the fresh
+  // rows sat in legacy. Warn whenever the requested window extends past
+  // the boundary so agents know to bridge with data_source:'legacy'.
+  const windowEnd = query.until ?? new Date().toISOString().slice(0, 10);
+  const boundaryWarning =
+    windowEnd > BULK_V2_LOADED_THROUGH && (query.since || query.until)
+      ? `bulk_v2 (the default) currently covers filings through ${BULK_V2_LOADED_THROUGH} ` +
+        `(SEC publishes the bulk dataset quarterly, ~2 weeks after quarter end). ` +
+        `For filings after that date, re-query with data_source:'legacy' (the live ` +
+        `daily feed) and merge.`
+      : undefined;
+  const mergedWarning =
+    [coverage_warning, boundaryWarning].filter(Boolean).join(" ") || undefined;
+
   return {
     results: annotatedResults,
     count: annotatedResults.length,
     has_more,
-    ...(coverage_warning && { coverage_warning }),
+    ...(mergedWarning && { coverage_warning: mergedWarning }),
     ...(unclassifiableCount > 0 && {
       unclassifiable_records_retained: unclassifiableCount,
     }),
     query: { ...query, data_source: "bulk_v2" } as Record<string, unknown>,
   };
 }
+
+/**
+ * Last day covered by the loaded SEC bulk Form 345 dataset. ADVANCE THIS
+ * with each quarterly bulk load (2026q2 publishes ~mid-July 2026 —
+ * tracked in SWEEP-STATUS as the quarterly-load follow-up).
+ */
+const BULK_V2_LOADED_THROUGH = "2026-03-31";
 
 /**
  * Pull Form 3 baseline rows that align with the active insider-trades
