@@ -371,7 +371,10 @@ export async function scrapeNportHoldings(
   for (const filing of filings) {
     i++;
     const holdings = await parseNportHoldings(filing, scrapedAt);
-    out.push(...holdings);
+    // Loop, not push(...spread): a single mega-fund N-PORT (total-market
+    // index funds) can carry >100K rows, and spreading that many args blows
+    // the call stack (RangeError, caught 2026-06-10 mid-catch-up).
+    for (const h of holdings) out.push(h);
     if (i % 10 === 0 || i === filings.length) {
       console.error(
         `[nport-holdings] ${i}/${filings.length} filings, ${out.length} holdings`,
