@@ -34,7 +34,9 @@ export const XBRL_UNIVERSE: ReadonlyArray<string> = [
   "LMT", "ETN", "PGR", "UPS", "BSX", "SCHW", "MDT", "SYK", "ELV", "ADP",
   "BA", "BMY", "GILD", "MU", "VRTX", "CB", "KLAC", "INTC", "TMUS", "MO",
   "DE", "SBUX", "DUK", "AON", "ICE", "BDX", "CL", "SO",
-  "CVS", "HCA", "MMC", "EMR", "GD",
+  // MRSH = Marsh & McLennan — ticker changed from MMC (verified against
+  // SEC submissions CIK 62709, 2026-06-10; same pattern as Fiserv FI).
+  "CVS", "HCA", "MRSH", "EMR", "GD",
   // ── Defense + aerospace (federal contracts overlap) ────────────────────
   "NOC", "LHX", "GD", "TXT", "HII", "LDOS",
   // ── Banks (enforcement_actions + CFPB overlap) ─────────────────────────

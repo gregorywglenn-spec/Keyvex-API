@@ -209,8 +209,15 @@ export async function getTickerInfo(ticker: string): Promise<TickerInfo | null> 
   // Direct lookup first.
   const direct = tickerCache![upper];
   if (direct) return direct;
-  // SEC's company_tickers.json uses no dots for class-share tickers
-  // (BRK.B → BRKB, BF.B → BFB). Strip dots and retry.
+  // SEC's company_tickers.json class-share convention is currently HYPHENS
+  // (BRK.B → BRK-B; verified live 2026-06-10 — BRKB is no longer present),
+  // historically dot-stripped (BRKB). Try hyphen first, then the legacy
+  // strip, so a future flip-back can't silently break lookups.
+  const hyphens = upper.replace(/[./]/g, "-");
+  if (hyphens !== upper) {
+    const fallback = tickerCache![hyphens];
+    if (fallback) return fallback;
+  }
   const noDots = upper.replace(/\./g, "");
   if (noDots !== upper) {
     const fallback = tickerCache![noDots];

@@ -18,7 +18,7 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## ✅ Done / verified (35 of ~38 datasets)
+## ✅ Done / verified (36 of ~38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
@@ -53,6 +53,12 @@ the adapter measures "latest filing per fund-quarter present" — re-verified
   series present, all current within each publisher's lag, values sane.
   Day-10 EIA crude-production unit caveat RESOLVED as correct (13,696
   thousand b/d ≈ 13.7M b/d daily rate). `econ-indicators-NOTES.md`.
+- **XBRL fundamentals**: 132/132 universe tickers explained (131 current +
+  STLA legitimate: IFRS 20-F annual filer). Two recoverable gaps fixed +
+  7,363 obs backfilled: BRK.B (SEC's catalog switched class shares to
+  HYPHENS — BRK-B — breaking the dot-strip lookup silently) and MMC
+  (Marsh & McLennan changed ticker to MRSH — verified vs SEC submissions;
+  universe updated). scrapeXbrlWeekly redeployed. `xbrl-NOTES.md`.
 
 ### 2026-06-10 session (cont.) — enforcement: 38.79% → 100.00%; two dead legs revived
 Recent-window adapter (the six regulators' LIVE feeds = denominator, 243
@@ -181,7 +187,17 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    firestore.indexes.json. Additive deploys are safe; NEVER run with
    --force until the file is reconciled to mirror production (capture
    `firebase firestore:indexes`, diff, add the missing entry).
-6. **FARA doc-id scheme uses positional fpIndex** (`fara-{reg}-{fpIndex}`) —
+6. **Class-share ticker convention sweep** — SEC's `company_tickers.json`
+   switched class-share tickers to HYPHENS (BRK-B; BRKB is gone), which
+   silently broke xbrl.ts's dot-strip lookup (fixed there 2026-06-10 with a
+   hyphen-first fallback). Other scrapers carry the same dot-strip pattern
+   (form144/form8k/form3/13f getTickerInfo variants) — sweep them for the
+   same quiet breakage on class-share inputs.
+7. **13F amendment-removal orphans** — doc ids are per (fund,cusip,quarter);
+   an amendment that REMOVES a position leaves the original's row behind
+   under a stale accession. Proper fix = clear-quarter-before-amendment
+   write semantics (touches live save paths — own decision/session).
+8. **FARA doc-id scheme uses positional fpIndex** (`fara-{reg}-{fpIndex}`) —
    if the FARA API ever reorders a registrant's principal array, re-runs
    would write the same pair under a different id (drift/dupes). Sturdier id:
    hash of (reg, principal_name). Low urgency; revisit if dupes appear.
@@ -228,11 +244,10 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining to reconcile (~3)
+## ⏭️ Remaining to reconcile (~2)
 - **N-PORT holdings era catch-up** — in flight 2026-06-10 (resumable
-  `scripts/backfill-nport-holdings.ts`; cron healing already deployed);
-  re-verify coverage-by-day when it drains.
-- **XBRL fundamentals** — curated check (132-ticker universe × 40 concepts).
+  `scripts/backfill-nport-holdings.ts`; cron healing + NPORT-EX-URL fix
+  deployed); re-verify coverage-by-day when it drains.
 - **The big one — own session:** insider_transactions_v2 (~9.9M Form 4/5 rows).
 
 ## Working rules that held up
