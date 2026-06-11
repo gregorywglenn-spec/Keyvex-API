@@ -156,6 +156,9 @@ export const JOBS: JobConfig[] = [
   // ── monthly ──
   { key: "oigExclusionsSync", label: "HHS-OIG exclusions sync", metaDoc: "oigExclusionsSync", cadence: "monthly", ...TIER.monthly },
   { key: "legislatorsHistoricalSync", label: "Legislators (historical) sync", metaDoc: "legislatorsHistoricalSync", cadence: "monthly", ...TIER.monthly },
+  // Fires monthly (15th) but only LOADS when SEC publishes a new quarterly
+  // bulk bundle; off-months are no-ops that still refresh the meta stamp.
+  { key: "insiderBulkSync", label: "SEC bulk Form 345 quarterly load", metaDoc: "insiderBulkSync", cadence: "monthly", ...TIER.monthly },
 ];
 
 type JobStatus = "ok" | "warn" | "fail";

@@ -67,6 +67,9 @@ import {
   saveGovDocuments,
   saveForeignAgents,
   markTerminatedForeignAgents,
+  saveInsiderTransactionsV2,
+  saveInsiderHoldingsV2,
+  saveInsiderFilingsV2,
   saveScreeningList,
   saveOfacSdn,
   saveConsumerComplaints,
@@ -140,6 +143,7 @@ import {
   scrapeEnforcementActions,
   normalizeDojRecord,
 } from "../../src/scrapers/enforcement-actions.js";
+import { scrapeForm345BulkQuarter } from "../../src/scrapers/form345-bulk.js";
 import {
   scrapeNportHoldings,
   scrapeNportLiveFeed,
@@ -2034,6 +2038,82 @@ export const devDashboard = onRequest(
 // The DOJ pull therefore runs as a GitHub Actions cron
 // (.github/workflows/doj-pull.yml) that fetches the raw pages and POSTs
 // them to `dojIngest` below — fetch and save on opposite sides of the WAF.
+
+/**
+ * SEC bulk Form 345 quarterly loader. Fires MONTHLY on the 15th at 8 AM ET
+ * but no-ops unless a newly-published quarter is available — SEC publishes
+ * each quarter's bundle ~2 weeks after quarter end, with variable lag, so
+ * monthly-with-skip self-heals late publication without a 3-month wait.
+ *
+ * On load: saves the quarter's transactions/holdings/filings into the v2
+ * collections (idempotent doc ids) and writes meta/insiderBulkSync with
+ * `loadedThrough`, which get_insider_transactions reads to place its
+ * recency-boundary coverage warning — no code change needed per quarter.
+ */
+export const scrapeForm345BulkQuarterly = onSchedule(
+  {
+    schedule: "0 8 15 * *",
+    region: REGION,
+    timeZone: TZ,
+    memory: "2GiB",
+    timeoutSeconds: 1800,
+    retryCount: 0,
+  },
+  async () => {
+    const started = Date.now();
+    // Most-recently-ENDED quarter as of today.
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const qNum = Math.floor((m - 1) / 3); // 0 in Jan-Mar → prior year q4
+    const quarter = qNum === 0 ? `${y - 1}q4` : `${y}q${qNum}`;
+    const quarterEnd =
+      qNum === 0
+        ? `${y - 1}-12-31`
+        : `${y}-${String(qNum * 3).padStart(2, "0")}-${qNum === 1 ? "31" : "30"}`;
+
+    const db = await getLiveDb();
+    const meta = await db.collection("meta").doc("insiderBulkSync").get();
+    if (meta.data()?.lastQuarter === quarter) {
+      logger.info(`[form345-bulk] ${quarter} already loaded — no-op`);
+      await writeJobMeta("insiderBulkSync", { started, docsWritten: 0 });
+      return;
+    }
+
+    logger.info(`[form345-bulk] loading ${quarter} (ends ${quarterEnd})`);
+    let built;
+    try {
+      built = await scrapeForm345BulkQuarter(quarter);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (/HTTP 404|HTTP 403/.test(msg)) {
+        // Not published yet — normal in the first weeks after quarter end.
+        logger.info(`[form345-bulk] ${quarter} not published yet (${msg}) — retry next month`);
+        await writeJobMeta("insiderBulkSync", { started, docsWritten: 0 });
+        return;
+      }
+      throw err;
+    }
+    const [t, h, f] = [
+      await saveInsiderTransactionsV2(built.transactions),
+      await saveInsiderHoldingsV2(built.holdings),
+      await saveInsiderFilingsV2(built.filings),
+    ];
+    const docsWritten = t.saved + h.saved + f.saved;
+    logger.info(
+      `[form345-bulk] ${quarter}: saved ${t.saved} tx + ${h.saved} holdings + ${f.saved} filings`,
+    );
+    await db.collection("meta").doc("insiderBulkSync").set(
+      {
+        lastSyncedAt: new Date(),
+        lastQuarter: quarter,
+        loadedThrough: quarterEnd,
+        docsWritten,
+      },
+      { merge: true },
+    );
+  },
+);
 
 /**
  * DOJ ingest endpoint — receives raw justice.gov press-release pages from

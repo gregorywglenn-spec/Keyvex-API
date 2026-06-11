@@ -14,6 +14,7 @@
 
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
+  getDbIfLive,
   queryForm3Holdings,
   queryInsiderTransactions,
   queryInsiderTransactionsV2,
@@ -519,9 +520,10 @@ async function handleV2(
   // rows sat in legacy. Warn whenever the requested window extends past
   // the boundary so agents know to bridge with data_source:'legacy'.
   const windowEnd = query.until ?? new Date().toISOString().slice(0, 10);
+  const loadedThrough = await getBulkLoadedThrough();
   const boundaryWarning =
-    windowEnd > BULK_V2_LOADED_THROUGH && (query.since || query.until)
-      ? `bulk_v2 (the default) currently covers filings through ${BULK_V2_LOADED_THROUGH} ` +
+    windowEnd > loadedThrough && (query.since || query.until)
+      ? `bulk_v2 (the default) currently covers filings through ${loadedThrough} ` +
         `(SEC publishes the bulk dataset quarterly, ~2 weeks after quarter end). ` +
         `For filings after that date, re-query with data_source:'legacy' (the live ` +
         `daily feed) and merge.`
@@ -542,11 +544,36 @@ async function handleV2(
 }
 
 /**
- * Last day covered by the loaded SEC bulk Form 345 dataset. ADVANCE THIS
- * with each quarterly bulk load (2026q2 publishes ~mid-July 2026 —
- * tracked in SWEEP-STATUS as the quarterly-load follow-up).
+ * Last day covered by the loaded SEC bulk Form 345 dataset — the FALLBACK
+ * when meta/insiderBulkSync is unreadable. The live value comes from that
+ * meta doc, written by the scrapeForm345BulkQuarterly cron on each
+ * quarterly load, so the boundary advances with no code change.
  */
 const BULK_V2_LOADED_THROUGH = "2026-03-31";
+
+let boundaryCache: { value: string; at: number } | null = null;
+
+/** Read the live bulk boundary from meta/insiderBulkSync (1h module cache;
+ *  constant fallback on any failure — the warning must never break a query). */
+async function getBulkLoadedThrough(): Promise<string> {
+  if (boundaryCache && Date.now() - boundaryCache.at < 3_600_000) {
+    return boundaryCache.value;
+  }
+  try {
+    const db = await getDbIfLive();
+    if (!db) return BULK_V2_LOADED_THROUGH;
+    const meta = await db.collection("meta").doc("insiderBulkSync").get();
+    const v = meta.data()?.loadedThrough;
+    const value =
+      typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)
+        ? v
+        : BULK_V2_LOADED_THROUGH;
+    boundaryCache = { value, at: Date.now() };
+    return value;
+  } catch {
+    return BULK_V2_LOADED_THROUGH;
+  }
+}
 
 /**
  * Pull Form 3 baseline rows that align with the active insider-trades
