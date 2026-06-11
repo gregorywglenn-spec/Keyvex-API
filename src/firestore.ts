@@ -5086,8 +5086,12 @@ export async function queryNportFilings(
  * mid-extraction, and the old 2-day window then slid past them forever
  * (caught by the 2026-06-10 reconcile: 79/1,970 coverage on that day).
  *
- * `periodFloorISO` bounds the holdings-side scan (period_ending lags
- * file_date by ~1-2 months; pass ~120 days before the file-date floor).
+ * `periodFloorISO` bounds the holdings-side scan. CAUTION (2026-06-11
+ * lesson): pass a floor far older than any period an era filing might
+ * cover — NPORT-P/A AMENDMENTS filed in the era can report periods YEARS
+ * back, and a floor that excludes their rows makes those filings look
+ * forever-unextracted (the diff re-processed ~70 of every 100 backlog
+ * filings in an endless churn before this was caught).
  * Returns up to `cap` filings, OLDEST first, so the backlog drains in order.
  */
 export async function findNportHoldingsBacklog(

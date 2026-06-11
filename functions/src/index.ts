@@ -1561,11 +1561,12 @@ export const scrapeNportDaily = onSchedule(
       // have no rows yet), so this one pass covers both window and healing.
       const floor = new Date();
       floor.setDate(floor.getDate() - 21);
-      const periodFloor = new Date();
-      periodFloor.setDate(periodFloor.getDate() - 141);
+      // Period floor goes FAR back: amendments filed in the window can
+      // cover periods years old, and excluding their saved rows from the
+      // scan makes them look forever-unextracted (2026-06-11 churn bug).
       const { backlog, backlogTotal } = await findNportHoldingsBacklog(
         floor.toISOString().slice(0, 10),
-        periodFloor.toISOString().slice(0, 10),
+        "2000-01-01",
         600,
       );
       if (backlogTotal > backlog.length) {

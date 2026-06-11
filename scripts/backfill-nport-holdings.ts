@@ -21,8 +21,26 @@ import { scrapeNportHoldings } from "../src/scrapers/nport.js";
 const DRY = process.argv.includes("--dry");
 const MAX = parseInt(process.argv.find((a) => a.startsWith("--max="))?.split("=")[1] ?? "100000", 10);
 const ERA_FLOOR = "2026-05-12";
-const PERIOD_FLOOR = "2026-01-01";
+// Far-back period floor: era AMENDMENTS can cover periods years old; a
+// narrow floor hid their saved rows from the diff (endless re-process
+// churn, caught 2026-06-11).
+const PERIOD_FLOOR = "2000-01-01";
 const CHUNK = 100;
+
+// Watchdog: this run silently froze 3x (log stops mid-cycle, process never
+// exits — a hung gRPC/socket await somewhere with no timeout). Timers still
+// fire while an await hangs, so a stall detector can self-terminate the
+// process; exit(3) surfaces through the harness instead of freezing.
+let lastProgressAt = Date.now();
+const WATCHDOG_MS = 15 * 60 * 1000;
+setInterval(() => {
+  if (Date.now() - lastProgressAt > WATCHDOG_MS) {
+    console.error(
+      `[nport-cu] WATCHDOG: no progress for ${Math.round((Date.now() - lastProgressAt) / 60000)} min — self-terminating (resumable; relaunch to continue)`,
+    );
+    process.exit(3);
+  }
+}, 60_000).unref();
 
 let processed = 0;
 let rows = 0;
@@ -36,6 +54,7 @@ while (processed < MAX) {
     console.error(`[nport-cu] backlog drained (total remaining: ${backlogTotal})`);
     break;
   }
+  lastProgressAt = Date.now();
   console.error(
     `[nport-cu] chunk of ${backlog.length} (backlog total ${backlogTotal}, processed so far ${processed})`,
   );
