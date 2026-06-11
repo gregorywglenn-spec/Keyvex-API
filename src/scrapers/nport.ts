@@ -252,14 +252,30 @@ function readIdentifier(identifiers: any, tag: string): string | null {
 }
 
 async function fetchText(url: string): Promise<string> {
-  await sleep(CONFIG.RATE_LIMIT_MS);
-  const res = await fetch(url, {
-    headers: { "User-Agent": CONFIG.USER_AGENT },
-  });
-  if (!res.ok) {
+  // Bounded retry on 429/5xx (2s/4s/8s, honoring Retry-After). Without it,
+  // a transient SEC rate-limit window burned an ENTIRE 600-filing healing
+  // batch in minutes — every fetch insta-SKIPped (2026-06-11 6:40 cron;
+  // the 6:30-6:50 ET slot is crowded with other SEC crons on shared GCP
+  // egress, so brief 429 windows there are normal, not exceptional).
+  for (let attempt = 1; ; attempt++) {
+    await sleep(CONFIG.RATE_LIMIT_MS);
+    const res = await fetch(url, {
+      headers: { "User-Agent": CONFIG.USER_AGENT },
+    });
+    if (res.ok) return res.text();
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10);
+      const waitMs = Number.isFinite(retryAfter)
+        ? retryAfter * 1000
+        : 2000 * 2 ** (attempt - 1);
+      console.error(
+        `[nport] HTTP ${res.status} on ${url.slice(-40)} — retry ${attempt} in ${waitMs}ms`,
+      );
+      await sleep(waitMs);
+      continue;
+    }
     throw new Error(`HTTP ${res.status} ${res.statusText}`);
   }
-  return res.text();
 }
 
 /**

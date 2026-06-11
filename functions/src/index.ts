@@ -1504,7 +1504,11 @@ export const scrapeRegStatementsDaily = onSchedule(
  */
 export const scrapeNportDaily = onSchedule(
   {
-    schedule: "40 6 * * *",
+    // Moved 6:40 → 7:40 ET (2026-06-11): the 6:30-6:50 window is crowded
+    // with other SEC-touching crons on shared GCP egress, and the combined
+    // rate tripped SEC's per-IP 429s — which burned the holdings healing
+    // batch (every fetch skipped). 7:40 has the SEC dailies to itself.
+    schedule: "40 7 * * *",
     region: REGION,
     timeZone: TZ,
     // Bumped 2026-06-02: holdings parse+save of a high-volume day (683 filings
