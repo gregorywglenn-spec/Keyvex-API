@@ -168,7 +168,7 @@ export async function scrapeSecEnforcementRss(): Promise<EnforcementAction[]> {
 
 // ─── DOJ JSON API ──────────────────────────────────────────────────────────
 
-interface DojResult {
+export interface DojResult {
   uuid?: string;
   title?: string;
   body?: string;
@@ -189,6 +189,33 @@ interface DojResponse {
     resultset?: { count?: string; pagesize?: number; page?: number };
   };
   results?: DojResult[];
+}
+
+/**
+ * Normalize ONE raw DOJ press-release record. Exported for the dojIngest
+ * Cloud Function: justice.gov IP-blocks ALL GCP egress (verified
+ * 2026-06-11), so a GitHub Actions cron FETCHES the raw pages and POSTs
+ * them to dojIngest, which normalizes here and saves — the fetch and the
+ * normalize/save run on opposite sides of the WAF.
+ */
+export function normalizeDojRecord(
+  r: DojResult,
+  scrapedAt: string,
+): EnforcementAction | null {
+  if (!r.uuid) return null;
+  return {
+    action_id: `doj-${r.uuid}`,
+    source: "doj",
+    title: stripHtml(r.title ?? "").trim(),
+    teaser: stripHtml(r.teaser ?? "").slice(0, CONFIG.BODY_MAX_CHARS),
+    description: stripHtml(r.body ?? "").slice(0, CONFIG.BODY_MAX_CHARS),
+    published_date: toIsoDate(r.date ?? ""),
+    url: r.url ?? "",
+    agency_component: normalizeDojComponent(r.component),
+    release_number: r.number ?? "",
+    topics: normalizeDojTopic(r.topic),
+    scraped_at: scrapedAt,
+  };
 }
 
 function normalizeDojComponent(c: DojResult["component"]): string {
@@ -289,21 +316,8 @@ export async function scrapeDojEnforcementApi(
     const results = json.results ?? [];
     if (results.length === 0) break;
     for (const r of results) {
-      if (!r.uuid) continue;
-      const action: EnforcementAction = {
-        action_id: `doj-${r.uuid}`,
-        source: "doj",
-        title: stripHtml(r.title ?? "").trim(),
-        teaser: stripHtml(r.teaser ?? "").slice(0, CONFIG.BODY_MAX_CHARS),
-        description: stripHtml(r.body ?? "").slice(0, CONFIG.BODY_MAX_CHARS),
-        published_date: toIsoDate(r.date ?? ""),
-        url: r.url ?? "",
-        agency_component: normalizeDojComponent(r.component),
-        release_number: r.number ?? "",
-        topics: normalizeDojTopic(r.topic),
-        scraped_at: scrapedAt,
-      };
-      out.push(action);
+      const action = normalizeDojRecord(r, scrapedAt);
+      if (action) out.push(action);
     }
     console.error(
       `[doj enforcement] page ${page}: +${results.length} (running ${out.length})`,

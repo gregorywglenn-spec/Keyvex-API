@@ -23,6 +23,7 @@
     "fast-xml-parser": "^4.5.1",
     "fetch-cookie": "^3.1.0",
     "firebase-admin": "^13.0.1",
+    "jose": "^6.2.3",
     "js-yaml": "^4.1.0",
     "mupdf": "^1.27.0",
     "pdf-parse": "^1.1.1",
