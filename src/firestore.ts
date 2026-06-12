@@ -5107,15 +5107,24 @@ export async function findNportHoldingsBacklog(
   // builds a resume cursor from the last received doc, and throws
   // `Field "period_ending" is missing` if the where/orderBy field wasn't
   // selected (bit the catch-up run 2026-06-10 ~900 filings in).
-  const hs = await db
+  //
+  // STREAM, don't .get() (2026-06-12): the collection passed 1.2M rows and
+  // a full snapshot materializes ~1KB+ of SDK object per doc — the diff
+  // itself became the heap OOM killing healing ticks even after the
+  // per-filing save streaming fix. Streaming keeps only the id strings.
+  const hsQuery = db
     .collection("nport_holdings")
     .where("period_ending", ">=", periodFloorISO)
-    .select("filing_id", "period_ending")
-    .get();
-  for (const d of hs.docs) {
-    const id = d.data().filing_id;
-    if (id) have.add(String(id));
-  }
+    .select("filing_id", "period_ending");
+  await new Promise<void>((resolve, reject) => {
+    const stream = hsQuery.stream();
+    stream.on("data", (d: FirebaseFirestore.QueryDocumentSnapshot) => {
+      const id = d.get("filing_id");
+      if (id) have.add(String(id));
+    });
+    stream.on("end", () => resolve());
+    stream.on("error", (err: Error) => reject(err));
+  });
 
   const fs = await db
     .collection("nport_filings")
