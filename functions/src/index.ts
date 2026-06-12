@@ -1512,11 +1512,12 @@ export const scrapeNportDaily = onSchedule(
     // with other SEC-touching crons on shared GCP egress, and the combined
     // rate tripped SEC's per-IP 429s — which burned the holdings healing
     // batch (every fetch skipped). 7:40 has the SEC dailies to itself.
-    // Second tick (3:40 PM ET) added 2026-06-11 to drain the ~3.3K-filing
-    // era backlog at 1,200/day — local draining was abandoned after SEC
-    // began tarpitting the residential IP's sustained pulls. Drop back to
-    // one tick once the healing log shows backlog 0 for a few days.
-    schedule: "40 7,15 * * *",
+    // TEMPORARY (2026-06-11 evening): hourly ticks to drain the ~3.3K-filing
+    // era backlog TONIGHT at 600/run from GCP egress (the residential IP is
+    // being slow-walked by SEC; Cloud Scheduler force-run needs IAM the SA
+    // doesn't have). REVERT to "40 7,15 * * *" once the healing log shows
+    // backlog 0 — tracked in SWEEP-STATUS.
+    schedule: "15 * * * *",
     region: REGION,
     timeZone: TZ,
     // Bumped 2026-06-02: holdings parse+save of a high-volume day (683 filings
