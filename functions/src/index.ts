@@ -145,7 +145,7 @@ import {
 } from "../../src/scrapers/enforcement-actions.js";
 import { scrapeForm345BulkQuarter } from "../../src/scrapers/form345-bulk.js";
 import {
-  scrapeNportHoldings,
+  scrapeAndSaveNportHoldingsStreaming,
   scrapeNportLiveFeed,
 } from "../../src/scrapers/nport.js";
 import { scrapeAllFdaRecalls } from "../../src/scrapers/fda-recalls.js";
@@ -1585,14 +1585,18 @@ export const scrapeNportDaily = onSchedule(
         logger.info(
           `[nport-holdings] processing ${backlog.length} backlog filings (of ${backlogTotal})`,
         );
-        const holdings = await scrapeNportHoldings(backlog);
-        if (holdings.length > 0) {
-          const h = await saveNportHoldings(holdings);
-          logger.info(
-            `[nport-holdings] saved ${h.saved} to ${h.collection}`,
-          );
-          holdingsWritten = h.saved;
-        }
+        // STREAMING per-filing save (2026-06-12): the accumulate-then-save
+        // shape OOM'd at Node's heap ceiling on mega-fund batches — the
+        // tick died mid-parse, saved nothing, and the same filings
+        // re-killed every later tick. Peak memory is now one filing.
+        const r = await scrapeAndSaveNportHoldingsStreaming(
+          backlog,
+          saveNportHoldings,
+        );
+        logger.info(
+          `[nport-holdings] streamed ${r.filingsProcessed} filings, saved ${r.rowsSaved} rows`,
+        );
+        holdingsWritten = r.rowsSaved;
       }
       await writeJobMeta("nportHoldingsSync", {
         started,

@@ -395,6 +395,39 @@ export async function parseNportHoldings(
  * Sequential to respect EDGAR's 10 req/sec ceiling. Returns whatever it
  * successfully parsed; errors are logged and skipped per-filing.
  */
+/**
+ * STREAMING walk: parse ONE filing, hand its rows to `save`, release, next.
+ * The accumulate-then-save shape (scrapeNportHoldings below) OOM'd the
+ * 2 GiB cron at Node's ~1.6 GB heap ceiling whenever a batch contained a
+ * few mega-funds (100K+ rows each) — the tick died mid-parse, saved
+ * NOTHING, and the same mega-funds re-killed every following tick
+ * (caught 2026-06-12 in the overnight healing logs; the same OOM class
+ * silently killed the local catch-up runs). Peak memory here is one
+ * filing's rows.
+ */
+export async function scrapeAndSaveNportHoldingsStreaming(
+  filings: NportFiling[],
+  save: (rows: NportHolding[]) => Promise<{ saved: number }>,
+): Promise<{ filingsProcessed: number; rowsSaved: number }> {
+  const scrapedAt = new Date().toISOString();
+  let rowsSaved = 0;
+  let i = 0;
+  for (const filing of filings) {
+    i++;
+    const holdings = await parseNportHoldings(filing, scrapedAt);
+    if (holdings.length > 0) {
+      const r = await save(holdings);
+      rowsSaved += r.saved;
+    }
+    if (i % 25 === 0 || i === filings.length) {
+      console.error(
+        `[nport-holdings] ${i}/${filings.length} filings streamed, ${rowsSaved} rows saved`,
+      );
+    }
+  }
+  return { filingsProcessed: i, rowsSaved };
+}
+
 export async function scrapeNportHoldings(
   filings: NportFiling[],
 ): Promise<NportHolding[]> {
