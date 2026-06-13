@@ -97,7 +97,8 @@ export const definition: Tool = {
       },
       fiscal_year: {
         type: "integer",
-        description: "Filter to one fiscal year.",
+        description:
+          "Filter to one fiscal year — the year the financials DESCRIBE (the company's own fiscal-year label, derived from the original filing), NOT the filing year. Handles non-December fiscal years: e.g. NVDA's year ending 2024-01-28 is fiscal_year 2024, Apple's ending 2024-09-28 is 2024. For point-in-time period filtering, period_end / since / until and frame are also available.",
       },
       fiscal_period: {
         type: "string",

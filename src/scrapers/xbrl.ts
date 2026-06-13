@@ -369,7 +369,30 @@ export async function scrapeXbrlByCik(
   const ticker = tickerOverride ?? (await getTickerFromCik(padded));
   const companyName = data.entityName ?? (await getNameFromCik(padded));
 
-  const out: XbrlFundamental[] = [];
+  // Dedup by doc id. SEC's company-facts repeats each annual/quarterly value
+  // once per filing that reported it: the ORIGINAL 10-K (where the period was
+  // the CURRENT year) plus later 10-Ks that carry it as a prior-year
+  // COMPARATIVE. Every copy carries the FILING's fiscal-year focus in `fy`, so
+  // a comparative's `fy` is a LATER year than the period actually describes.
+  // Last-write-wins (SEC orders units ~filed-ascending) therefore tagged each
+  // period with the most-recent filing's year — e.g. NVDA's FY2024 figure
+  // (period_end 2024-01-28) surfaced as fiscal_year 2026.
+  //
+  // Fix: keep the LATEST-filed copy's value/frame/etc. UNCHANGED (the value is
+  // source-faithful — and for restated/split-adjusted figures the latest
+  // re-presentation is what agents expect; we deliberately do NOT reopen the
+  // as-reported-vs-restated question), but TAKE fiscal_year from the EARLIEST-
+  // filed copy, whose `fy` is the period's TRUE fiscal-year label (authoritative
+  // — handles non-Dec / 52-53-week fiscal years a period_end heuristic gets
+  // wrong). `frame` is period-canonical: keep any non-empty one.
+  interface Agg {
+    latest: XbrlFundamental;
+    latestFiled: string;
+    trueFy: number;
+    earliestFiled: string;
+    frame: string;
+  }
+  const agg = new Map<string, Agg>();
 
   for (const [conceptName, spec] of Object.entries(CONCEPT_CATALOG)) {
     const taxonomy = spec.taxonomy as "us-gaap" | "dei";
@@ -393,11 +416,41 @@ export async function scrapeXbrlByCik(
           },
           scrapedAt,
         );
-        if (rec) out.push(rec);
+        if (!rec) continue;
+        const prev = agg.get(rec.id);
+        if (!prev) {
+          agg.set(rec.id, {
+            latest: rec,
+            latestFiled: rec.filed_date,
+            trueFy: rec.fiscal_year,
+            earliestFiled: rec.filed_date,
+            frame: rec.frame,
+          });
+          continue;
+        }
+        // Newest filing wins the row's value/frame/etc.
+        if (rec.filed_date && rec.filed_date >= prev.latestFiled) {
+          prev.latest = rec;
+          prev.latestFiled = rec.filed_date;
+        }
+        // Earliest filing gives the period's true fiscal year.
+        if (
+          rec.filed_date &&
+          (!prev.earliestFiled || rec.filed_date < prev.earliestFiled)
+        ) {
+          prev.trueFy = rec.fiscal_year;
+          prev.earliestFiled = rec.filed_date;
+        }
+        if (!prev.frame && rec.frame) prev.frame = rec.frame;
       }
     }
   }
 
+  const out = [...agg.values()].map((a) => ({
+    ...a.latest,
+    fiscal_year: a.trueFy,
+    frame: a.latest.frame || a.frame,
+  }));
   console.error(
     `[xbrl] CIK ${padded} (${ticker || "n/a"}): ${out.length} observations across ${Object.keys(CONCEPT_CATALOG).length} concepts`,
   );
