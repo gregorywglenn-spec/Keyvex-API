@@ -874,48 +874,6 @@ function augmentOwnerNameAnchorNotice<T>(
   };
 }
 
-/**
- * Apply orderBy(sortField, sortOrder) ONLY when at least one is true:
- *   - the caller explicitly requested a sort (hasExplicitSort=true), OR
- *   - the query already includes an inequality where clause that forces
- *     Firestore to orderBy that field (hasInequalityFilter=true), OR
- *   - no equality filter is in play — pure scan; the single-field auto-
- *     index on sortField handles it (hasEqualityFilter=false).
- *
- * Otherwise return the query unchanged. The "equality-only + no explicit
- * sort" case is served by Firestore's automatic single-field equality
- * index — no composite needed. Without this guard, a default orderBy on
- * top of an equality filter requires a (equality_field, sort_field)
- * composite index, and any agent query against an unprovisioned combo
- * returns FAILED_PRECONDITION / INDEX_MISSING.
- *
- * The trade-off: equality-only queries now return rows in INSERTION
- * ORDER rather than sorted-by-default. Agents who want sorted output
- * pass `sort_by` explicitly, which DOES require a provisioned composite
- * for that (filter, sort) combo. The error message Firestore returns in
- * that case is the same FAILED_PRECONDITION the agent saw before, but
- * now it only fires when the agent EXPLICITLY asked for ordering — not
- * as an invisible default-sort side effect.
- */
-function applyOrderByConditionally<T>(
-  q: FirebaseFirestore.Query<T>,
-  opts: {
-    sortField: string;
-    sortOrder: "asc" | "desc";
-    hasExplicitSort: boolean;
-    hasInequalityFilter: boolean;
-    hasEqualityFilter: boolean;
-  },
-): FirebaseFirestore.Query<T> {
-  if (
-    opts.hasExplicitSort ||
-    opts.hasInequalityFilter ||
-    !opts.hasEqualityFilter
-  ) {
-    return q.orderBy(opts.sortField, opts.sortOrder);
-  }
-  return q;
-}
 
 export async function queryInsiderTransactions(
   query: InsiderTransactionsQuery,
@@ -1394,50 +1352,28 @@ export async function queryInstitutionalHoldings(
   const db = await getLiveDb();
   let q: FirestoreQuery = db.collection("institutional_holdings");
 
-  // Track filter shape so we can decide whether to apply a default orderBy
-  // below. The default sort is market_value (numeric) — Firestore needs a
-  // composite index on (equality_field, market_value) when both are
-  // present. We avoid that requirement on equality-only queries by
-  // skipping the default orderBy entirely; the caller can opt-in to a
-  // sorted result by passing sort_by explicitly (which DOES need the
-  // composite, and surfaces a clean error if it's missing).
-  let hasEqualityFilter = false;
-  let hasInequalityFilter = false;
-
-  if (query.ticker) {
-    q = q.where("ticker", "==", query.ticker);
-    hasEqualityFilter = true;
-  }
-  if (query.cusip) {
-    q = q.where("cusip", "==", query.cusip);
-    hasEqualityFilter = true;
-  }
-  if (query.fund_cik) {
-    q = q.where("fund_cik", "==", query.fund_cik);
-    hasEqualityFilter = true;
-  }
-  if (query.quarter) {
-    q = q.where("quarter", "==", query.quarter);
-    hasEqualityFilter = true;
-  }
+  if (query.ticker) q = q.where("ticker", "==", query.ticker);
+  if (query.cusip) q = q.where("cusip", "==", query.cusip);
+  if (query.fund_cik) q = q.where("fund_cik", "==", query.fund_cik);
+  if (query.quarter) q = q.where("quarter", "==", query.quarter);
   if (query.position_change) {
     q = q.where("position_change", "==", query.position_change);
-    hasEqualityFilter = true;
   }
   if (query.min_value !== undefined) {
     q = q.where("market_value", ">=", query.min_value);
-    hasInequalityFilter = true;
   }
 
+  // ALWAYS order in Firestore. Previously this skipped orderBy for equality-only
+  // queries ("avoid the composite requirement before indexes propagate") — but
+  // that returned a document-ID (oldest-first) prefix, so a bare ticker query
+  // (and the unified_search fan-out) led with 2013-2014 holdings instead of the
+  // biggest/current ones: silent-wrong on the headline tool. The
+  // (equality, market_value) composites are all deployed now — single-equality
+  // uses them directly, 2-equality combos use Firestore index merge-join.
+  // Default sort: market_value desc (biggest positions first).
   const sortField = query.sort_by ?? "market_value";
   const sortOrder = query.sort_order ?? "desc";
-  q = applyOrderByConditionally(q, {
-    sortField,
-    sortOrder,
-    hasExplicitSort: query.sort_by !== undefined,
-    hasInequalityFilter,
-    hasEqualityFilter,
-  });
+  q = q.orderBy(sortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
 
