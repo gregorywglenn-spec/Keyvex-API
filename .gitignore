@@ -72,3 +72,4 @@ scripts/probe-registrations.ts
 scripts/probe-circle.ts
 scripts/probe-circle2.ts
 circle-sub.json
+prod-now.json
