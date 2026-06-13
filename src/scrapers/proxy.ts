@@ -21,6 +21,7 @@
  * live-feed dual mode, same bidirectional ticker cache.
  */
 import type { ProxyFiling } from "../types.js";
+import { fetchEdgarFilingsByForm } from "../reconcile/sec-edgar-index.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -102,8 +103,24 @@ async function loadCaches(): Promise<void> {
       cikRaw: String(entry.cik_str),
       name: entry.title,
     };
-    cikToTicker[cikPadded] = ticker;
     cikToName[cikPadded] = entry.title;
+
+    // CIK->ticker (reverse) primary-ticker pick. company_tickers.json lists
+    // MULTIPLE tickers per CIK for multi-class / preferred-heavy issuers
+    // (~18% of CIKs): JPM + JPM-PC..JPM-PM, BAC + 16 preferreds, GOOGL + GOOG
+    // + structured series. Naive last-write-wins stored a preferred/odd series
+    // (JPM-PM, BAC-PS, GGLBP) — so a query by the common ticker returned 0
+    // even though the rows existed under their CIK. SEC orders the primary
+    // common ticker first, so: prefer the FIRST non-hyphenated ticker per CIK,
+    // and upgrade away from a previously-stored preferred (hyphenated) one.
+    const existing = cikToTicker[cikPadded];
+    const isPreferred = ticker.includes("-");
+    if (!existing) {
+      cikToTicker[cikPadded] = ticker;
+    } else if (existing.includes("-") && !isPreferred) {
+      cikToTicker[cikPadded] = ticker; // common ticker beats stored preferred
+    }
+    // else: keep the first non-preferred ticker already stored for this CIK
   }
 }
 
@@ -241,6 +258,94 @@ export async function scrapeProxyByTicker(
     `[proxy] ${ticker}: ${out.length} proxy filings (DEF 14A family)`,
   );
   return out;
+}
+
+// ─── Historical backfill mode ───────────────────────────────────────────────
+
+/**
+ * Historical backfill: enumerate EVERY DEF-14A-family filing from the
+ * authoritative EDGAR quarterly full-index (`master.idx`) across
+ * [startYear, endYear] and emit ProxyFiling rows.
+ *
+ * Why this exists: the per-ticker path only sees a company's most-recent
+ * ~1000 filings (submissions `recent`), and the live-feed uses FTS (capped).
+ * Neither gives broad historical depth — pre-backfill, only Apple (an early
+ * per-CIK smoke test) had full history, while most large-caps returned 0.
+ * The full-index is the COMPLETE census — the same source the reconciliation
+ * sweep used to make the sibling SEC feeds (8-K, Form 144, Form 3, 13D/G)
+ * whole. This makes proxy coverage whole the same way.
+ *
+ * Scale-safe (follow-up #0): builds + flushes rows in slices via `onBatch`;
+ * never accumulates a second full array of ProxyFilings. The enumerated
+ * index list (~150-190K small records for 2016-2026, ~tens of MB) is held
+ * once. Run locally (no Cloud Function memory cap).
+ *
+ * Limitations (documented, v1A posture):
+ *  - period_of_report is left empty: the full-index carries no reportDate.
+ *    Filter/sort by filing_date (the tool already steers agents there).
+ *  - primary_document_url points at the filing's archive directory (the
+ *    index has no per-doc filename); the directory lists the proxy docs.
+ *  - ticker resolves via the CURRENT company_tickers.json; delisted/merged
+ *    issuers get "" (honest — they no longer trade). Query by company_cik
+ *    or company_name for those.
+ */
+export async function scrapeProxyHistorical(opts: {
+  startYear: number;
+  endYear: number;
+  onBatch?: (rows: ProxyFiling[]) => Promise<void>;
+  batchSize?: number;
+}): Promise<{ enumerated: number; emitted: number }> {
+  await loadCaches();
+
+  const filings = await fetchEdgarFilingsByForm({
+    forms: [...PROXY_FORMS],
+    startYear: opts.startYear,
+    endYear: opts.endYear,
+    onProgress: (m) => console.error(`[proxy hist]   ${m}`),
+  });
+  console.error(
+    `[proxy hist] enumerated ${filings.length} proxy-family filings ` +
+      `${opts.startYear}-${opts.endYear}`,
+  );
+
+  const batchSize = opts.batchSize ?? 2000;
+  let emitted = 0;
+  let batch: ProxyFiling[] = [];
+
+  const flush = async (): Promise<void> => {
+    if (batch.length === 0) return;
+    if (opts.onBatch) await opts.onBatch(batch);
+    emitted += batch.length;
+    batch = [];
+  };
+
+  for (const f of filings) {
+    const normalized = normalizeProxyForm(f.formType);
+    if (!normalized) continue;
+    const cikPadded = f.cik.replace(/^0+/, "").padStart(10, "0");
+    const cikRaw = cikPadded.replace(/^0+/, "");
+    const ticker = cikToTicker![cikPadded] ?? "";
+    const companyName = f.company || cikToName![cikPadded] || null;
+
+    batch.push(
+      buildProxyFiling({
+        accession: f.accession,
+        cikPadded,
+        cikRaw,
+        ticker,
+        companyName,
+        filingType: normalized,
+        filingDate: f.dateFiled,
+        periodOfReport: "",
+        primaryDocument: "",
+      }),
+    );
+    if (batch.length >= batchSize) await flush();
+  }
+  await flush();
+
+  console.error(`[proxy hist] emitted ${emitted} ProxyFiling rows`);
+  return { enumerated: filings.length, emitted };
 }
 
 // ─── Live-feed mode ────────────────────────────────────────────────────────

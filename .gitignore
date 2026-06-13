@@ -45,6 +45,11 @@ coverage/
 # OCR engine language data (re-downloadable; a 5MB binary blob, not source)
 *.traineddata
 
+# EDGAR index downloads (large, re-downloadable; probe/backfill scratch)
+*.idx
+# SEC company_tickers.json probe download (1MB, re-downloadable)
+ct.json
+
 # Firebase CLI deploy cache (auto-generated, rewrites on every hosting deploy)
 .firebase/
 

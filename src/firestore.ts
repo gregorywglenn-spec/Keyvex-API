@@ -3631,7 +3631,10 @@ export async function queryProxyFilings(
 
   if (query.ticker) q = q.where("ticker", "==", query.ticker);
   if (query.company_cik) {
-    q = q.where("company_cik", "==", query.company_cik);
+    // CIKs are stored zero-padded to 10 digits (e.g. "0000320193"). Pad the
+    // incoming filter so an unpadded CIK ("320193") still matches instead of
+    // silently returning 0 — matches the insider/XBRL tools' convention.
+    q = q.where("company_cik", "==", query.company_cik.padStart(10, "0"));
   }
   if (query.filing_type) q = q.where("filing_type", "==", query.filing_type);
   if (query.is_merger_related !== undefined) {

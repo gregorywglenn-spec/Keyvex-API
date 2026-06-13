@@ -3259,6 +3259,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "company_cik",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "filing_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "proxy_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "filing_type",
           "order": "ASCENDING"
         },

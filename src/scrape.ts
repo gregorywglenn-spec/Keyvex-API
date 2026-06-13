@@ -129,6 +129,7 @@ import { runFullLoad as runForm345FullLoad } from "./scrapers/form345-bulk-orche
 import {
   scrapeProxyByTicker,
   scrapeProxyLiveFeed,
+  scrapeProxyHistorical,
 } from "./scrapers/proxy.js";
 import { scrapeTreasuryAuctions } from "./scrapers/treasury-auctions.js";
 import { scrapeBlsIndicators } from "./scrapers/bls.js";
@@ -393,6 +394,46 @@ const COMMANDS: Record<string, CliCommand> = {
         );
       }
       return filings;
+    },
+  },
+  "proxy-historical": {
+    description:
+      "Backfill the FULL DEF 14A family from the EDGAR quarterly full-index (master.idx) across a year range. Usage: proxy-historical [startYear] [endYear] [--save] (defaults 2016..current year). This is the complete-census coverage fix — per-ticker/live-feed only see recent windows. Streams sliced saves (scale-safe).",
+    run: async (args) => {
+      const positional = args.filter((a) => !a.startsWith("--"));
+      const startYear = positional[0]
+        ? parseInt(positional[0], 10)
+        : 2016;
+      const endYear = positional[1]
+        ? parseInt(positional[1], 10)
+        : new Date().getUTCFullYear();
+      if (
+        Number.isNaN(startYear) ||
+        Number.isNaN(endYear) ||
+        startYear < 2001 ||
+        endYear < startYear
+      ) {
+        throw new Error(
+          "Usage: proxy-historical [startYear] [endYear] [--save] (startYear>=2001, endYear>=startYear)",
+        );
+      }
+      const save = hasSaveFlag(args);
+      let saved = 0;
+      const res = await scrapeProxyHistorical({
+        startYear,
+        endYear,
+        onBatch: save
+          ? async (rows) => {
+              const r = await saveProxyFilings(rows);
+              saved += r.saved;
+              console.error(`[save] +${r.saved} (running total ${saved})`);
+            }
+          : undefined,
+      });
+      console.error(
+        `[proxy hist] DONE — enumerated=${res.enumerated} emitted=${res.emitted} saved=${saved}${save ? "" : " (dry run; add --save to write)"}`,
+      );
+      return [];
     },
   },
   "treasury-auctions": {
