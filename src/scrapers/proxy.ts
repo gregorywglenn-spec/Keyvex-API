@@ -312,21 +312,29 @@ export async function scrapeProxyHistorical(opts: {
     const cikPadded = f.cik.replace(/^0+/, "").padStart(10, "0");
     const cikRaw = cikPadded.replace(/^0+/, "");
     const ticker = cikToTicker![cikPadded] ?? "";
-    const companyName = f.company || cikToName![cikPadded] || null;
+    // Prefer the catalog's company name (company_tickers.json title) over the
+    // full-index name: the index is ALL-CAPS ("APPLE INC"), the catalog often
+    // has proper case ("Apple Inc."). Avoids downgrading nicely-cased names a
+    // higher-quality path already wrote.
+    const companyName = cikToName![cikPadded] || f.company || null;
 
-    batch.push(
-      buildProxyFiling({
-        accession: f.accession,
-        cikPadded,
-        cikRaw,
-        ticker,
-        companyName,
-        filingType: normalized,
-        filingDate: f.dateFiled,
-        periodOfReport: "",
-        primaryDocument: "",
-      }),
-    );
+    const row = buildProxyFiling({
+      accession: f.accession,
+      cikPadded,
+      cikRaw,
+      ticker,
+      companyName,
+      filingType: normalized,
+      filingDate: f.dateFiled,
+      periodOfReport: "",
+      primaryDocument: "",
+    });
+    // The full-index carries no reportDate. OMIT period_of_report rather than
+    // writing "" — with merge:true an empty value would CLOBBER a meeting/record
+    // date the per-ticker/daily path (which does carry reportDate) had set
+    // (the AAPL re-scrape regression). Absent field => merge preserves existing.
+    delete (row as { period_of_report?: string }).period_of_report;
+    batch.push(row);
     if (batch.length >= batchSize) await flush();
   }
   await flush();
