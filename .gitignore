@@ -59,3 +59,7 @@ scripts/backfill-queue.json
 # Recent-window reconcile "extras" — for those adapters the extras column is
 # all older records by design (pure noise), and it regenerates each run.
 docs/reconciliation/*-recent-G1-extras.csv
+
+# Index reconciliation scratch (read-only captures, re-generatable)
+prod-indexes.json
+prod-indexes.err

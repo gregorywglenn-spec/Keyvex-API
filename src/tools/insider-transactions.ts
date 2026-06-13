@@ -246,7 +246,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["disclosure_date", "transaction_date", "total_value"],
         description:
-          "Field used for ordering and for the since/until date filters. Default: disclosure_date.",
+          "Field used for ordering and for the since/until date filters. Default: disclosure_date. NOTE: 'total_value' sorting is supported only with data_source='legacy'; the default bulk_v2 supports 'transaction_date' / 'filing_date' (disclosure_date maps to filing_date) — to rank by trade size on bulk_v2, use min_amount to filter instead of sorting.",
       },
       sort_order: {
         type: "string",
@@ -278,7 +278,7 @@ export const definition: Tool = {
       reporting_owner_name: {
         type: "string",
         description:
-          "Reporting owner name substring (case-insensitive). bulk_v2 only — legacy uses officer_name instead.",
+          "Reporting owner name substring (case-insensitive). bulk_v2 only — legacy uses officer_name instead. IMPORTANT: name is matched client-side over a recent window, so it must be ANCHORED by ticker, company_cik, or reporting_owner_cik to search the full history — a name on its own only scans the most recent filings and can miss older trades (the response carries a coverage_warning when used unanchored).",
       },
       row_type: {
         type: "string",

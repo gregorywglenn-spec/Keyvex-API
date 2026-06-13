@@ -828,6 +828,41 @@ export function matchesOwnerNameSubstring(
 }
 
 /**
+ * 2026-06-13 finding #2: reporting_owner_name is matched client-side over a
+ * recent window (a substring over the nested reporting_owners[] array can't be
+ * Firestore-indexed). So an UNANCHORED name search — no ticker / company_cik /
+ * reporting_owner_cik to anchor the Firestore scan — only sees the most-recent
+ * filings and can return 0 for a real person whose trades are older. That
+ * empty result reads as "no such person", a false negative. Attach an explicit
+ * notice (augmenting any existing coverage_warning) so the agent re-queries
+ * with an anchor rather than trusting the empty/short result.
+ */
+function augmentOwnerNameAnchorNotice<T>(
+  res: QueryResult<T>,
+  query: {
+    reporting_owner_name?: string;
+    ticker?: string;
+    company_cik?: string;
+    reporting_owner_cik?: string;
+  },
+): QueryResult<T> {
+  const unanchored =
+    !!query.reporting_owner_name &&
+    !query.ticker &&
+    !query.company_cik &&
+    !query.reporting_owner_cik;
+  if (!unanchored) return res;
+  const note =
+    `Name search ('${query.reporting_owner_name}') ran WITHOUT a ticker / company_cik / reporting_owner_cik anchor, so it scanned only a recent window of filings — older trades by this person are NOT covered, and a 0 or short result is not proof they didn't trade. Re-run anchored by ticker or company_cik (the company they're an insider of), or by reporting_owner_cik, for complete history.`;
+  return {
+    ...res,
+    coverage_warning: res.coverage_warning
+      ? `${res.coverage_warning} ${note}`
+      : note,
+  };
+}
+
+/**
  * Apply orderBy(sortField, sortOrder) ONLY when at least one is true:
  *   - the caller explicitly requested a sort (hasExplicitSort=true), OR
  *   - the query already includes an inequality where clause that forces
@@ -1257,10 +1292,13 @@ export async function queryInsiderTransactionsV2(
 
     const has_more = docs.length > userLimit;
     const results = docs.slice(0, userLimit);
-    return await withCoverageWarning(
-      { results, has_more },
+    return augmentOwnerNameAnchorNotice(
+      await withCoverageWarning(
+        { results, has_more },
+        query,
+        "insider_transactions_v2",
+      ),
       query,
-      "insider_transactions_v2",
     );
   }
 
@@ -1328,10 +1366,13 @@ export async function queryInsiderTransactionsV2(
     matched.length > userLimit ||
     (!firestoreExhausted && pagesScanned >= BULK_POSTFILTER_MAX_PAGES);
   const results = matched.slice(0, userLimit);
-  return await withCoverageWarning(
-    { results, has_more },
+  return augmentOwnerNameAnchorNotice(
+    await withCoverageWarning(
+      { results, has_more },
+      query,
+      "insider_transactions_v2",
+    ),
     query,
-    "insider_transactions_v2",
   );
 }
 

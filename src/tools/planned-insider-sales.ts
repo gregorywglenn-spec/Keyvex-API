@@ -67,7 +67,7 @@ export const definition: Tool = {
       filer_name: {
         type: "string",
         description:
-          "Full or partial filer name; case-insensitive substring match. Example: 'Cook' matches Tim Cook's filings.",
+          "Full or partial filer name; case-insensitive substring match. Example: 'Cook' matches Tim Cook's filings. NOTE: plain substring (not word-boundary) match — a short surname can match mid-word too (e.g. 'Huang' also matches 'CHUANG'). Pass a longer/fuller name to disambiguate a specific person.",
       },
       min_value: {
         type: "number",
