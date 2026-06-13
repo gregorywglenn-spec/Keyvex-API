@@ -5787,6 +5787,34 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "support_oppose_indicator",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "fec_independent_expenditures",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "candidate_office_state",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expenditure_amount",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
