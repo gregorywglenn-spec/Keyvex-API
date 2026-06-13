@@ -332,7 +332,7 @@ const COLLECTION_DATE_FIELD: Record<string, string> = {
   gov_documents: "date_issued",
   foreign_agents: "registration_date",
   screening_list: "scraped_at",
-  enforcement_actions: "file_date",
+  enforcement_actions: "published_date",
   private_placements: "file_date",
   bills: "latest_action_date",
   roll_call_votes: "start_date",
@@ -5288,17 +5288,27 @@ export async function queryNportHoldings(
   if (query.payoff_profile) {
     q = q.where("payoff_profile", "==", query.payoff_profile);
   }
-  if (query.min_value_usd !== undefined) {
-    q = q.where("value_usd", ">=", query.min_value_usd);
-  }
-  if (query.min_pct_of_portfolio !== undefined) {
-    q = q.where("pct_of_portfolio", ">=", query.min_pct_of_portfolio);
-  }
+  // Order in Firestore so "biggest holdings" reflects the TRUE top by value,
+  // not a document-ID (CIK-prefix) slice client-sorted. (equality-filter,
+  // value_usd) composites are provisioned; no-filter uses the single-field
+  // index. The min_value_usd / min_pct_of_portfolio RANGE filters run
+  // CLIENT-SIDE — Firestore can't combine a range on one field with orderBy on
+  // another, and the value-ordered window already surfaces the biggest rows a
+  // min-floor wants.
+  const sortField = query.sort_by ?? "value_usd";
+  const sortOrder = query.sort_order ?? "desc";
+  q = q.orderBy(sortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
-  // Substring filter on name OR filer_name forces a larger fetch window.
-  const usesSubstring = !!(query.name || query.filer_name);
-  const fetchLimit = usesSubstring ? 5000 : Math.max(userLimit * 4, 500);
+  const usesClient = !!(
+    query.name ||
+    query.filer_name ||
+    query.min_value_usd !== undefined ||
+    query.min_pct_of_portfolio !== undefined ||
+    query.since ||
+    query.until
+  );
+  const fetchLimit = usesClient ? 5000 : Math.max(userLimit * 4, 500);
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -5314,6 +5324,14 @@ export async function queryNportHoldings(
       matchesSubstringSafe(h.filer_name, needle),
     );
   }
+  if (query.min_value_usd !== undefined) {
+    docs = docs.filter((h) => (h.value_usd ?? 0) >= query.min_value_usd!);
+  }
+  if (query.min_pct_of_portfolio !== undefined) {
+    docs = docs.filter(
+      (h) => (h.pct_of_portfolio ?? 0) >= query.min_pct_of_portfolio!,
+    );
+  }
   if (query.since) {
     docs = docs.filter((h) => h.period_ending >= query.since!);
   }
@@ -5321,8 +5339,6 @@ export async function queryNportHoldings(
     docs = docs.filter((h) => h.period_ending <= query.until!);
   }
 
-  const sortField = query.sort_by ?? "value_usd";
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     const av = (a as unknown as Record<string, number | string | null>)[
       sortField
@@ -5958,10 +5974,19 @@ export async function queryEnforcementActions(
   if (query.source) q = q.where("source", "==", query.source);
   if (query.topic) q = q.where("topics", "array-contains", query.topic);
 
+  // Order in Firestore (was missing → doc-ID/source-prefix slice client-sorted,
+  // so "recent enforcement actions" wasn't genuinely recent). published_date is
+  // the sort/filter field. (source, published_date) / (topics, published_date)
+  // composites are provisioned; no-filter uses the single-field index.
+  const sortOrder = query.sort_order ?? "desc";
+  if (query.since) q = q.where("published_date", ">=", query.since);
+  if (query.until) q = q.where("published_date", "<=", query.until);
+  q = q.orderBy("published_date", sortOrder);
+
   const userLimit = query.limit ?? 50;
   const needsClient =
     query.title || query.text || query.agency_component;
-  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+  const fetchLimit = needsClient ? 2000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -5986,15 +6011,6 @@ export async function queryEnforcementActions(
       matchesSubstringSafe(a.agency_component, needle),
     );
   }
-  if (query.since) docs = docs.filter((a) => a.published_date >= query.since!);
-  if (query.until) docs = docs.filter((a) => a.published_date <= query.until!);
-
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    if (a.published_date === b.published_date) return 0;
-    const cmp = a.published_date < b.published_date ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
@@ -6215,9 +6231,30 @@ export async function queryBills(
     q = q.where("origin_chamber", "==", query.origin_chamber);
   }
 
-  // Client-side sort + substring filter (same pattern as FEC / legislators).
+  // Order in Firestore (was missing → doc-ID/congress-prefix slice client-
+  // sorted, so "newest bills" wasn't genuinely newest). Push since/until into
+  // Firestore when they filter the SAME field we order by (latest_action_date)
+  // — required for `until` correctness: a client-side upper bound over a
+  // desc-ordered window wrongly drops everything older than the fetched page.
+  // introduced_since/until (introduction_date) stay client-side.
+  const sortField = query.sort_by ?? "latest_action_date";
+  const sortOrder = query.sort_order ?? "desc";
+  const pushDates = sortField === "latest_action_date";
+  if (pushDates && query.since) {
+    q = q.where("latest_action_date", ">=", query.since);
+  }
+  if (pushDates && query.until) {
+    q = q.where("latest_action_date", "<=", query.until);
+  }
+  q = q.orderBy(sortField, sortOrder);
+
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.title ? 2000 : Math.max(userLimit * 4, 500);
+  const needsClient =
+    query.title ||
+    query.introduced_since ||
+    query.introduced_until ||
+    (!pushDates && (query.since || query.until));
+  const fetchLimit = needsClient ? 2000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -6232,10 +6269,10 @@ export async function queryBills(
   // separate introduced_since / introduced_until filters below — those let
   // callers answer "introduced in the last N months" without conflating
   // recent floor activity with original introduction.
-  if (query.since) {
+  if (!pushDates && query.since) {
     docs = docs.filter((b) => (b.latest_action_date ?? "") >= query.since!);
   }
-  if (query.until) {
+  if (!pushDates && query.until) {
     docs = docs.filter((b) => (b.latest_action_date ?? "") <= query.until!);
   }
   if (query.introduced_since) {
@@ -6249,8 +6286,6 @@ export async function queryBills(
     );
   }
 
-  const sortField = query.sort_by ?? "latest_action_date";
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     const av = (a as unknown as Record<string, string>)[sortField] ?? "";
     const bv = (b as unknown as Record<string, string>)[sortField] ?? "";
@@ -6328,8 +6363,21 @@ export async function queryRollCallVotes(
     q = q.where("legislation_type", "==", query.legislation_type.toUpperCase());
   }
 
+  // Order in Firestore (was missing → doc-ID prefix client-sorted, so "recent
+  // votes" wasn't genuinely recent). Push since/until when they filter the
+  // ordered field (start_date) — required for `until` correctness over a
+  // desc-ordered window.
+  const sortField = query.sort_by ?? "start_date";
+  const sortOrder = query.sort_order ?? "desc";
+  const pushDates = sortField === "start_date";
+  if (pushDates && query.since) q = q.where("start_date", ">=", query.since);
+  if (pushDates && query.until) q = q.where("start_date", "<=", query.until);
+  q = q.orderBy(sortField, sortOrder);
+
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.result ? 2000 : Math.max(userLimit * 4, 500);
+  const needsClient =
+    query.result || (!pushDates && (query.since || query.until));
+  const fetchLimit = needsClient ? 2000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -6339,15 +6387,13 @@ export async function queryRollCallVotes(
     const needle = query.result.toLowerCase();
     docs = docs.filter((v) => matchesSubstringSafe(v.result, needle));
   }
-  if (query.since) {
+  if (!pushDates && query.since) {
     docs = docs.filter((v) => v.start_date >= query.since!);
   }
-  if (query.until) {
+  if (!pushDates && query.until) {
     docs = docs.filter((v) => v.start_date <= query.until!);
   }
 
-  const sortField = query.sort_by ?? "start_date";
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     const av = (a as unknown as Record<string, string>)[sortField] ?? "";
     const bv = (b as unknown as Record<string, string>)[sortField] ?? "";

@@ -5441,6 +5441,132 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "bills",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "origin_chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "latest_action_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "roll_call_votes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "session_number",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "roll_call_votes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "roll_call_votes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "legislation_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "start_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isin",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "is_derivative",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "country",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "payoff_profile",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nport_holdings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "period_ending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "value_usd",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
