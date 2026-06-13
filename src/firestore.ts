@@ -1264,25 +1264,17 @@ export async function queryInsiderTransactionsV2(
   if (query.since) q = q.where(sortField, ">=", query.since);
   if (query.until) q = q.where(sortField, "<=", query.until);
 
-  // INDEX HYGIENE: only add orderBy when the caller actually needs ordered
-  // results — i.e. they passed since/until or an explicit sort_by. A plain
-  // equality query without orderBy doesn't require a composite index, so
-  // ticker-only / company_cik-only / reporting_owner-only queries work
-  // immediately on a fresh deploy (before composite indexes propagate).
-  // When the caller IS using date-range or sort, the composite index from
-  // firestore.indexes.json is required.
-  //
-  // EXTRA: when postFilter is set, we paginate via .startAfter(lastDoc),
-  // which requires a stable orderBy. Force ordering on the sortField in
-  // that case (composite indexes are deployed for the common shapes).
-  const needsOrderBy =
-    query.sort_by !== undefined ||
-    query.since !== undefined ||
-    query.until !== undefined ||
-    options.postFilter !== undefined;
-  if (needsOrderBy) {
-    q = q.orderBy(sortField, sortOrder);
-  }
+  // ALWAYS order in Firestore. Previously this was conditional ("index
+  // hygiene" — skip orderBy for plain equality queries so they'd work on a
+  // fresh deploy before composite indexes propagate). But that left the
+  // DEFAULT query (no explicit sort_by, no date filter — e.g. "newest insider
+  // buys") with NO orderBy, so Firestore returned a document-ID-ordered prefix
+  // (doc id sorts by accession/CIK) clustered at the quarter-ceiling date
+  // instead of true newest-by-date. The composite indexes are long deployed;
+  // the no-filter case uses the single-field transaction_date/filing_date
+  // index. Uncommon multi-filter+sort combos without a composite now return an
+  // honest INDEX_MISSING (far better than silently wrong newest-first).
+  q = q.orderBy(sortField, sortOrder);
 
   const userLimit = query.limit ?? 50;
 
