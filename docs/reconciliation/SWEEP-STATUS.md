@@ -198,6 +198,16 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    save, loop-not-spread). AUDIT the siblings before they bite in prod:
    13F holdings, XBRL fundamentals, the bulk loaders, any `.collection(x).get()`
    without a bound. Grep for `.get()` on big collections + `push(...spread)`.
+0b. **Missing-`orderBy` sweep — Tier 2 & 3 remaining (2026-06-13).** The grep sweep
+   (all query functions: client-sort + `.limit()` + no Firestore `.orderBy()`) found
+   the class in 12 functions total. **DONE+deployed+verified:** registration_statements,
+   private_placements, insider bulk_v2, and Tier 1 = nport_holdings (value_usd),
+   bills (latest_action_date), roll_call_votes (start_date), enforcement_actions
+   (published_date). **Tier 2 (TODO):** fec_candidates + fec_committees (last_file_date),
+   federal_register_documents (publication_date). **Tier 3 (TODO, low impact —
+   name-lookup tools, sort secondary):** ofac_sdn (ent_num), screening_list (type).
+   Do one tier per deploy with its composites, verify the ordering-check pair between
+   tiers (see Working rules). Fix recipe in each Tier-1 commit.
 1. **FEC Schedule E polish** — cycle field is null on many rows (cycle filter
    undercounts), a missing no-cycle index, and $9.99B sentinel amounts. Detail:
    `fec-schedule-ae-NOTES.md`. (A spawn_task chip existed; restart cleared it — this
@@ -309,3 +319,18 @@ Tracked follow-ups below are polish, NOT coverage gaps — safe for the next
   Remove-Item for cleanup). Deploys/scrapers/git/reconciles auto-approve.
 - Don't run two EDGAR-heavy jobs concurrently (429s); deploys need a free machine or
   the 10s init analysis can time out.
+- **ORDERING-CHECK is now a standard harness gate (added 2026-06-13).** The single
+  biggest finding of the test-&-polish phase is the *missing-`orderBy` class*: a query
+  that `.limit()`s WITHOUT a Firestore `.orderBy()` returns a document-ID-ordered
+  (accession/CIK-prefix) slice, then sorts client-side over only that slice — so
+  "newest" / "biggest" / `since` are silently wrong while LOOKING populated. Anchored
+  and filter-composition checks alone do NOT catch it — that's what let it hide.
+  Every tool (and the phase-2 reconciliation harness) must test ORDERING, not just
+  coverage: (a) **unanchored newest-first** must be genuinely-newest *as a set* (top
+  rows are the true max by the sort field, not a CIK-clustered slice); (b) **`since`**
+  must return source-realistic VOLUME (a near-empty `since=<recent>` on a high-volume
+  feed is the tell). Confirmed + fixed on: registration_statements, private_placements,
+  insider bulk_v2, nport_holdings, bills, roll_call_votes, enforcement_actions. The fix
+  is always: push `orderBy(sortField, sortOrder)` (+ aligned since/until range) into
+  Firestore before `.limit()`; keep substring/cross-field-range filters client-side
+  over the now-ordered window; provision `(filter, sortField)` composites.
