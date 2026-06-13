@@ -5651,6 +5651,142 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ticker",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bioguide_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "congressional_trades",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chamber",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "transaction_date",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
