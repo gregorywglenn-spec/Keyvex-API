@@ -4811,25 +4811,15 @@ export async function queryOfacSdn(
   }
 
   const userLimit = query.limit ?? 50;
-  const sortFieldForFetch = query.sort_by ?? "ent_num";
-  const hasSubstringFilter = !!(query.name || query.program || query.remarks);
-  // Bug #9 fix (2026-05-22): when sorting by `ent_num` (the default sort
-  // field), we MUST pull the entire collection before sorting client-side.
-  // Reason: doc ID = ent_num is stored as a STRING ("26503"), so Firestore's
-  // default document-ID ordering is lexicographic. Without an explicit
-  // orderBy clause (we can't use one because ent_num strings sort wrong
-  // alphabetically), Firestore returns the first N docs in string order —
-  // and our in-memory numeric sort below only sees that subset. Result was
-  // a confirmed compliance-grade bug: query "highest ent_num" returned
-  // 11598 while a filtered query found 26503 sitting in the same dataset.
-  // Bumping fetchLimit to 30000 covers the full OFAC SDN list (~25K
-  // currently) so the numeric sort sees every candidate. Long-term fix
-  // (v1.1): store an `ent_num_int` numeric companion field and use a real
-  // Firestore-side orderBy.
-  const fetchLimit =
-    hasSubstringFilter || sortFieldForFetch === "ent_num"
-      ? 30000
-      : Math.max(userLimit * 4, 500);
+  // OFAC SDN is a bounded reference list (~25K). ALWAYS fetch the whole set so
+  // the client-side sort below is correct for ANY sort_by. ent_num (the default
+  // sort) is a stringified number, so Firestore's doc-ID ordering is
+  // lexicographic and we can't use a Firestore orderBy — we numeric-sort client
+  // side (Bug #9, 2026-05-22). The ent_num + substring paths already fetched
+  // 30000; this extends it to the rare non-ent_num sort with no substring
+  // filter, which previously fell back to a 500 doc-ID-prefix slice. (v1.1: add
+  // an ent_num_int companion field + a real Firestore-side orderBy.)
+  const fetchLimit = 30000;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -5872,10 +5862,20 @@ export async function queryScreeningList(
     q = q.where("countries", "array-contains", query.country.toUpperCase());
   }
 
+  // Order by name in Firestore so the alphabetical browse is the TRUE A-Z, not
+  // a doc-ID-prefix slice client-sorted. (source_short|type|countries, name)
+  // composites are provisioned; no-filter uses the single-field name index.
+  const sortOrder = query.sort_order ?? "asc";
+  q = q.orderBy("name", sortOrder);
+
   const userLimit = query.limit ?? 50;
-  // name + program are client-side filters → pull a wide window.
+  // name/program substring filters scan client-side: fetch the WHOLE bounded
+  // list (~25K) so a name lookup can't miss entries beyond a small window. The
+  // old 8000 cap silently dropped ~2/3 of the list for name search — a
+  // compliance-grade miss on a sanctions/screening tool. Browse (no substring)
+  // fetches just the page (ordered by name in Firestore).
   const usesClientFilter = !!(query.name || query.program);
-  const fetchLimit = usesClientFilter ? 8000 : Math.max(userLimit * 4, 500);
+  const fetchLimit = usesClientFilter ? 30000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -5897,7 +5897,6 @@ export async function queryScreeningList(
     );
   }
 
-  const sortOrder = query.sort_order ?? "asc";
   docs.sort((a, b) => {
     const cmp = (a.name ?? "").localeCompare(b.name ?? "");
     return sortOrder === "desc" ? -cmp : cmp;
