@@ -4717,9 +4717,18 @@ export async function queryFederalRegisterDocuments(
     q = q.where("agency_slugs", "array-contains", query.agency_slug);
   }
 
+  // Order in Firestore (was missing → doc-ID prefix client-sorted). publication_
+  // date is the sort/filter field; push since/until so `until` is correct over a
+  // desc window. (document_type|agency_slugs, publication_date) composites
+  // provisioned; no-filter uses the single-field index.
+  const sortOrder = query.sort_order ?? "desc";
+  if (query.since) q = q.where("publication_date", ">=", query.since);
+  if (query.until) q = q.where("publication_date", "<=", query.until);
+  q = q.orderBy("publication_date", sortOrder);
+
   const userLimit = query.limit ?? 50;
   const needsClient = query.title || query.text || query.agency_name;
-  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+  const fetchLimit = needsClient ? 2000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -4744,20 +4753,6 @@ export async function queryFederalRegisterDocuments(
       (d.agency_names ?? []).some((n) => matchesSubstringSafe(n, needle)),
     );
   }
-  if (query.since) {
-    docs = docs.filter((d) => d.publication_date >= query.since!);
-  }
-  if (query.until) {
-    docs = docs.filter((d) => d.publication_date <= query.until!);
-  }
-
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    if (a.publication_date === b.publication_date) return 0;
-    const cmp = a.publication_date < b.publication_date ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
-
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
   return await withCoverageWarning({ results, has_more }, query, "federal_register_documents");
@@ -6592,13 +6587,19 @@ export async function queryFecCandidates(
   // ~10K-row collection a client-side sort on a bounded fetch window is
   // fast and avoids the composite-index combinatorics. Same pattern as
   // queryLegislators.
+  const sortField = query.sort_by ?? "last_file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  // Order the browse/filter path in Firestore (was missing → doc-ID prefix
+  // client-sorted, so sort-by-last_file_date returned a biased slice). EXCEPT
+  // during a candidate_name substring scan, which deliberately fetches the
+  // WHOLE collection (30K) unordered and sorts client-side — guarantees no
+  // older-filer misses, and adding orderBy there would force a
+  // (filter, last_file_date) composite for every name+filter combo for no gain.
+  // Single-filter browse combos have (filter, last_file_date) composites.
+  if (!query.candidate_name) q = q.orderBy(sortField, sortOrder);
+
   const userLimit = query.limit ?? 50;
-  // candidate_name is a client-side substring over a ~25K-row reference
-  // collection ordered by last_file_date. A small window dropped older filers
-  // (e.g. Schumer, whose last filing predates thousands of 2026 candidates),
-  // so the name search must scan the whole collection. 30K reads on a tiny
-  // reference collection is cheap; guarantees no misses.
-  const fetchLimit = query.candidate_name ? 30000 : Math.max(userLimit * 4, 500);
+  const fetchLimit = query.candidate_name ? 30000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -6609,8 +6610,6 @@ export async function queryFecCandidates(
     docs = docs.filter((c) => matchesSubstringSafe(c.name, needle));
   }
 
-  const sortField = query.sort_by ?? "last_file_date";
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     const av = (a as unknown as Record<string, string | number | null>)[sortField] ?? "";
     const bv = (b as unknown as Record<string, string | number | null>)[sortField] ?? "";
@@ -6696,9 +6695,17 @@ export async function queryFecCommittees(
     q = q.where("candidate_ids", "array-contains", query.candidate_id);
   }
 
-  // Client-side sort + substring filter — same rationale as queryFecCandidates.
+  // Order the browse/filter path in Firestore (was missing → doc-ID prefix
+  // client-sorted). EXCEPT during a committee_name substring scan, which fetches
+  // the WHOLE collection unordered and sorts client-side (same rationale as
+  // queryFecCandidates). Single-filter browse combos have (filter,
+  // last_file_date) composites.
+  const sortField = query.sort_by ?? "last_file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  if (!query.committee_name) q = q.orderBy(sortField, sortOrder);
+
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.committee_name ? 50000 : Math.max(userLimit * 4, 500);
+  const fetchLimit = query.committee_name ? 50000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -6709,8 +6716,6 @@ export async function queryFecCommittees(
     docs = docs.filter((c) => matchesSubstringSafe(c.name, needle));
   }
 
-  const sortField = query.sort_by ?? "last_file_date";
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     const av = (a as unknown as Record<string, string | number | null>)[sortField] ?? "";
     const bv = (b as unknown as Record<string, string | number | null>)[sortField] ?? "";

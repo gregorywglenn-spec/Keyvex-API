@@ -5567,6 +5567,48 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "fec_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "district",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "fec_candidates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "candidate_inactive",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "fec_committees",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "party",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "last_file_date",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
