@@ -325,7 +325,7 @@ const COLLECTION_DATE_FIELD: Record<string, string> = {
   treasury_auctions: "auction_date",
   annual_financial_disclosures: "filing_date",
   federal_register_documents: "publication_date",
-  registration_statements: "filing_date",
+  registration_statements: "file_date",
   nport_filings: "file_date",
   nport_holdings: "period_ending",
   product_recalls: "recall_initiation_date",
@@ -5000,40 +5000,42 @@ export async function queryRegistrationStatements(
   if (query.sec_file_number) {
     q = q.where("sec_file_number", "==", query.sec_file_number);
   }
-  // Optional family filters
-  if (query.exclude_amendments) {
-    q = q.where("is_amendment", "==", false);
-  }
+
+  // Push the date RANGE + ORDER into Firestore. Previously this query had NO
+  // orderBy — Firestore returned a document-ID-ordered prefix (doc id =
+  // accession, which sorts by filer-CIK prefix), then sorted client-side. So
+  // "newest" / since only ever saw a CIK-biased slice (low-CIK recurring
+  // filers like 1st Franklin / Pruco / Graybar dominated the front) and
+  // genuine recent registrations were invisible — looked like a coverage gap
+  // on a collection that's actually complete (125K rows). The
+  // (filer_cik|filer_ticker|filing_type|sec_file_number, file_date) composites
+  // already exist; the no-filter and date-range cases use the single-field
+  // file_date index. `file_date` is the stored date field (NOT filing_date).
+  const sortOrder = query.sort_order ?? "desc";
+  if (query.since) q = q.where("file_date", ">=", query.since);
+  if (query.until) q = q.where("file_date", "<=", query.until);
+  q = q.orderBy("file_date", sortOrder);
 
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.filer_name ? 2000 : Math.max(userLimit * 4, 500);
+  // s1_only/s3_only (startsWith), filer_name (substring), exclude_amendments
+  // can't be expressed natively, so they run client-side over the date-ordered
+  // window — fetch a generous window when any is set so the newest matching
+  // rows are present.
+  const clientFiltered =
+    query.s1_only || query.s3_only || query.filer_name || query.exclude_amendments;
+  const fetchLimit = clientFiltered ? 3000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as RegistrationStatement);
 
+  if (query.exclude_amendments) docs = docs.filter((r) => !r.is_amendment);
+  if (query.s1_only) docs = docs.filter((r) => r.filing_type.startsWith("S-1"));
+  if (query.s3_only) docs = docs.filter((r) => r.filing_type.startsWith("S-3"));
   if (query.filer_name) {
     const needle = query.filer_name.toLowerCase();
-    docs = docs.filter((r) =>
-      matchesSubstringSafe(r.filer_name, needle),
-    );
+    docs = docs.filter((r) => matchesSubstringSafe(r.filer_name, needle));
   }
-  // s1_only / s3_only filters are applied client-side to avoid composite index
-  if (query.s1_only) {
-    docs = docs.filter((r) => r.filing_type.startsWith("S-1"));
-  }
-  if (query.s3_only) {
-    docs = docs.filter((r) => r.filing_type.startsWith("S-3"));
-  }
-  if (query.since) docs = docs.filter((r) => r.file_date >= query.since!);
-  if (query.until) docs = docs.filter((r) => r.file_date <= query.until!);
-
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    if (a.file_date === b.file_date) return 0;
-    const cmp = a.file_date < b.file_date ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
