@@ -32,6 +32,7 @@
  */
 
 import { XMLParser } from "fast-xml-parser";
+import { preferPrimaryTicker } from "../sec-tickers.js";
 import type { Form144Filing } from "../types.js";
 import { fetchEdgarDailyIndex, fetchPrimaryDocUrl } from "../reconcile/sec-edgar-index.js";
 
@@ -132,7 +133,8 @@ async function loadCaches(): Promise<void> {
       cikRaw: String(entry.cik_str),
       name: entry.title,
     };
-    cikToTicker[cikPadded] = ticker;
+    // Primary-ticker pick for multi-class CIKs (shared helper; see sec-tickers).
+    cikToTicker[cikPadded] = preferPrimaryTicker(cikToTicker[cikPadded], ticker);
   }
 }
 

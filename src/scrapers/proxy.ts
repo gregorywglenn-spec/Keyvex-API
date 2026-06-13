@@ -22,6 +22,7 @@
  */
 import type { ProxyFiling } from "../types.js";
 import { fetchEdgarFilingsByForm } from "../reconcile/sec-edgar-index.js";
+import { preferPrimaryTicker } from "../sec-tickers.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -104,23 +105,9 @@ async function loadCaches(): Promise<void> {
       name: entry.title,
     };
     cikToName[cikPadded] = entry.title;
-
-    // CIK->ticker (reverse) primary-ticker pick. company_tickers.json lists
-    // MULTIPLE tickers per CIK for multi-class / preferred-heavy issuers
-    // (~18% of CIKs): JPM + JPM-PC..JPM-PM, BAC + 16 preferreds, GOOGL + GOOG
-    // + structured series. Naive last-write-wins stored a preferred/odd series
-    // (JPM-PM, BAC-PS, GGLBP) — so a query by the common ticker returned 0
-    // even though the rows existed under their CIK. SEC orders the primary
-    // common ticker first, so: prefer the FIRST non-hyphenated ticker per CIK,
-    // and upgrade away from a previously-stored preferred (hyphenated) one.
-    const existing = cikToTicker[cikPadded];
-    const isPreferred = ticker.includes("-");
-    if (!existing) {
-      cikToTicker[cikPadded] = ticker;
-    } else if (existing.includes("-") && !isPreferred) {
-      cikToTicker[cikPadded] = ticker; // common ticker beats stored preferred
-    }
-    // else: keep the first non-preferred ticker already stored for this CIK
+    // Primary-ticker pick (multi-class CIKs) — shared helper so the fix can't
+    // drift apart across scrapers. See preferPrimaryTicker in sec-tickers.ts.
+    cikToTicker[cikPadded] = preferPrimaryTicker(cikToTicker[cikPadded], ticker);
   }
 }
 

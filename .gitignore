@@ -63,3 +63,6 @@ docs/reconciliation/*-recent-G1-extras.csv
 # Index reconciliation scratch (read-only captures, re-generatable)
 prod-indexes.json
 prod-indexes.err
+
+# throwaway one-off probe
+scripts/probe-bad-dates.ts

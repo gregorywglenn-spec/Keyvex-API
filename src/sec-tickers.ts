@@ -146,6 +146,29 @@ const JURISDICTION_RE =
   /\b(IRELAND|BERMUDA|SWITZ|SWITZERLAND|NETHERLANDS|CAYMAN|JERSEY|GUERNSEY|GIBRALTAR|MARSHALL|LIBERIA|SCOTLAND|ENGLAND|JAPAN|KOREA|CHINA|GBR|UK|USA|US|DEL|NE)\b/g;
 
 /**
+ * CIK->ticker reverse-map primary-ticker picker. SEC's company_tickers.json
+ * lists MULTIPLE tickers per CIK for multi-class / preferred-heavy issuers
+ * (~18% of CIKs): JPM + JPM-PC..JPM-PM, BAC + 16 preferreds, GOOGL + GOOG +
+ * structured series. Naive last-write-wins stored a preferred/odd series
+ * (JPM-PM, BAC-PS, GGLBP) as the CIK's ticker — so a query by the common
+ * ticker returned 0 even though the rows existed under that CIK. SEC orders
+ * the primary common ticker first, so: keep the FIRST non-hyphenated ticker
+ * seen per CIK, and upgrade away from a previously-stored hyphenated
+ * (preferred) one. Shared by every scraper that builds a cikToTicker map
+ * (proxy/form8k/form144/activist/xbrl) so the fix can't drift back apart.
+ *
+ * Usage: `cikToTicker[cik] = preferPrimaryTicker(cikToTicker[cik], ticker);`
+ */
+export function preferPrimaryTicker(
+  existing: string | undefined,
+  candidate: string,
+): string {
+  if (!existing) return candidate;
+  if (existing.includes("-") && !candidate.includes("-")) return candidate;
+  return existing;
+}
+
+/**
  * Normalize an issuer name for matching. Aggressive — strips suffixes,
  * punctuation, whitespace variations, abbreviation differences. Tuned to
  * match what 13F filings write ("CHUBB LIMITED") against what EDGAR

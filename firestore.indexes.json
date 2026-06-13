@@ -5287,20 +5287,6 @@
           "order": "ASCENDING"
         }
       ]
-    },
-    {
-      "collectionGroup": "fundamentals",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "ticker",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "period_end",
-          "order": "ASCENDING"
-        }
-      ]
     }
   ],
   "fieldOverrides": []

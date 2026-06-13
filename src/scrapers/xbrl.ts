@@ -23,6 +23,7 @@
  * those calculations on top.
  */
 import type { XbrlFundamental } from "../types.js";
+import { preferPrimaryTicker } from "../sec-tickers.js";
 
 const CONFIG = {
   USER_AGENT:
@@ -195,10 +196,10 @@ async function loadCaches(): Promise<void> {
       cikRaw: String(entry.cik_str),
       name: entry.title,
     };
-    // Reverse-lookup cache: last-write wins. For deterministic ticker
-    // selection (e.g., preferring common stock over preferred-share
-    // series), callers should pass `tickerOverride` to scrapeXbrlByCik.
-    cikToTicker[cikPadded] = ticker;
+    // Reverse-lookup cache: prefer the primary common ticker per CIK (shared
+    // helper; see sec-tickers). scrapeXbrlByCik's `tickerOverride` still wins
+    // caller-side for the bulk loader — this fixes the live-feed/per-CIK path.
+    cikToTicker[cikPadded] = preferPrimaryTicker(cikToTicker[cikPadded], ticker);
     cikToName[cikPadded] = entry.title;
   }
 }

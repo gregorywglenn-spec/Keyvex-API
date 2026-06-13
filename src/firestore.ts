@@ -381,8 +381,20 @@ async function getCollectionCoverage(
   }
   const db = await getLiveDb();
   const ref = db.collection(collection);
+  // Floor the MIN query at a plausible date. SEC bulk datasets faithfully
+  // mirror filer typos in transaction dates — e.g. insider_transactions_v2 has
+  // real records with TRANS_DATE year "0012"/"0013"/"0014" (a filer fat-finger
+  // for 2012-2014, preserved byte-for-byte per the source-faithful posture).
+  // Without a floor those sort first and poison the coverage-window string
+  // ("spanning 0012-02-17 to ..."). We do NOT rewrite the records (that would
+  // fabricate against the source); we just ignore implausibly-old dates when
+  // computing the DISPLAY window. No legitimate disclosure date is < 1900.
   const [minSnap, maxSnap] = await Promise.all([
-    ref.orderBy(dateField, "asc").limit(1).get(),
+    ref
+      .where(dateField, ">=", "1900-01-01")
+      .orderBy(dateField, "asc")
+      .limit(1)
+      .get(),
     ref.orderBy(dateField, "desc").limit(1).get(),
   ]);
   const min_date =

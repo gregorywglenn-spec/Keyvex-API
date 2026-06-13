@@ -29,6 +29,7 @@
  */
 
 import type { MaterialEvent } from "../types.js";
+import { preferPrimaryTicker } from "../sec-tickers.js";
 import { fetchEdgarDailyIndex } from "../reconcile/sec-edgar-index.js";
 
 // ─── Config ─────────────────────────────────────────────────────────────────
@@ -121,7 +122,8 @@ async function loadCaches(): Promise<void> {
       cikRaw: String(entry.cik_str),
       name: entry.title,
     };
-    cikToTicker[cikPadded] = ticker;
+    // Primary-ticker pick for multi-class CIKs (shared helper; see sec-tickers).
+    cikToTicker[cikPadded] = preferPrimaryTicker(cikToTicker[cikPadded], ticker);
     cikToName[cikPadded] = entry.title;
   }
 }
