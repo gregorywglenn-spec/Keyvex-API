@@ -40,7 +40,7 @@ export const XBRL_UNIVERSE: ReadonlyArray<string> = [
   // ── Defense + aerospace (federal contracts overlap) ────────────────────
   "NOC", "LHX", "GD", "TXT", "HII", "LDOS",
   // ── Banks (enforcement_actions + CFPB overlap) ─────────────────────────
-  "USB", "PNC", "TFC", "COF", "BK", "STT",
+  "USB", "PNC", "TFC", "COF", "BNY", "STT", // BNY = ex-"BK" (Bank of NY Mellon renamed its ticker)
   // ── Healthcare insurers + drug retail (OIG / lobbying overlap) ─────────
   "CI", "HUM", "CNC",
   // ── Big tech additions ─────────────────────────────────────────────────
