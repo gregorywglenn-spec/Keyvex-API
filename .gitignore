@@ -66,3 +66,9 @@ prod-indexes.err
 
 # throwaway one-off probe
 scripts/probe-bad-dates.ts
+
+# throwaway probes + scratch downloads
+scripts/probe-registrations.ts
+scripts/probe-circle.ts
+scripts/probe-circle2.ts
+circle-sub.json

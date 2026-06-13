@@ -84,7 +84,7 @@ export const definition: Tool = {
       filer_name: {
         type: "string",
         description:
-          "Case-insensitive substring against the filer's entity name (e.g., 'kraneshares', 'karyopharm').",
+          "Case-insensitive substring against the filer's entity name (e.g., 'kraneshares', 'karyopharm'). NOTE: matched over a recent-filing window, so it reliably finds CURRENT filers but can miss an issuer whose registrations are older than that window. To pull a specific issuer's full registration history regardless of date, use filer_cik (most reliable) — e.g. Circle Internet Group is filer_cik 0001876042.",
       },
       filer_cik: {
         type: "string",
