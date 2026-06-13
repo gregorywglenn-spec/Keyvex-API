@@ -246,7 +246,7 @@ export const definition: Tool = {
         type: "string",
         enum: ["disclosure_date", "transaction_date", "total_value"],
         description:
-          "Field used for ordering and for the since/until date filters. Default: disclosure_date. NOTE: 'total_value' sorting is supported only with data_source='legacy'; the default bulk_v2 supports 'transaction_date' / 'filing_date' (disclosure_date maps to filing_date) — to rank by trade size on bulk_v2, use min_amount to filter instead of sorting.",
+          "Field used for ordering and for the since/until date filters. Default: disclosure_date. Validity differs by data_source: 'transaction_date' works on BOTH; 'disclosure_date' works on both (on the default bulk_v2 it maps to filing_date); 'total_value' is LEGACY-ONLY — bulk_v2 rejects it, so to rank by trade size on bulk_v2 use min_amount to filter and sort by transaction_date instead.",
       },
       sort_order: {
         type: "string",
