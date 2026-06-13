@@ -63,6 +63,7 @@ import {
   saveNportFilings,
   saveNportHoldings,
   findNportHoldingsBacklog,
+  markNportFilingNoStructuredHoldings,
   saveProductRecalls,
   saveGovDocuments,
   saveForeignAgents,
@@ -1512,12 +1513,11 @@ export const scrapeNportDaily = onSchedule(
     // with other SEC-touching crons on shared GCP egress, and the combined
     // rate tripped SEC's per-IP 429s — which burned the holdings healing
     // batch (every fetch skipped). 7:40 has the SEC dailies to itself.
-    // TEMPORARY (2026-06-11 evening): hourly ticks to drain the ~3.3K-filing
-    // era backlog TONIGHT at 600/run from GCP egress (the residential IP is
-    // being slow-walked by SEC; Cloud Scheduler force-run needs IAM the SA
-    // doesn't have). REVERT to "40 7,15 * * *" once the healing log shows
-    // backlog 0 — tracked in SWEEP-STATUS.
-    schedule: "15 * * * *",
+    // Daily 7:40 AM ET — the permanent cadence. (The 2026-06-11 hourly /
+    // twice-daily temporary cadences drained the era backlog; reverted
+    // 2026-06-13 once the streaming fixes landed and backlog reached its
+    // floor of fully-classified no-structured-holdings filings.)
+    schedule: "40 7 * * *",
     region: REGION,
     timeZone: TZ,
     // Bumped 2026-06-02: holdings parse+save of a high-volume day (683 filings
@@ -1592,9 +1592,13 @@ export const scrapeNportDaily = onSchedule(
         const r = await scrapeAndSaveNportHoldingsStreaming(
           backlog,
           saveNportHoldings,
+          // Stamp filings that fetch clean but have no structured holdings
+          // (true nil / HTML-only exhibit) so they leave the backlog and
+          // stop being re-fetched forever.
+          (filing) => markNportFilingNoStructuredHoldings(filing.filing_id),
         );
         logger.info(
-          `[nport-holdings] streamed ${r.filingsProcessed} filings, saved ${r.rowsSaved} rows`,
+          `[nport-holdings] streamed ${r.filingsProcessed} filings, saved ${r.rowsSaved} rows, marked ${r.markedEmpty} no-structured-holdings`,
         );
         holdingsWritten = r.rowsSaved;
       }

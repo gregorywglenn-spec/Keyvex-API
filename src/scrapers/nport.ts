@@ -296,14 +296,26 @@ async function fetchText(url: string): Promise<string> {
 }
 
 /**
- * Fetch one N-PORT primary_doc.xml and parse its `<invstOrSecs>` block into
- * NportHolding rows. Returns an empty array on any fetch/parse error after
- * logging — keeps the bulk run resilient.
+ * Outcome of a holdings-extraction attempt:
+ *  - "ok": structured rows were extracted.
+ *  - "no_structured_holdings": the doc fetched + parsed cleanly but has no
+ *    `<invstOrSecs>` block — TERMINAL (genuine nil or HTML-only exhibit;
+ *    nothing machine-readable to ever get). Safe to mark so it leaves the
+ *    backlog.
+ *  - "transient": fetch/parse failed or the shape was unexpected — must NOT
+ *    be marked terminal; retry next run.
  */
-export async function parseNportHoldings(
+export type NportHoldingsOutcome = "ok" | "no_structured_holdings" | "transient";
+
+/**
+ * Fetch one N-PORT primary_doc.xml, parse its `<invstOrSecs>` block into
+ * NportHolding rows, AND classify the outcome so callers can distinguish
+ * "genuinely no holdings" (terminal) from "failed, retry" (transient).
+ */
+export async function classifyNportHoldings(
   filing: NportFiling,
   scrapedAt: string,
-): Promise<NportHolding[]> {
+): Promise<{ rows: NportHolding[]; outcome: NportHoldingsOutcome }> {
   // Some filer agents list the human-readable NPORT-EX exhibit (.htm) as the
   // primary document, so primary_document_url isn't always the structured
   // XML (caught 2026-06-10: 100 consecutive catch-up filings parsed to 0
@@ -322,7 +334,7 @@ export async function parseNportHoldings(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[nport-holdings] ${filing.filing_id} fetch SKIP — ${msg}`);
-    return [];
+    return { rows: [], outcome: "transient" };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -332,13 +344,21 @@ export async function parseNportHoldings(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[nport-holdings] ${filing.filing_id} parse SKIP — ${msg}`);
-    return [];
+    return { rows: [], outcome: "transient" };
   }
 
   const formData = parsed.edgarSubmission?.formData;
-  if (!formData) return [];
+  // No edgarSubmission/formData on a fetched doc is an unexpected shape —
+  // stay conservative (transient) rather than marking it terminal.
+  if (!parsed.edgarSubmission || !formData) {
+    return { rows: [], outcome: "transient" };
+  }
   const invstOrSecs = formData.invstOrSecs;
-  if (!invstOrSecs) return [];
+  // formData present but NO holdings block → genuinely nothing structured to
+  // extract (true nil OR HTML-only-exhibit filing). TERMINAL.
+  if (!invstOrSecs || !invstOrSecs.invstOrSec) {
+    return { rows: [], outcome: "no_structured_holdings" };
+  }
   const items = invstOrSecs.invstOrSec;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const arr: any[] = Array.isArray(items) ? items : items ? [items] : [];
@@ -387,7 +407,20 @@ export async function parseNportHoldings(
     });
     idx++;
   }
-  return out;
+  // An invstOrSecs block that yielded zero rows is still "no structured
+  // holdings" — terminal, same as an absent block.
+  return { rows: out, outcome: out.length > 0 ? "ok" : "no_structured_holdings" };
+}
+
+/**
+ * Back-compat wrapper: returns just the rows (drops the outcome). Existing
+ * callers (CLI smoke checks, backfill script) keep working unchanged.
+ */
+export async function parseNportHoldings(
+  filing: NportFiling,
+  scrapedAt: string,
+): Promise<NportHolding[]> {
+  return (await classifyNportHoldings(filing, scrapedAt)).rows;
 }
 
 /**
@@ -408,24 +441,37 @@ export async function parseNportHoldings(
 export async function scrapeAndSaveNportHoldingsStreaming(
   filings: NportFiling[],
   save: (rows: NportHolding[]) => Promise<{ saved: number }>,
-): Promise<{ filingsProcessed: number; rowsSaved: number }> {
+  /**
+   * Called for each filing that fetched cleanly but has NO structured
+   * holdings (terminal) — the caller stamps the filing doc so it leaves the
+   * backlog and stops being re-fetched. Optional; omit to skip stamping.
+   */
+  onTerminalEmpty?: (filing: NportFiling) => Promise<void>,
+): Promise<{ filingsProcessed: number; rowsSaved: number; markedEmpty: number }> {
   const scrapedAt = new Date().toISOString();
   let rowsSaved = 0;
+  let markedEmpty = 0;
   let i = 0;
   for (const filing of filings) {
     i++;
-    const holdings = await parseNportHoldings(filing, scrapedAt);
-    if (holdings.length > 0) {
-      const r = await save(holdings);
+    const { rows, outcome } = await classifyNportHoldings(filing, scrapedAt);
+    if (rows.length > 0) {
+      const r = await save(rows);
       rowsSaved += r.saved;
+    } else if (outcome === "no_structured_holdings" && onTerminalEmpty) {
+      // Terminal: fetched fine, genuinely nothing structured. Mark it so the
+      // backlog finder skips it (no more perpetual 42 MB re-fetch).
+      await onTerminalEmpty(filing);
+      markedEmpty++;
     }
+    // outcome "transient" → leave unmarked so it retries next run.
     if (i % 25 === 0 || i === filings.length) {
       console.error(
-        `[nport-holdings] ${i}/${filings.length} filings streamed, ${rowsSaved} rows saved`,
+        `[nport-holdings] ${i}/${filings.length} filings streamed, ${rowsSaved} rows saved, ${markedEmpty} marked no-structured-holdings`,
       );
     }
   }
-  return { filingsProcessed: i, rowsSaved };
+  return { filingsProcessed: i, rowsSaved, markedEmpty };
 }
 
 export async function scrapeNportHoldings(

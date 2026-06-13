@@ -5134,9 +5134,33 @@ export async function findNportHoldingsBacklog(
   const missing: NportFiling[] = [];
   for (const d of fs.docs) {
     const f = d.data() as NportFiling;
+    // Skip filings already stamped terminal (fetched clean, no structured
+    // holdings — true nil or HTML-only exhibit). Without this they'd sit in
+    // the backlog forever, re-fetched every run, and "backlog 0" would never
+    // be reachable (2026-06-13: the PIMCO PCPI pre-launch seed N-PORT).
+    if (f.holdings_extraction_status) continue;
     if (!have.has(f.filing_id)) missing.push(f);
   }
   return { backlog: missing.slice(0, cap), backlogTotal: missing.length };
+}
+
+/**
+ * Stamp an nport_filings doc as having no structured holdings (terminal).
+ * Called by the healing pass for filings that fetch cleanly but carry no
+ * `<invstOrSecs>` block, so the backlog finder skips them thereafter.
+ */
+export async function markNportFilingNoStructuredHoldings(
+  filingId: string,
+): Promise<void> {
+  if (isStubMode()) return;
+  const db = await getLiveDb();
+  await db.collection("nport_filings").doc(filingId).set(
+    {
+      holdings_extraction_status: "no_structured_holdings",
+      holdings_checked_at: new Date().toISOString(),
+    },
+    { merge: true },
+  );
 }
 
 export async function saveNportFilings(

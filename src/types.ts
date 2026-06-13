@@ -2016,6 +2016,21 @@ export interface NportFiling {
   filing_url: string;
   /** When KeyVex scraped this record. */
   scraped_at: string;
+  /**
+   * Terminal holdings-extraction status, set by the healing pass ONLY when a
+   * filing fetched cleanly but carries no structured `<invstOrSecs>` block —
+   * i.e. there are genuinely no machine-readable holdings to extract (a true
+   * nil, or an HTML-only-exhibit filing like the 2026-06 PIMCO PCPI
+   * pre-launch seed N-PORT). Its presence tells the backlog finder "we
+   * looked, there's nothing structured here" so the filing stops being
+   * re-fetched forever and `backlog 0` becomes reachable. Absent on filings
+   * with holdings rows and on transient failures (which must retry).
+   * Value: "no_structured_holdings". Auditable: count these to see whether
+   * HTML-only N-PORT filings are a growing pattern (currently a one-off).
+   */
+  holdings_extraction_status?: string;
+  /** ISO timestamp the holdings_extraction_status was set. */
+  holdings_checked_at?: string;
 }
 
 export interface NportFilingsQuery {
