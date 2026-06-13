@@ -333,7 +333,7 @@ const COLLECTION_DATE_FIELD: Record<string, string> = {
   foreign_agents: "registration_date",
   screening_list: "scraped_at",
   enforcement_actions: "file_date",
-  private_placements: "filing_date",
+  private_placements: "file_date",
   bills: "latest_action_date",
   roll_call_votes: "start_date",
   tender_offers: "filing_date",
@@ -6087,14 +6087,31 @@ export async function queryPrivatePlacements(
     );
   }
 
-  // Client-side sort + substring/range filters.
+  // Order the FETCH by file_date in Firestore so the window is the true
+  // most-recent set, NOT a document-ID (issuer-CIK-biased) prefix — the same
+  // bug fixed in registration_statements (without an orderBy, "newest" and
+  // since only ever saw low-CIK recurring filers). The (issuer_cik|issuer_state
+  // |is_amendment|federal_exemptions, file_date) composites already exist; the
+  // no-filter case uses the single-field file_date index. We still re-sort
+  // client-side by the requested sort_by and apply substring / date_of_first_sale
+  // (since/until) / min_amount filters over this recent window.
+  const sortField = query.sort_by ?? "file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  q = q.orderBy("file_date", sortOrder);
+
   const userLimit = query.limit ?? 50;
+  // Client-side substring / date / amount filters need a generous window so the
+  // newest matching rows are present.
   const needsClient =
     query.issuer_name ||
     query.industry_group_type ||
     query.investment_fund_type ||
-    query.jurisdiction_of_inc;
-  const fetchLimit = needsClient ? 2000 : Math.max(userLimit * 4, 500);
+    query.jurisdiction_of_inc ||
+    query.since ||
+    query.until ||
+    query.min_amount_sold !== undefined ||
+    sortField !== "file_date";
+  const fetchLimit = needsClient ? 2000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -6134,8 +6151,6 @@ export async function queryPrivatePlacements(
     docs = docs.filter((p) => p.date_of_first_sale <= query.until!);
   }
 
-  const sortField = query.sort_by ?? "file_date";
-  const sortOrder = query.sort_order ?? "desc";
   docs.sort((a, b) => {
     const av = (a as unknown as Record<string, string | number>)[sortField] ?? 0;
     const bv = (b as unknown as Record<string, string | number>)[sortField] ?? 0;

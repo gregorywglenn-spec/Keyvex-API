@@ -88,7 +88,7 @@ export const definition: Tool = {
       issuer_name: {
         type: "string",
         description:
-          "Case-insensitive substring against the issuer's filed entity name.",
+          "Case-insensitive substring against the issuer's filed entity name. NOTE: matched over a recent-filing window, so it reliably finds CURRENT filers but can miss an issuer whose Form D filings are older than that window. To pull a specific issuer's full filing history regardless of date, use issuer_cik (most reliable).",
       },
       issuer_state: {
         type: "string",
