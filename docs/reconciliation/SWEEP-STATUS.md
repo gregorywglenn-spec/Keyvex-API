@@ -1,6 +1,6 @@
 # Reconciliation deep-dive — living status (start here)
 
-**Last updated: 2026-06-10.** Read this first to continue the data/MCP reconciliation
+**Last updated: 2026-06-13.** Read this first to continue the data/MCP reconciliation
 sweep. Goal of the sweep: prove every dataset/tool does what it claims (coverage +
 correctness), and fix gaps. "The builder is never the grader" — reports list source
 links; Greg verifies by clicking.
@@ -18,16 +18,26 @@ links; Greg verifies by clicking.
   `src/reconcile/sec-edgar-index.ts` (`fetchEdgarFilingsByForm`,
   `fetchEdgarDailyIndex`, `fetchPrimaryDocUrl`).
 
-## 🏁 SWEEP COMPLETE (2026-06-11) — 37 of 38 verified; 1 on cron autopilot
+## 🏁🏁 SWEEP COMPLETE — 38 of 38 verified (2026-06-13)
 
-**insider_transactions_v2 — THE BIG ONE — closed 81/81 quarters count-exact**
+Every dataset reconciled against its source with a reproducible checker and a
+clickable report. The two final closures:
+
+**insider_transactions_v2 — THE BIG ONE — 81/81 quarters count-exact**
 (0 mismatches, 18.4M docs vs SEC's own TSVs; `insider-v2-NOTES.md` +
-`insider-v2-81q.csv`). The only non-final item is the N-PORT holdings era
-residual (~3.3K filings), draining hands-free at 1,200/day via the
-twice-daily healing cron — **re-verify coverage-by-day when the healing log
-shows backlog 0 (~2026-06-14), then this file's job is done.**
+`insider-v2-81q.csv`). Recency-boundary warning + monthly quarterly-load
+cron (`scrapeForm345BulkQuarterly`) make it self-maintaining.
 
-## ✅ Done / verified (37 of 38 datasets)
+**N-PORT holdings — era coverage 99.99% (6,726/6,727), backlog a true 0**
+(`nport-holdings-NOTES.md` + `nport-holdings-era-coverage.txt`). The single
+non-extracted filing (PIMCO PCPI pre-launch seed N-PORT, holdings only in a
+42 MB HTML exhibit) is classified + marked terminal so it leaves the
+backlog; the healing cron is reverted to daily. HTML-exhibit parser
+deliberately SHELVED (one-off; Quiver exposes no ETF N-PORT portfolio
+either — verified live). Revisit only if `holdings_extraction_status ==
+"no_structured_holdings"` count climbs (today: 1).
+
+## ✅ Done / verified (38 of 38 datasets)
 
 congress House, congress Senate, SEC tender offers, S-1/S-3 registration, Form D,
 Federal Register, N-PORT, OFAC, OIG exclusions, CSL screening, FTD, bills,
@@ -39,7 +49,9 @@ passthrough + total_count), **federal contracts + federal grants (live
 passthrough audited + upgraded — same treatment as CFPB), product recalls
 (100.00% after the report_date window fix), enforcement actions (100.00%
 recent-window after reviving two silently-dead cron legs), **13F tracked
-funds (100.00% supersession-aware), economic indicators (54/54 clean)**.
+funds (100.00% supersession-aware), economic indicators (54/54 clean),
+insider_transactions_v2 (81/81 quarters), N-PORT holdings (era 99.99%,
+backlog 0)**.
 
 ### 2026-06-10 session (cont.) — 13F: 53.03% → 100.00% (three backfill bugs + a gauge insight)
 New `sec-13f-tracked` adapter (filing completeness for the 10 watchlist
@@ -179,6 +191,13 @@ Recent-window coverage before → after the fix (switch to complete daily index 
   self-pruning + deployed; detail in their G1 reports + commit history.
 
 ## Tracked follow-ups (NOT lost; do when prioritized)
+0. **Scale-safety audit (TOP polish-phase candidate)** — the N-PORT era drain
+   surfaced a *class* of bug: unbounded `.get()` snapshots and
+   accumulate-then-save loops that OOM/stack-overflow once a collection or a
+   single record gets large. N-PORT is fixed (stream the diff, stream the
+   save, loop-not-spread). AUDIT the siblings before they bite in prod:
+   13F holdings, XBRL fundamentals, the bulk loaders, any `.collection(x).get()`
+   without a bound. Grep for `.get()` on big collections + `push(...spread)`.
 1. **FEC Schedule E polish** — cycle field is null on many rows (cycle filter
    undercounts), a missing no-cycle index, and $9.99B sentinel amounts. Detail:
    `fec-schedule-ae-NOTES.md`. (A spawn_task chip existed; restart cleared it — this
@@ -260,22 +279,18 @@ metadata-first backfill records — re-run `scripts/backfill-form278.ts` with th
 progress file cleared and parseContent on (~6-8h, overnight job; `merge:true`
 layers content onto existing docs without touching ids).
 
-## ⏭️ Remaining (1, self-driving)
-- **N-PORT holdings era residual (~3.3K filings)** — the twice-daily
-  healing cron (7:40 AM + 3:40 PM ET, 600/run, GCP egress) drains it
-  hands-free by ~2026-06-14. Saga + fixes shipped 2026-06-11: NPORT-EX
-  exhibit-URL derivation, Firestore cursor projection, push-spread stack
-  overflow, 429 retry+backoff, 60s fetch abort, period-floor diff bug
-  (amendment churn), stall watchdog, cron slot move + double cadence.
-  Local draining was retired after SEC began slow-walking the residential
-  IP's sustained per-filing pulls (~2,100 filings banked locally anyway).
-  WHEN HEALED: re-run the coverage-by-day check
-  (`.tmp/nport-cov.ts` pattern) + drop the cron back to one daily tick.
+## ⏭️ Remaining to reconcile: NONE — sweep complete 2026-06-13.
 
-**insider_transactions_v2 CLOSED 2026-06-11** — see the 🏁 header. Includes
-the recency-boundary warning (meta-driven), the quarterly bulk-load cron
-(scrapeForm345BulkQuarterly, monthly-fire/no-op-until-published), and the
-81/81 count verification.
+Both former tail items closed:
+- **N-PORT holdings** — era 99.99% (6,726/6,727), backlog a true 0; the one
+  HTML-only filing marked terminal; healing cron reverted to daily. See
+  the 🏁🏁 header + `nport-holdings-NOTES.md`.
+- **insider_transactions_v2** — 81/81 quarters; recency-boundary warning
+  (meta-driven) + quarterly bulk-load cron (scrapeForm345BulkQuarterly,
+  monthly-fire/no-op-until-published). See the 🏁🏁 header.
+
+Tracked follow-ups below are polish, NOT coverage gaps — safe for the next
+(debugging/polish) phase.
 
 ## Working rules that held up
 - Per dataset: commit → push → **merge to main** → (deploy if a cron/code changed) →
