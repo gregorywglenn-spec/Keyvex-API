@@ -198,16 +198,24 @@ Recent-window coverage before → after the fix (switch to complete daily index 
    save, loop-not-spread). AUDIT the siblings before they bite in prod:
    13F holdings, XBRL fundamentals, the bulk loaders, any `.collection(x).get()`
    without a bound. Grep for `.get()` on big collections + `push(...spread)`.
-0b. **Missing-`orderBy` sweep — Tier 2 & 3 remaining (2026-06-13).** The grep sweep
-   (all query functions: client-sort + `.limit()` + no Firestore `.orderBy()`) found
-   the class in 12 functions total. **DONE+deployed+verified:** registration_statements,
-   private_placements, insider bulk_v2, and Tier 1 = nport_holdings (value_usd),
-   bills (latest_action_date), roll_call_votes (start_date), enforcement_actions
-   (published_date). **Tier 2 (TODO):** fec_candidates + fec_committees (last_file_date),
-   federal_register_documents (publication_date). **Tier 3 (TODO, low impact —
-   name-lookup tools, sort secondary):** ofac_sdn (ent_num), screening_list (type).
-   Do one tier per deploy with its composites, verify the ordering-check pair between
-   tiers (see Working rules). Fix recipe in each Tier-1 commit.
+0b. ~~**Missing-`orderBy` sweep**~~ **COMPLETE — 12/12 fixed, deployed, verified
+   (2026-06-13).** The grep sweep (client-sort + `.limit()` + no Firestore
+   `.orderBy()`) found the class in 12 query functions; all fixed + ordering-check-
+   verified live, tier by tier with a verify gate between each:
+   registration_statements, private_placements, insider bulk_v2 · Tier 1:
+   nport_holdings (value_usd), bills (latest_action_date), roll_call_votes
+   (start_date), enforcement_actions (published_date) · Tier 2: fec_candidates +
+   fec_committees (last_file_date), federal_register_documents (publication_date) ·
+   Tier 3: ofac_sdn (always-fetch-all — ent_num is a stringified key, can't
+   Firestore-orderBy; v1.1 = add ent_num_int), screening_list (orderBy(name) +
+   name-search fetch 8000→30000, which also fixed a compliance-grade ~2/3 name-
+   lookup miss). Fix recipe: push orderBy(sortField)+aligned since/until into
+   Firestore before .limit(); keep substring/cross-field-range filters client-side
+   over the ordered window; provision (filter, sortField) composites. Verified via
+   the ordering-check pair (see Working rules). One residual standing item: asc-sort
+   + multi-equality-filter combos that lack a composite return honest INDEX_MISSING
+   (rare; provision on demand). The OFAC ent_num_int companion field is the only
+   named v1.1 follow-on.
 1. **FEC Schedule E polish** — cycle field is null on many rows (cycle filter
    undercounts), a missing no-cycle index, and $9.99B sentinel amounts. Detail:
    `fec-schedule-ae-NOTES.md`. (A spawn_task chip existed; restart cleared it — this
