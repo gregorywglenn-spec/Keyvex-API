@@ -4288,12 +4288,16 @@ export async function queryLegislators(
 
   const userLimit = query.limit ?? 50;
 
-  // member_name and committee_id both need post-filter handling — pull a
-  // larger window so the substring/array-contains filter sees the full set.
-  // 600 ceiling is enough for v1 (~540 current legislators).
-  const needsClientFilter = query.member_name || query.committee_id;
-  const fetchLimit = needsClientFilter ? 600 : userLimit + 1;
-  q = q.limit(fetchLimit);
+  // The legislators collection is tiny (~540 current members) and has NO natural
+  // date/magnitude sort. Always fetch the full filtered set (a single equality
+  // filter returns at most a few dozen; the 600 ceiling covers the whole
+  // collection) and client-sort by full_name so results are deterministic A-Z.
+  // The previous bare path applied NO orderBy and returned a document-ID prefix,
+  // which arbitrarily — and silently — dropped members of an over-default-limit
+  // state (e.g. CA = 52 members @ default limit 50). With the full set + a real
+  // sort + accurate has_more, any truncation past `limit` is now signaled, not
+  // silent, and a limit >= the delegation size returns it complete.
+  q = q.limit(600);
 
   const snap = await q.get();
   let docs = snap.docs.map((d) => d.data() as Legislator);
@@ -4311,6 +4315,8 @@ export async function queryLegislators(
       ),
     );
   }
+
+  docs.sort((a, b) => (a.full_name ?? "").localeCompare(b.full_name ?? ""));
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);
@@ -5019,8 +5025,24 @@ export async function queryNportFilings(
     q = q.where("is_amendment", "==", query.is_amendment);
   }
 
+  // Order in Firestore (was missing → ~500 doc-ID prefix client-sorted, so
+  // "newest"/since masked fresh data — the tool reported newest 2026-05-29
+  // while the collection held 2026-06-11). file_date is the sort/filter field;
+  // push since/until when they filter the ordered field (required for `until`
+  // correctness over a desc window). The (filer_cik|period_ending|
+  // sec_file_number, file_date) composites already exist; no-filter uses the
+  // single-field index.
+  const sortField = query.sort_by ?? "file_date";
+  const sortOrder = query.sort_order ?? "desc";
+  const pushDates = sortField === "file_date";
+  if (pushDates && query.since) q = q.where("file_date", ">=", query.since);
+  if (pushDates && query.until) q = q.where("file_date", "<=", query.until);
+  q = q.orderBy(sortField, sortOrder);
+
   const userLimit = query.limit ?? 50;
-  const fetchLimit = query.filer_name ? 2000 : Math.max(userLimit * 4, 500);
+  const needsClient =
+    query.filer_name || (!pushDates && (query.since || query.until));
+  const fetchLimit = needsClient ? 2000 : userLimit + 1;
   q = q.limit(fetchLimit);
 
   const snap = await q.get();
@@ -5032,18 +5054,12 @@ export async function queryNportFilings(
       matchesSubstringSafe(f.filer_name, needle),
     );
   }
-  if (query.since) docs = docs.filter((f) => f.file_date >= query.since!);
-  if (query.until) docs = docs.filter((f) => f.file_date <= query.until!);
-
-  const sortField = query.sort_by ?? "file_date";
-  const sortOrder = query.sort_order ?? "desc";
-  docs.sort((a, b) => {
-    const av = (a as unknown as Record<string, string>)[sortField] ?? "";
-    const bv = (b as unknown as Record<string, string>)[sortField] ?? "";
-    if (av === bv) return 0;
-    const cmp = av < bv ? -1 : 1;
-    return sortOrder === "desc" ? -cmp : cmp;
-  });
+  if (!pushDates && query.since) {
+    docs = docs.filter((f) => f.file_date >= query.since!);
+  }
+  if (!pushDates && query.until) {
+    docs = docs.filter((f) => f.file_date <= query.until!);
+  }
 
   const has_more = docs.length > userLimit;
   const results = docs.slice(0, userLimit);

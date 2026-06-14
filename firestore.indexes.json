@@ -5815,6 +5815,34 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "nport_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "is_amendment",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "nport_filings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "is_amendment",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "file_date",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
