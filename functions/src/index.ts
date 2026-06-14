@@ -1902,6 +1902,12 @@ export const mcp = onRequest(
   async (req, res) => {
     // Health check — auth-free, rate-limit-free GET returns server status.
     if (req.method === "GET") {
+      // no-store: the docs send reviewers/clients here as the status check, so
+      // it must NEVER be cached by any intermediary — a stale copy pinned in
+      // front of a reviewer (as happened with a weeks-old 0.45.0 snapshot in a
+      // fetch cache) would misrepresent version/auth/tool-set. Belt-and-braces
+      // over the platform default of `private`.
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
       res.json({
         status: "ok",
         service: SERVER_NAME,
