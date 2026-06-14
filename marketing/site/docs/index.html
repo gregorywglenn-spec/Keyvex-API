@@ -361,7 +361,14 @@
     </p>
 
     <h2 id="data-freshness">Data freshness</h2>
-    <p>KeyVex caches normalized data in Firestore. Refresh cadence per source:</p>
+    <p>
+      Two different clocks govern how current a record is, and it helps to keep
+      them separate.
+    </p>
+    <p>
+      <strong>1. Poll cadence — how often KeyVex re-checks each source.</strong>
+      KeyVex caches normalized data in Firestore and refreshes it on this schedule:
+    </p>
     <ul>
       <li><strong>SEC filings (most types):</strong> hourly</li>
       <li><strong>SEC Form 4:</strong> every 30 minutes</li>
@@ -374,8 +381,34 @@
       <li><strong>Economic indicators:</strong> daily</li>
     </ul>
     <p>
-      Each tool response includes a <code>scraped_at</code> or <code>last_modified_date</code>
-      field so you can see exactly when the source was last polled.
+      <strong>2. Source-publication lag — how recent the data itself can be.</strong>
+      Several agencies publish in batches well after the events they describe, so
+      the newest record a tool can return is bounded by the source's own release
+      schedule — not by how often KeyVex polls. Polling every 30 minutes cannot
+      surface data the SEC has not published yet. The main lagged sources:
+    </p>
+    <ul>
+      <li><strong>Fails-to-deliver (<code>get_sec_fails_to_deliver</code>):</strong>
+        SEC publishes a half-month batch ~2-4 weeks after that half-month closes,
+        so the latest settlement date typically trails today by 2-4 weeks.</li>
+      <li><strong>Product recalls (<code>get_product_recalls</code>):</strong>
+        FDA / CPSC datasets commonly post 4-6 weeks after a recall is initiated.</li>
+      <li><strong>13F institutional holdings (<code>get_institutional_holdings</code>):</strong>
+        funds file quarterly, up to 45 days after quarter-end — a quarterly
+        snapshot, never intraday.</li>
+      <li><strong>N-PORT fund holdings (<code>get_fund_holdings</code>,
+        <code>get_nport_filings</code>):</strong> monthly filings released on a
+        ~30-60 day public-availability delay.</li>
+      <li><strong>Congressional PTRs (<code>get_congressional_trades</code>):</strong>
+        members may file up to 30-45 days after a trade, so the disclosure date
+        lags the trade date.</li>
+    </ul>
+    <p>
+      So a record from a few weeks ago on a lagged tool is the source operating
+      normally, not a stale cache. Each tool response includes a
+      <code>scraped_at</code> or <code>last_modified_date</code> field showing
+      exactly when KeyVex last polled, and lagged tools restate their own
+      publication cadence in the tool description.
     </p>
 
     <h2 id="troubleshooting">Troubleshooting</h2>
@@ -418,10 +451,28 @@
     <details>
       <summary>Can I get historical data older than what a tool returns by default?</summary>
       <p>
-        Most tools accept <code>since</code> and <code>until</code> filters. The historical
-        depth varies by source — for example, SEC Form 4 goes back to the 2003 mandate,
-        XBRL fundamentals to 2009, FEC contributions to 1980. If a date range returns less
-        than expected, check the data freshness section.
+        Most tools accept <code>since</code> and <code>until</code> date filters, and
+        the historical depth varies by source:
+      </p>
+      <ul>
+        <li><strong>SEC Form 4 insider transactions:</strong> back to <strong>2006</strong>.
+          KeyVex serves the SEC's quarterly bulk ownership dataset, which begins
+          2006 Q1. (Electronic Form 4 was mandated in 2003, but the bulk dataset
+          itself starts in 2006 — querying 2003-2005 returns nothing.)</li>
+        <li><strong>XBRL fundamentals:</strong> back to <strong>2009</strong>, when
+          XBRL tagging became mandatory for large filers. (Some period-end values
+          reach 2006 as prior-year comparatives embedded in those early filings.)</li>
+        <li><strong>FEC contributions:</strong> back to the <strong>1976</strong> cycle.
+          Reaching older cycles requires the <code>cycle</code> parameter (e.g.
+          <code>cycle: 1980</code>) — <code>since</code>/<code>until</code> alone stay
+          within the current cycle, so an old date range with no <code>cycle</code>
+          returns empty. Pair <code>cycle</code> with a <code>since</code>/<code>until</code>
+          window or a committee / candidate / state / employer filter to scope the result.</li>
+      </ul>
+      <p>
+        If a date range returns less than you expect, check the
+        <a href="#data-freshness">data freshness</a> section — and note that on
+        lagged sources the newest records trail today by weeks (source-publication lag).
       </p>
     </details>
 

@@ -74,3 +74,6 @@ scripts/probe-circle2.ts
 circle-sub.json
 prod-now.json
 scripts/probe-nport-fresh.ts
+
+# throwaway: live docs-page capture for accuracy review (curl scratch)
+docs-live.html
