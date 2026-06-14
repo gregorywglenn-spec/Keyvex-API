@@ -92,7 +92,7 @@ export const definition: Tool = {
       bioguide_id: {
         type: "string",
         description:
-          "Filer's bioguide_id (e.g., 'P000197' for Nancy Pelosi). Exact match. Most precise filter.",
+          "Filer's bioguide_id (e.g., 'P000197' for Nancy Pelosi). Exact match. Most precise filter — BUT recently-filed records from new filers / candidates not yet in the member catalog have an empty bioguide_id until catalog back-fill runs (same as the party field below). So a bioguide_id query is not guaranteed exhaustive of a brand-new member's filings yet; cross-check with member_name for very recent filers.",
       },
       member_name: {
         type: "string",

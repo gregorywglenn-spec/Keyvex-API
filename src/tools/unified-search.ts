@@ -67,10 +67,11 @@ export const definition: Tool = {
     "with a single fan-out.",
     "",
     "Identifier coverage:",
-    "  - ticker → 12 collections (insider_trades, institutional_holdings,",
+    "  - ticker → 13 collections (insider_trades, institutional_holdings,",
     "    congressional_trades, executive_trades, planned_insider_sales,",
     "    initial_ownership_baselines, activist_ownership, material_events,",
-    "    proxy_filings, xbrl_fundamentals, tender_offers, registration_statements)",
+    "    proxy_filings, xbrl_fundamentals, tender_offers, registration_statements,",
+    "    nport_holdings)",
     "  - bioguide_id → 2 collections (congressional_trades, annual_financial_disclosures)",
     "  - company_cik → 10 collections (insider_trades, planned_insider_sales,",
     "    initial_ownership_baselines, activist_ownership, material_events,",
@@ -115,7 +116,7 @@ export const definition: Tool = {
     properties: {
       ticker: {
         type: "string",
-        description: "Stock symbol. Case-insensitive. Fans out to 12 collections.",
+        description: "Stock symbol. Case-insensitive. Fans out to 13 collections.",
       },
       bioguide_id: {
         type: "string",

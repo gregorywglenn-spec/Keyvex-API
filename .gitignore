@@ -73,3 +73,4 @@ scripts/probe-circle.ts
 scripts/probe-circle2.ts
 circle-sub.json
 prod-now.json
+scripts/probe-nport-fresh.ts
